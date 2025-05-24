@@ -25,6 +25,7 @@ from fakeai.models import (
     CompletionResponse,
     EmbeddingRequest,
     EmbeddingResponse,
+    ErrorDetail,
     ErrorResponse,
     FileListResponse,
     FileObject,
@@ -113,8 +114,13 @@ async def log_requests(request: Request, call_next):
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content=ErrorResponse(
-                error={"message": str(e), "type": "server_error", "code": 500}
-            ).dict(),
+                error=ErrorDetail(
+                    code="internal_server_error",
+                    message="An unexpected error occurred.",
+                    param=None,
+                    type="server_error",  
+                )
+            ).model_dump(),
         )
 
 

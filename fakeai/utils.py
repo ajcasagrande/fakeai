@@ -715,7 +715,6 @@ class AsyncExecutor:
     def __init__(self, max_workers: int = 5):
         """Initialize the async executor."""
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
-        self.loop = asyncio.get_event_loop()
 
     async def run_with_delay(
         self, func: Callable[..., T], *args, delay: float = 0, **kwargs
@@ -725,7 +724,8 @@ class AsyncExecutor:
             await asyncio.sleep(delay)
 
         # Run the potentially CPU-bound function in a thread pool
-        return await self.loop.run_in_executor(
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
             self.executor, lambda: func(*args, **kwargs)
         )
 
