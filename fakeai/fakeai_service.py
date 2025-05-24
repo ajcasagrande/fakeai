@@ -234,7 +234,7 @@ class FakeAIService:
             request.messages,
             max_tokens=request.max_tokens or 100,
             temperature=request.temperature or 1.0,
-            stream=False,
+            stream=True,  # Make sure to set stream=True
         )
 
         # Split the completion text into chunks
@@ -369,7 +369,7 @@ class FakeAIService:
             [Message(role=Role.USER, content=prompt_text)],
             max_tokens=request.max_tokens or 16,
             temperature=request.temperature or 1.0,
-            stream=False,
+            stream=True,
         )
 
         # Handle echo parameter
@@ -726,6 +726,9 @@ class FakeAIService:
         # If streaming, return quickly as we'll stream the tokens later
         if stream:
             delay = delay * 0.2
+            
+        # For debugging
+        logger.info(f"Generating completion with delay {delay:.2f}s, stream={stream}")
 
         # Generate the response with a delay
         response = await self.executor.run_with_delay(

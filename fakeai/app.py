@@ -38,7 +38,7 @@ from fakeai.models import (
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 # Set up logging
 logging.basicConfig(
@@ -157,8 +157,8 @@ async def create_chat_completion(
                 yield f"data: {chunk.model_dump_json()}\n\n"
             yield "data: [DONE]\n\n"
 
-        return Response(
-            content=generate(),
+        return StreamingResponse(
+            generate(),
             media_type="text/event-stream",
         )
     else:
@@ -178,8 +178,8 @@ async def create_completion(
                 yield f"data: {chunk.model_dump_json()}\n\n"
             yield "data: [DONE]\n\n"
 
-        return Response(
-            content=generate(),
+        return StreamingResponse(
+            generate(),
             media_type="text/event-stream",
         )
     else:

@@ -543,12 +543,6 @@ class ImageStyle(str, Enum):
     NATURAL = "natural"
 
 
-class ResponseFormat(str, Enum):
-    """Available response formats for images."""
-
-    URL = "url"
-    B64_JSON = "b64_json"
-
 
 class GeneratedImage(BaseModel):
     """A generated image."""
@@ -563,6 +557,11 @@ class GeneratedImage(BaseModel):
         default=None, description="The revised prompt used to generate the image."
     )
 
+class ImageResponseFormat(str, Enum):
+    """Available response formats for images."""
+
+    URL = "url"
+    B64_JSON = "b64_json"
 
 class ImageGenerationRequest(BaseModel):
     """Request for image generation."""
@@ -579,8 +578,8 @@ class ImageGenerationRequest(BaseModel):
     quality: ImageQuality | None = Field(
         default=ImageQuality.STANDARD, description="The quality of the image."
     )
-    response_format: ResponseFormat | None = Field(
-        default=ResponseFormat.URL,
+    response_format: ImageResponseFormat | None = Field(
+        default=ImageResponseFormat.URL,
         description="The format in which the images are returned.",
     )
     size: ImageSize | None = Field(
