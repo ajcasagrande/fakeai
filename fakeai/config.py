@@ -5,7 +5,7 @@ This module provides configuration settings and options for the OpenAI simulated
 """
 #  SPDX-License-Identifier: Apache-2.0
 
-from pydantic import Field, validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -50,21 +50,21 @@ class AppConfig(BaseSettings):
         env_prefix = "FAKEAI_"
         case_sensitive = False
 
-    @validator("port")
+    @field_validator("port")
     def validate_port(cls, v: int) -> int:
         """Validate port number."""
         if not 1 <= v <= 65535:
             raise ValueError("Port must be between 1 and 65535")
         return v
 
-    @validator("response_delay")
+    @field_validator("response_delay")
     def validate_response_delay(cls, v: float) -> float:
         """Validate response delay."""
         if v < 0:
             raise ValueError("Response delay cannot be negative")
         return v
 
-    @validator("max_variance")
+    @field_validator("max_variance")
     def validate_max_variance(cls, v: float) -> float:
         """Validate max variance."""
         if v < 0:

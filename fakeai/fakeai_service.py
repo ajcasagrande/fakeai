@@ -9,6 +9,7 @@ with appropriate delays to mimic real-world workloads.
 
 import asyncio
 import base64
+from collections import defaultdict
 import logging
 import random
 import re
@@ -95,7 +96,28 @@ class FakeAIService:
             is_blocking=False,
         )
 
+        def new_model(model_id: str) -> Model:
+            """Create a new model instance with default properties."""
+            return Model(
+                id=model_id,
+                created=creation_time,
+                owned_by="custom",
+                permission=[base_permission],
+                root=None,
+                parent=None,
+            )
+        
+        self.models = defaultdict(default_factory=lambda m: new_model(m))
+
         self.models = {
+            "gpt2": Model(
+                id="gpt2",
+                created=creation_time,
+                owned_by="openai",
+                permission=[base_permission],
+                root=None,
+                parent=None,
+            ),
             "gpt-3.5-turbo": Model(
                 id="gpt-3.5-turbo",
                 created=creation_time,
@@ -140,6 +162,14 @@ class FakeAIService:
                 id="dall-e-3",
                 created=creation_time,
                 owned_by="openai",
+                permission=[base_permission],
+                root=None,
+                parent=None,
+            ),
+            "deepseek-ai/DeepSeek-R1-Distill-Llama-8B": Model(
+                id="deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+                created=creation_time,
+                owned_by="deepseek-ai",
                 permission=[base_permission],
                 root=None,
                 parent=None,
@@ -259,17 +289,28 @@ class FakeAIService:
         )
         yield first_chunk
 
-        # Wait a bit before starting to stream
-        await asyncio.sleep(random.uniform(0.1, 0.3))
-
+        # Wait a bit before starting to stream - this will be our "time to first token"
+        first_token_delay = random.uniform(0.1, 0.3)
+        await asyncio.sleep(first_token_delay)
+        
+        # Track start time for token timing calculations
+        stream_start_time = time.time()
+        token_timestamps = []
+        
         # Stream the content word by word
         for i in range(0, len(words), 1 + random.randint(0, 2)):
+            # Record the timestamp for this token
+            current_time = time.time()
+            relative_time = round((current_time - stream_start_time) * 1000)  # milliseconds
+            token_timestamps.append(relative_time)
+            
             chunk_words = words[i : i + 1 + random.randint(0, 2)]
             chunk_text = " ".join(chunk_words)
 
             if i > 0:  # Add a space before words except for the first chunk
                 chunk_text = " " + chunk_text
-
+            
+            # Add timing information to the Delta object
             chunk = ChatCompletionChunk(
                 id=stream_id,
                 created=int(time.time()),
@@ -277,7 +318,10 @@ class FakeAIService:
                 choices=[
                     ChatCompletionChunkChoice(
                         index=j,
-                        delta=Delta(content=chunk_text),
+                        delta=Delta(
+                            content=chunk_text, 
+                            token_timing=[relative_time]  # Include timing for this token
+                        ),
                         finish_reason=None,
                     )
                     for j in range(request.n or 1)
@@ -286,8 +330,9 @@ class FakeAIService:
             )
             yield chunk
 
-            # Simulate variable typing speed
-            await asyncio.sleep(random.uniform(0.05, 0.2))
+            # Simulate variable typing speed - this gives us inter-token latency
+            token_delay = random.uniform(0.05, 0.2)
+            await asyncio.sleep(token_delay)
 
         # Final chunk with finish reason
         final_chunk = ChatCompletionChunk(
@@ -382,8 +427,21 @@ class FakeAIService:
         words = text_to_stream.split()
         stream_id = f"cmpl-{uuid.uuid4().hex}"
 
+        # Wait a bit before starting to stream - this will be our "time to first token"
+        first_token_delay = random.uniform(0.1, 0.3)
+        await asyncio.sleep(first_token_delay)
+        
+        # Track start time for token timing calculations
+        stream_start_time = time.time()
+        token_timestamps = []
+        
         # Stream the content word by word
         for i in range(0, len(words), 1 + random.randint(0, 2)):
+            # Record the timestamp for this token
+            current_time = time.time()
+            relative_time = round((current_time - stream_start_time) * 1000)  # milliseconds
+            token_timestamps.append(relative_time)
+            
             chunk_words = words[i : i + 1 + random.randint(0, 2)]
             chunk_text = " ".join(chunk_words)
 
@@ -402,6 +460,7 @@ class FakeAIService:
                         if request.logprobs
                         else None,
                         finish_reason=None,
+                        token_timing=[relative_time]  # Add token timing information
                     )
                     for j in range(request.n or 1)
                 ],

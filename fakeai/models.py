@@ -289,13 +289,14 @@ class Delta(BaseModel):
     function_call: FunctionCall | None = Field(
         default=None, description="Function call information (deprecated)."
     )
-    tool_calls: list[ToolCall] | None = Field(
-        default=None, description="Tool calls made by the assistant."
+    # Add support for token timing information
+    token_timing: list[float] | None = Field(
+        default=None, description="Timing information for token generation."
     )
 
 
 class ChatCompletionChunkChoice(BaseModel):
-    """A streaming choice in chat completion results."""
+    """Choice in a streaming chat completion."""
 
     index: int = Field(description="The index of this choice.")
     delta: Delta = Field(description="The partial message content.")
@@ -413,6 +414,9 @@ class CompletionChoice(BaseModel):
     )
     finish_reason: str | None = Field(
         default=None, description="The reason why generation stopped."
+    )
+    token_timing: list[float] | None = Field(
+        default=None, description="Timing information for token generation."
     )
 
 

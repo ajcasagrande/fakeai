@@ -147,10 +147,10 @@ async def get_model(model_id: str):
 # Chat completions endpoints
 @app.post("/v1/chat/completions", dependencies=[Depends(verify_api_key)], response_model=None)
 async def create_chat_completion(
-    request: ChatCompletionRequest, stream: bool = Query(False)
+    request: ChatCompletionRequest
 ):
     """Create a chat completion"""
-    if stream:
+    if request.stream:
 
         async def generate():
             async for chunk in fakeai_service.create_chat_completion_stream(request):
@@ -168,10 +168,10 @@ async def create_chat_completion(
 # Completions endpoints
 @app.post("/v1/completions", dependencies=[Depends(verify_api_key)], response_model=None)
 async def create_completion(
-    request: CompletionRequest, stream: bool = Query(False)
+    request: CompletionRequest
 ):
     """Create a completion"""
-    if stream:
+    if request.stream:
 
         async def generate():
             async for chunk in fakeai_service.create_completion_stream(request):
