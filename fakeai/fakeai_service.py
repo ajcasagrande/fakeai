@@ -187,6 +187,7 @@ from fakeai.structured_outputs import (
     SchemaValidationError,
 )
 from fakeai.vision import calculate_message_image_tokens
+from fakeai.video import calculate_message_video_tokens
 from fakeai.logprobs_enhanced import (
     create_chat_logprobs,
     create_completion_logprobs,
@@ -1523,6 +1524,12 @@ class FakeAIService:
             if msg.content:
                 input_image_tokens += calculate_message_image_tokens(msg.content, request.model)
 
+        # Process video inputs if present (calculate video tokens - NVIDIA Cosmos extension)
+        input_video_tokens = 0
+        for msg in request.messages:
+            if msg.content:
+                input_video_tokens += calculate_message_video_tokens(msg.content, request.model)
+
         # Extract prompt text for token counting and KV cache routing
         prompt_text = " ".join(extract_text_content(msg.content) for msg in request.messages if msg.content)
 
@@ -1533,8 +1540,8 @@ class FakeAIService:
         # Calculate text tokens
         text_tokens = calculate_token_count(prompt_text)
 
-        # Total prompt tokens = text + image + audio tokens
-        prompt_tokens = text_tokens + input_image_tokens + input_audio_tokens
+        # Total prompt tokens = text + image + video + audio tokens
+        prompt_tokens = text_tokens + input_image_tokens + input_video_tokens + input_audio_tokens
 
         # Start Dynamo metrics tracking for this request
         dynamo_request = self.dynamo_metrics.start_request(

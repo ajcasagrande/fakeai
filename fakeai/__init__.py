@@ -16,6 +16,7 @@ __all__ = [
     "FakeAIService",
     "RateLimiter",
     "run_server",
+    "video",
 ]
 # Make key modules available at the package level for convenience
 

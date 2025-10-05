@@ -62,6 +62,7 @@ print(response.choices[0].message.content)
 - **Log Probabilities** - Token-level logprobs
 - **Responses API** - March 2025 format
 - **Vector Stores** - Document storage and retrieval
+- **Video Input** - NVIDIA Cosmos extension for video understanding
 
 ### NVIDIA AI-Dynamo Features
 
@@ -71,6 +72,7 @@ print(response.choices[0].message.content)
 - **SLA-Based Planner** - Load prediction with ARIMA and Prophet
 - **DCGM Metrics** - GPU metrics simulation (25+ field IDs)
 - **Dynamo Metrics** - TTFT, ITL, TPOT, latency breakdown
+- **Video Multimodal** - Video input support for physical AI (Cosmos extension)
 
 ### Performance & Monitoring
 

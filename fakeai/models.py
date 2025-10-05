@@ -234,8 +234,24 @@ class InputAudioContent(BaseModel):
     input_audio: InputAudio = Field(description="Audio data and format.")
 
 
+class VideoUrl(BaseModel):
+    """Video URL configuration (NVIDIA Cosmos extension)."""
+
+    url: str = Field(description="URL of the video or data URI (data:video/*;base64,...).")
+    detail: Literal["auto", "low", "high"] = Field(
+        default="auto", description="Video detail level for processing."
+    )
+
+
+class VideoContent(BaseModel):
+    """Video content part (NVIDIA Cosmos extension)."""
+
+    type: Literal["video_url"] = Field(default="video_url", description="Content type.")
+    video_url: VideoUrl = Field(description="Video URL configuration.")
+
+
 # Union type for content parts
-ContentPart = TextContent | ImageContent | InputAudioContent
+ContentPart = TextContent | ImageContent | InputAudioContent | VideoContent
 
 
 # Audio Output Configuration
