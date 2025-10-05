@@ -144,6 +144,9 @@ fakeai_service = FakeAIService(config)
 # Get the metrics tracker singleton instance
 metrics_tracker = fakeai_service.metrics_tracker
 
+# Server readiness state
+server_ready = False
+
 # Initialize rate limiter
 rate_limiter = RateLimiter()
 rate_limiter.configure(
@@ -376,8 +379,26 @@ async def log_requests(request: Request, call_next):
 # Health check endpoint
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+    """Health check endpoint with readiness status"""
+    global server_ready
+    status = "healthy" if server_ready else "starting"
+    return {
+        "status": status,
+        "ready": server_ready,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+# Startup event to mark server as ready
+@app.on_event("startup")
+async def startup_event():
+    """Mark server as ready after startup."""
+    global server_ready
+    # Give a brief moment for all initialization to complete
+    import asyncio
+    await asyncio.sleep(0.1)
+    server_ready = True
+    logger.info("Server is ready to accept requests")
 
 
 # Dashboard endpoint

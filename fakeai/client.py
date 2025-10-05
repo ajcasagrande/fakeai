@@ -143,10 +143,14 @@ class FakeAIClient:
             try:
                 # Try to connect to health endpoint
                 import urllib.request
+                import json
                 url = f"http://{self.host}:{self.port}/health"
                 with urllib.request.urlopen(url, timeout=1.0) as response:
                     if response.status == 200:
-                        return
+                        # Check if server reports ready
+                        data = json.loads(response.read().decode('utf-8'))
+                        if data.get("ready", True):  # Default true for backward compat
+                            return
             except Exception:
                 pass
             time.sleep(0.1)

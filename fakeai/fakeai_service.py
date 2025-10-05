@@ -1823,17 +1823,40 @@ class FakeAIService:
         # Calculate remaining budget for regular completion
         remaining_budget = max(10, effective_max_tokens - reasoning_tokens)
 
-        # Generate simulated response
-        completion_text = await self._generate_simulated_completion(
-            request.messages,
-            max_tokens=remaining_budget,
-            temperature=request.temperature or 1.0,
-            stream=True,  # Make sure to set stream=True
-        )
+        # Check if we should generate tool calls
+        should_call_tools = False
+        tool_calls_to_stream = None
+        if request.tools:
+            from fakeai.tool_calling import ToolDecisionEngine, ToolCallGenerator
 
-        # Split the completion text and reasoning into token-equivalent chunks
-        reasoning_tokens = tokenize_text(reasoning_content) if reasoning_content else []
-        content_tokens = tokenize_text(completion_text)
+            engine = ToolDecisionEngine()
+            should_call_tools = engine.should_call_tools(request.messages, request.tools, request.tool_choice)
+
+            if should_call_tools:
+                # Generate tool calls for streaming
+                generator = ToolCallGenerator()
+                tool_calls_to_stream = generator.generate_tool_calls(
+                    tools_to_call=request.tools,
+                    messages=request.messages,
+                    parallel=request.parallel_tool_calls if request.parallel_tool_calls is not None else True,
+                )
+
+        # Generate simulated response (unless calling tools)
+        if should_call_tools:
+            completion_text = None
+            content_tokens = []
+        else:
+            completion_text = await self._generate_simulated_completion(
+                request.messages,
+                max_tokens=remaining_budget,
+                temperature=request.temperature or 1.0,
+                stream=True,  # Make sure to set stream=True
+            )
+            # Split the completion text into token-equivalent chunks
+            content_tokens = tokenize_text(completion_text)
+
+        # Split reasoning into token-equivalent chunks
+        reasoning_tokens_list = tokenize_text(reasoning_content) if reasoning_content else []
         stream_id = f"chatcmpl-{uuid.uuid4().hex}"
         system_fingerprint = "fp_" + uuid.uuid4().hex[:16]
 
