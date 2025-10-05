@@ -4380,6 +4380,27 @@ class FakeAIService:
         # Store job
         self.fine_tuning_jobs[job_id] = job
 
+        # Add initial events
+        initial_event = FineTuningEvent(
+            id=f"ftevent-{uuid.uuid4().hex}",
+            created_at=created_at,
+            level="info",
+            message="Fine-tuning job created",
+            type="message",
+        )
+        self.fine_tuning_events[job_id].append(initial_event)
+
+        # Add an initial metrics event with sample data
+        metrics_event = FineTuningEvent(
+            id=f"ftevent-{uuid.uuid4().hex}",
+            created_at=created_at,
+            level="info",
+            message="Initial training metrics",
+            data={"step": 0, "train_loss": 2.5, "learning_rate": 0.0001},
+            type="metrics",
+        )
+        self.fine_tuning_events[job_id].append(metrics_event)
+
         # Start background processing
         task = asyncio.create_task(self._process_fine_tuning_job(job_id, request.suffix))
         self.fine_tuning_tasks[job_id] = task
