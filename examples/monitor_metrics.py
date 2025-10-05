@@ -6,7 +6,8 @@ This script demonstrates how to monitor FakeAI server metrics in real-time.
 """
 #  SPDX-License-Identifier: Apache-2.0
 
-import requests
+import asyncio
+import aiohttp
 import time
 import sys
 from datetime import datetime
@@ -38,7 +39,7 @@ def get_status_emoji(status):
     }.get(status, "❓")
 
 
-def monitor_basic(base_url="http://localhost:8000", interval=5):
+async def monitor_basic(base_url="http://localhost:8000", interval=5):
     """
     Monitor basic metrics with simple output.
 
@@ -51,38 +52,39 @@ def monitor_basic(base_url="http://localhost:8000", interval=5):
     print(f"Refresh interval: {interval}s\n")
 
     try:
-        while True:
-            try:
-                # Fetch health data
-                response = requests.get(f"{base_url}/health/detailed", timeout=5)
-                health = response.json()
+        async with aiohttp.ClientSession() as session:
+            while True:
+                try:
+                    # Fetch health data
+                    async with session.get(f"{base_url}/health/detailed", timeout=aiohttp.ClientTimeout(total=5)) as response:
+                        health = await response.json()
 
-                # Clear line
-                print("\r" + " " * 80 + "\r", end="")
+                    # Clear line
+                    print("\r" + " " * 80 + "\r", end="")
 
-                # Print status
-                status = health['status']
-                emoji = get_status_emoji(status)
-                summary = health['metrics_summary']
+                    # Print status
+                    status = health['status']
+                    emoji = get_status_emoji(status)
+                    summary = health['metrics_summary']
 
-                print(f"{emoji} Status: {status.upper()} | "
-                      f"RPS: {format_rate(summary['total_requests_per_second'])} | "
-                      f"Latency: {format_latency(summary['average_latency_seconds'])} | "
-                      f"Errors: {summary['error_rate_percentage']:.2f}% | "
-                      f"Streams: {summary['active_streams']}",
-                      end="", flush=True)
+                    print(f"{emoji} Status: {status.upper()} | "
+                          f"RPS: {format_rate(summary['total_requests_per_second'])} | "
+                          f"Latency: {format_latency(summary['average_latency_seconds'])} | "
+                          f"Errors: {summary['error_rate_percentage']:.2f}% | "
+                          f"Streams: {summary['active_streams']}",
+                          end="", flush=True)
 
-                time.sleep(interval)
+                    await asyncio.sleep(interval)
 
-            except requests.RequestException as e:
-                print(f"\r❌ Connection error: {e}", end="", flush=True)
-                time.sleep(interval)
+                except (aiohttp.ClientConnectorError, asyncio.TimeoutError) as e:
+                    print(f"\r❌ Connection error: {e}", end="", flush=True)
+                    await asyncio.sleep(interval)
 
     except KeyboardInterrupt:
         print("\n\n✓ Monitoring stopped")
 
 
-def monitor_detailed(base_url="http://localhost:8000", interval=5):
+async def monitor_detailed(base_url="http://localhost:8000", interval=5):
     """
     Monitor detailed metrics with full output.
 
@@ -96,61 +98,62 @@ def monitor_detailed(base_url="http://localhost:8000", interval=5):
 
     try:
         iteration = 0
-        while True:
-            try:
-                # Clear screen every 10 iterations
-                if iteration % 10 == 0:
-                    print("\033[2J\033[H", end="")  # Clear screen
-                    print_header()
+        async with aiohttp.ClientSession() as session:
+            while True:
+                try:
+                    # Clear screen every 10 iterations
+                    if iteration % 10 == 0:
+                        print("\033[2J\033[H", end="")  # Clear screen
+                        print_header()
 
-                # Fetch metrics
-                response = requests.get(f"{base_url}/health/detailed", timeout=5)
-                health = response.json()
+                    # Fetch metrics
+                    async with session.get(f"{base_url}/health/detailed", timeout=aiohttp.ClientTimeout(total=5)) as response:
+                        health = await response.json()
 
-                # Print timestamp
-                print(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-                print("-" * 80)
+                    # Print timestamp
+                    print(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                    print("-" * 80)
 
-                # Print status
-                status = health['status']
-                emoji = get_status_emoji(status)
-                print(f"\n{emoji} Overall Status: {status.upper()}")
+                    # Print status
+                    status = health['status']
+                    emoji = get_status_emoji(status)
+                    print(f"\n{emoji} Overall Status: {status.upper()}")
 
-                # Print summary
-                summary = health['metrics_summary']
-                print("\nMetrics Summary:")
-                print(f"  Total Requests/sec:  {format_rate(summary['total_requests_per_second'])}")
-                print(f"  Total Errors/sec:    {format_rate(summary['total_errors_per_second'])}")
-                print(f"  Error Rate:          {summary['error_rate_percentage']:.2f}%")
-                print(f"  Average Latency:     {format_latency(summary['average_latency_seconds'])}")
-                print(f"  Active Streams:      {summary['active_streams']}")
+                    # Print summary
+                    summary = health['metrics_summary']
+                    print("\nMetrics Summary:")
+                    print(f"  Total Requests/sec:  {format_rate(summary['total_requests_per_second'])}")
+                    print(f"  Total Errors/sec:    {format_rate(summary['total_errors_per_second'])}")
+                    print(f"  Error Rate:          {summary['error_rate_percentage']:.2f}%")
+                    print(f"  Average Latency:     {format_latency(summary['average_latency_seconds'])}")
+                    print(f"  Active Streams:      {summary['active_streams']}")
 
-                # Print endpoint details
-                endpoints = health.get('endpoints', {})
-                if endpoints:
-                    print("\nEndpoint Details:")
-                    for endpoint, metrics in endpoints.items():
-                        print(f"\n  {endpoint}")
-                        print(f"    Requests/sec:  {format_rate(metrics['requests_per_second'])}")
-                        print(f"    P50 Latency:   {metrics['latency_p50_ms']:.2f}ms")
-                        print(f"    P99 Latency:   {metrics['latency_p99_ms']:.2f}ms")
+                    # Print endpoint details
+                    endpoints = health.get('endpoints', {})
+                    if endpoints:
+                        print("\nEndpoint Details:")
+                        for endpoint, metrics in endpoints.items():
+                            print(f"\n  {endpoint}")
+                            print(f"    Requests/sec:  {format_rate(metrics['requests_per_second'])}")
+                            print(f"    P50 Latency:   {metrics['latency_p50_ms']:.2f}ms")
+                            print(f"    P99 Latency:   {metrics['latency_p99_ms']:.2f}ms")
 
-                print("\n" + "-" * 80)
-                print(f"Next update in {interval}s... (Ctrl+C to stop)")
+                    print("\n" + "-" * 80)
+                    print(f"Next update in {interval}s... (Ctrl+C to stop)")
 
-                iteration += 1
-                time.sleep(interval)
+                    iteration += 1
+                    await asyncio.sleep(interval)
 
-            except requests.RequestException as e:
-                print(f"\n❌ Connection error: {e}")
-                print(f"Retrying in {interval}s...")
-                time.sleep(interval)
+                except (aiohttp.ClientConnectorError, asyncio.TimeoutError) as e:
+                    print(f"\n❌ Connection error: {e}")
+                    print(f"Retrying in {interval}s...")
+                    await asyncio.sleep(interval)
 
     except KeyboardInterrupt:
         print("\n\n✓ Monitoring stopped")
 
 
-def monitor_streaming(base_url="http://localhost:8000", interval=5):
+async def monitor_streaming(base_url="http://localhost:8000", interval=5):
     """
     Monitor streaming-specific metrics.
 
@@ -163,51 +166,52 @@ def monitor_streaming(base_url="http://localhost:8000", interval=5):
     print(f"Refresh interval: {interval}s\n")
 
     try:
-        while True:
-            try:
-                # Fetch full metrics
-                response = requests.get(f"{base_url}/metrics", timeout=5)
-                data = response.json()
+        async with aiohttp.ClientSession() as session:
+            while True:
+                try:
+                    # Fetch full metrics
+                    async with session.get(f"{base_url}/metrics", timeout=aiohttp.ClientTimeout(total=5)) as response:
+                        data = await response.json()
 
-                streaming = data.get('streaming_stats', {})
+                    streaming = data.get('streaming_stats', {})
 
-                if not streaming:
-                    print("\r⚠️  No streaming data available", end="", flush=True)
-                    time.sleep(interval)
-                    continue
+                    if not streaming:
+                        print("\r⚠️  No streaming data available", end="", flush=True)
+                        await asyncio.sleep(interval)
+                        continue
 
-                # Print streaming stats
-                print("\r" + " " * 80 + "\r", end="")
+                    # Print streaming stats
+                    print("\r" + " " * 80 + "\r", end="")
 
-                active = streaming.get('active_streams', 0)
-                completed = streaming.get('completed_streams', 0)
-                failed = streaming.get('failed_streams', 0)
+                    active = streaming.get('active_streams', 0)
+                    completed = streaming.get('completed_streams', 0)
+                    failed = streaming.get('failed_streams', 0)
 
-                print(f"📊 Active: {active} | Completed: {completed} | Failed: {failed}", end="")
+                    print(f"📊 Active: {active} | Completed: {completed} | Failed: {failed}", end="")
 
-                # Print TTFT if available
-                ttft = streaming.get('ttft', {})
-                if ttft:
-                    print(f" | TTFT p50: {format_latency(ttft['p50'])} p99: {format_latency(ttft['p99'])}", end="")
+                    # Print TTFT if available
+                    ttft = streaming.get('ttft', {})
+                    if ttft:
+                        print(f" | TTFT p50: {format_latency(ttft['p50'])} p99: {format_latency(ttft['p99'])}", end="")
 
-                # Print tokens/sec if available
-                tps = streaming.get('tokens_per_second', {})
-                if tps:
-                    print(f" | TPS: {tps['avg']:.1f}/s", end="")
+                    # Print tokens/sec if available
+                    tps = streaming.get('tokens_per_second', {})
+                    if tps:
+                        print(f" | TPS: {tps['avg']:.1f}/s", end="")
 
-                print("", flush=True)
+                    print("", flush=True)
 
-                time.sleep(interval)
+                    await asyncio.sleep(interval)
 
-            except requests.RequestException as e:
-                print(f"\r❌ Connection error: {e}", end="", flush=True)
-                time.sleep(interval)
+                except (aiohttp.ClientConnectorError, asyncio.TimeoutError) as e:
+                    print(f"\r❌ Connection error: {e}", end="", flush=True)
+                    await asyncio.sleep(interval)
 
     except KeyboardInterrupt:
         print("\n\n✓ Monitoring stopped")
 
 
-def export_metrics(base_url="http://localhost:8000", format="json", output=None):
+async def export_metrics(base_url="http://localhost:8000", format="json", output=None):
     """
     Export metrics to file.
 
@@ -233,22 +237,24 @@ def export_metrics(base_url="http://localhost:8000", format="json", output=None)
             return
 
         # Fetch metrics
-        response = requests.get(f"{base_url}{endpoint}", timeout=10)
-        response.raise_for_status()
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{base_url}{endpoint}", timeout=aiohttp.ClientTimeout(total=10)) as response:
+                response.raise_for_status()
+                text = await response.text()
 
         # Write to file or stdout
         if output:
             with open(output, 'w') as f:
-                f.write(response.text)
+                f.write(text)
             print(f"✓ Metrics exported to {output}")
         else:
-            print(response.text)
+            print(text)
 
-    except requests.RequestException as e:
+    except (aiohttp.ClientConnectorError, asyncio.TimeoutError, aiohttp.ClientResponseError) as e:
         print(f"❌ Error exporting metrics: {e}")
 
 
-def main():
+async def main():
     """Main entry point."""
     import argparse
 
@@ -311,17 +317,17 @@ Examples:
 
     # Handle export mode
     if args.export:
-        export_metrics(args.url, args.export, args.output)
+        await export_metrics(args.url, args.export, args.output)
         return
 
     # Handle monitoring modes
     if args.streaming:
-        monitor_streaming(args.url, args.interval)
+        await monitor_streaming(args.url, args.interval)
     elif args.detailed:
-        monitor_detailed(args.url, args.interval)
+        await monitor_detailed(args.url, args.interval)
     else:
-        monitor_basic(args.url, args.interval)
+        await monitor_basic(args.url, args.interval)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

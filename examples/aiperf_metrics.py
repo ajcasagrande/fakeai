@@ -85,7 +85,7 @@ def format_aiperf_metrics(metrics: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description="AIPerf Metrics Exporter for FakeAI")
     parser.add_argument("--url", default="http://localhost:8000", help="FakeAI server URL")
     parser.add_argument("--output", default="-", help="Output file (- for stdout)")
@@ -93,7 +93,7 @@ def main():
     args = parser.parse_args()
 
     # Get metrics
-    metrics = get_metrics(args.url)
+    metrics = await get_metrics(args.url)
     if not metrics:
         print("Error: No metrics available", file=sys.stderr)
         sys.exit(1)
@@ -118,4 +118,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
