@@ -238,11 +238,11 @@ class MetricsTracker:
         # Endpoints to skip tracking (non-OpenAI endpoints)
         self._skip_endpoints = {
             "/metrics",
-            "/dcgm-metrics",
-            "/dcgm-metrics/json",
-            "/dynamo-metrics",
-            "/dynamo-metrics/json",
-            "/kv-cache-metrics",
+            "/dcgm/metrics",
+            "/dcgm/metrics/json",
+            "/dynamo/metrics",
+            "/dynamo/metrics/json",
+            "/kv-cache/metrics",
             "/dashboard",
             "/dashboard/dynamo",
         }

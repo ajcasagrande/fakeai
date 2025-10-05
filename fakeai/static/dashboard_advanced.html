@@ -1006,9 +1006,9 @@
             try {
                 const [metrics, kvCache, dcgm, dynamo] = await Promise.all([
                     fetch('/metrics').then(r => r.json()),
-                    fetch('/kv-cache-metrics').then(r => r.json()),
-                    fetch('/dcgm-metrics/json').then(r => r.json()).catch(() => null),
-                    fetch('/dynamo-metrics/json').then(r => r.json()).catch(() => null)
+                    fetch('/kv-cache/metrics').then(r => r.json()),
+                    fetch('/dcgm/metrics/json').then(r => r.json()).catch(() => null),
+                    fetch('/dynamo/metrics/json').then(r => r.json()).catch(() => null)
                 ]);
 
                 updateQuickStats(metrics, dynamo);

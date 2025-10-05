@@ -115,7 +115,7 @@ async def load_test_concurrent(num_requests=10000, batch_size=1000):
     # Get final metrics
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get('http://localhost:9001/dynamo-metrics/json') as resp:
+            async with session.get('http://localhost:9001/dynamo/metrics/json') as resp:
                 metrics = await resp.json()
 
                 print("Server Metrics:")

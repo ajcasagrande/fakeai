@@ -55,9 +55,9 @@ def main():
     # Test all required endpoints
     endpoints = [
         ("/metrics", "Core Metrics"),
-        ("/kv-cache-metrics", "KV Cache Metrics"),
-        ("/dcgm-metrics/json", "DCGM GPU Metrics (JSON)"),
-        ("/dynamo-metrics/json", "Dynamo LLM Metrics (JSON)"),
+        ("/kv-cache/metrics", "KV Cache Metrics"),
+        ("/dcgm/metrics/json", "DCGM GPU Metrics (JSON)"),
+        ("/dynamo/metrics/json", "Dynamo LLM Metrics (JSON)"),
         ("/health", "Health Check"),
         ("/dashboard", "Dashboard HTML"),
         ("/dashboard/dynamo", "Advanced Dashboard HTML"),

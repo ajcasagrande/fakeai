@@ -371,7 +371,7 @@
             }
 
             try {
-                const kvResponse = await fetch('/kv-cache-metrics');
+                const kvResponse = await fetch('/kv-cache/metrics');
                 const kvData = await kvResponse.json();
                 updateKVCacheMetrics(kvData);
             } catch (error) {

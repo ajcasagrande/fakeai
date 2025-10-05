@@ -584,7 +584,7 @@ async def detailed_health_check():
     return metrics_tracker.get_detailed_health()
 
 
-@app.get("/kv-cache-metrics")
+@app.get("/kv-cache/metrics")
 async def get_kv_cache_metrics():
     """Get KV cache and AI-Dynamo smart routing metrics."""
     # Simple safe version that can't deadlock
@@ -609,7 +609,7 @@ async def get_kv_cache_metrics():
 
 
 # DCGM GPU Metrics endpoints
-@app.get("/dcgm-metrics")
+@app.get("/dcgm/metrics")
 async def get_dcgm_metrics_prometheus():
     """Get simulated DCGM GPU metrics in Prometheus format."""
     # Return real simulated DCGM metrics in Prometheus format
@@ -619,7 +619,7 @@ async def get_dcgm_metrics_prometheus():
     )
 
 
-@app.get("/dcgm-metrics/json")
+@app.get("/dcgm/metrics/json")
 async def get_dcgm_metrics_json():
     """Get simulated DCGM GPU metrics in JSON format."""
     # Return real simulated GPU metrics
@@ -627,7 +627,7 @@ async def get_dcgm_metrics_json():
 
 
 # Dynamo LLM Metrics endpoints
-@app.get("/dynamo-metrics")
+@app.get("/dynamo/metrics")
 async def get_dynamo_metrics_prometheus():
     """Get AI-Dynamo LLM inference metrics in Prometheus format."""
     # Return real Prometheus metrics from DynamoMetricsCollector
@@ -637,7 +637,7 @@ async def get_dynamo_metrics_prometheus():
     )
 
 
-@app.get("/dynamo-metrics/json")
+@app.get("/dynamo/metrics/json")
 async def get_dynamo_metrics_json():
     """Get AI-Dynamo LLM inference metrics in JSON format."""
     # Return real metrics from DynamoMetricsCollector
