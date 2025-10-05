@@ -49,6 +49,12 @@ def client_no_auth(config_no_auth, monkeypatch):
     """Test client with authentication disabled."""
     # Monkeypatch the config to disable auth
     monkeypatch.setenv("FAKEAI_REQUIRE_API_KEY", "false")
+
+    # Manually trigger startup event since TestClient doesn't
+    import asyncio
+    from fakeai import app as fakeai_app_module
+    fakeai_app_module.server_ready = True
+
     return TestClient(app)
 
 
@@ -68,6 +74,10 @@ def client_with_auth(monkeypatch):
     for key, value in new_config.__dict__.items():
         if not key.startswith('_'):
             setattr(config, key, value)
+
+    # Manually trigger startup event since TestClient doesn't
+    from fakeai import app as fakeai_app_module
+    fakeai_app_module.server_ready = True
 
     return TestClient(app)
 

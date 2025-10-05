@@ -116,6 +116,7 @@ class FakeAIClient:
             sys.executable,
             "-m",
             "fakeai.cli",
+            "server",  # Add server subcommand
             "--host",
             self.host,
             "--port",
