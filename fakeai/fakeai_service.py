@@ -501,6 +501,10 @@ class FakeAIService:
         self.generator = SimulatedGenerator()
         self.executor = AsyncExecutor()
 
+        # Create seeded random instance for deterministic behavior
+        self._random = random.Random()
+        self._current_seed = None
+
         # Initialize metrics tracker singleton
         self.metrics_tracker = MetricsTracker()
 
@@ -1012,6 +1016,27 @@ class FakeAIService:
         """Check if model supports Predicted Outputs / speculative decoding (EAGLE)."""
         return model_id.startswith("openai/gpt-oss-120b")
 
+
+    def _set_seed_if_provided(self, seed: int | None) -> None:
+        """Set random seed for deterministic generation."""
+        if seed is not None:
+            self._current_seed = seed
+            self._random.seed(seed)
+            # Also seed the global random for Faker and other utilities
+            random.seed(seed)
+
+
+    def _generate_fingerprint(self, seed: int | None) -> str:
+        """Generate system fingerprint, deterministic when seed is provided."""
+        if seed is not None:
+            # Deterministic fingerprint based on seed
+            import hashlib
+            fingerprint_hash = hashlib.sha256(f"seed-{seed}".encode()).hexdigest()[:16]
+            return f"fp_{fingerprint_hash}"
+        else:
+            # Random fingerprint
+            return "fp_" + uuid.uuid4().hex[:16]
+
     def _ensure_model_exists(self, model_id: str) -> None:
         """Ensure a model exists, creating it if necessary.
 
@@ -1474,6 +1499,9 @@ class FakeAIService:
         self, request: ChatCompletionRequest
     ) -> ChatCompletionResponse:
         """Create a chat completion."""
+        # Set seed for deterministic generation
+        self._set_seed_if_provided(request.seed)
+
         # Ensure model exists
         self._ensure_model_exists(request.model)
 
@@ -1751,7 +1779,7 @@ class FakeAIService:
                 ),
                 completion_tokens_details=completion_tokens_details,
             ),
-            system_fingerprint="fp_" + uuid.uuid4().hex[:16],
+            system_fingerprint=self._generate_fingerprint(request.seed),
         )
 
         # Track usage for billing
