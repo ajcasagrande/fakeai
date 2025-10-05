@@ -595,53 +595,58 @@ def status(
         # Check remote server status
         $ fakeai status --host 192.168.1.100 --port 9000
     """
-    import requests
+    import asyncio
+    import aiohttp
 
-    base_url = f"http://{host}:{port}"
+    async def check_status():
+        base_url = f"http://{host}:{port}"
 
-    try:
-        # Check health endpoint
-        response = requests.get(f"{base_url}/health", timeout=5)
-        response.raise_for_status()
-        health_data = response.json()
+        try:
+            # Check health endpoint
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{base_url}/health", timeout=aiohttp.ClientTimeout(total=5)) as response:
+                    response.raise_for_status()
+                    health_data = await response.json()
 
-        print("=" * 70)
-        print("FakeAI Server Status")
-        print("=" * 70)
-        print(f"Server URL: {base_url}")
-        print(f"Status: RUNNING ✓")
-        print(f"Timestamp: {health_data.get('timestamp', 'N/A')}")
+                    print("=" * 70)
+                    print("FakeAI Server Status")
+                    print("=" * 70)
+                    print(f"Server URL: {base_url}")
+                    print(f"Status: RUNNING ✓")
+                    print(f"Timestamp: {health_data.get('timestamp', 'N/A')}")
 
-        if "status" in health_data:
-            status_text = health_data["status"].upper()
-            if health_data["status"] == "healthy":
-                print(f"Health: {status_text} ✓")
-            elif health_data["status"] == "degraded":
-                print(f"Health: {status_text} ⚠")
-            else:
-                print(f"Health: {status_text} ✗")
+                    if "status" in health_data:
+                        status_text = health_data["status"].upper()
+                        if health_data["status"] == "healthy":
+                            print(f"Health: {status_text} ✓")
+                        elif health_data["status"] == "degraded":
+                            print(f"Health: {status_text} ⚠")
+                        else:
+                            print(f"Health: {status_text} ✗")
 
-        if "metrics_summary" in health_data:
-            metrics = health_data["metrics_summary"]
-            print(f"\nMetrics Summary:")
-            print(f"  - Requests/sec: {metrics.get('total_requests_per_second', 0):.2f}")
-            print(f"  - Errors/sec: {metrics.get('total_errors_per_second', 0):.2f}")
-            print(f"  - Error rate: {metrics.get('error_rate_percentage', 0):.2f}%")
-            print(f"  - Avg latency: {metrics.get('average_latency_seconds', 0)*1000:.2f}ms")
-            print(f"  - Active streams: {metrics.get('active_streams', 0)}")
+                    if "metrics_summary" in health_data:
+                        metrics = health_data["metrics_summary"]
+                        print(f"\nMetrics Summary:")
+                        print(f"  - Requests/sec: {metrics.get('total_requests_per_second', 0):.2f}")
+                        print(f"  - Errors/sec: {metrics.get('total_errors_per_second', 0):.2f}")
+                        print(f"  - Error rate: {metrics.get('error_rate_percentage', 0):.2f}%")
+                        print(f"  - Avg latency: {metrics.get('average_latency_seconds', 0)*1000:.2f}ms")
+                        print(f"  - Active streams: {metrics.get('active_streams', 0)}")
 
-        print("=" * 70)
+                    print("=" * 70)
 
-    except requests.exceptions.ConnectionError:
-        print(f"ERROR: Cannot connect to FakeAI server at {base_url}", file=sys.stderr)
-        print(f"       Make sure the server is running.", file=sys.stderr)
-        sys.exit(1)
-    except requests.exceptions.Timeout:
-        print(f"ERROR: Connection to {base_url} timed out", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"ERROR: {e}", file=sys.stderr)
-        sys.exit(1)
+        except aiohttp.ClientConnectorError:
+            print(f"ERROR: Cannot connect to FakeAI server at {base_url}", file=sys.stderr)
+            print(f"       Make sure the server is running.", file=sys.stderr)
+            sys.exit(1)
+        except asyncio.TimeoutError:
+            print(f"ERROR: Connection to {base_url} timed out", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    asyncio.run(check_status())
 
 
 @app.command
@@ -686,92 +691,97 @@ def metrics(
         # Continuously watch metrics
         $ fakeai metrics --watch
     """
-    import requests
+    import asyncio
+    import aiohttp
     import time as time_module
 
     base_url = f"http://{host}:{port}"
 
-    def fetch_and_display():
+    async def fetch_and_display():
         try:
-            response = requests.get(f"{base_url}/metrics", timeout=5)
-            response.raise_for_status()
-            metrics_data = response.json()
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{base_url}/metrics", timeout=aiohttp.ClientTimeout(total=5)) as response:
+                    response.raise_for_status()
+                    metrics_data = await response.json()
 
-            if format == "json":
-                print(json.dumps(metrics_data, indent=2))
-            elif format == "prometheus":
-                # Fetch Prometheus format
-                prom_response = requests.get(f"{base_url}/metrics?format=prometheus", timeout=5)
-                if prom_response.status_code == 200:
-                    print(prom_response.text)
-                else:
-                    print("ERROR: Prometheus format not supported by this server version", file=sys.stderr)
-                    sys.exit(1)
-            elif format == "csv":
-                # Fetch CSV format
-                csv_response = requests.get(f"{base_url}/metrics?format=csv", timeout=5)
-                if csv_response.status_code == 200:
-                    print(csv_response.text)
-                else:
-                    print("ERROR: CSV format not supported by this server version", file=sys.stderr)
-                    sys.exit(1)
-            else:  # pretty format
-                print("=" * 70)
-                print("FakeAI Server Metrics")
-                print("=" * 70)
+                    if format == "json":
+                        print(json.dumps(metrics_data, indent=2))
+                    elif format == "prometheus":
+                        # Fetch Prometheus format
+                        async with session.get(f"{base_url}/metrics?format=prometheus", timeout=aiohttp.ClientTimeout(total=5)) as prom_response:
+                            if prom_response.status == 200:
+                                print(await prom_response.text())
+                            else:
+                                print("ERROR: Prometheus format not supported by this server version", file=sys.stderr)
+                                sys.exit(1)
+                    elif format == "csv":
+                        # Fetch CSV format
+                        async with session.get(f"{base_url}/metrics?format=csv", timeout=aiohttp.ClientTimeout(total=5)) as csv_response:
+                            if csv_response.status == 200:
+                                print(await csv_response.text())
+                            else:
+                                print("ERROR: CSV format not supported by this server version", file=sys.stderr)
+                                sys.exit(1)
+                    else:  # pretty format
+                        print("=" * 70)
+                        print("FakeAI Server Metrics")
+                        print("=" * 70)
 
-                # Requests
-                if "requests" in metrics_data and metrics_data["requests"]:
-                    print("\nRequests per second:")
-                    for endpoint, stats in metrics_data["requests"].items():
-                        if stats["rate"] > 0:
-                            print(f"  {endpoint}: {stats['rate']:.2f}")
+                        # Requests
+                        if "requests" in metrics_data and metrics_data["requests"]:
+                            print("\nRequests per second:")
+                            for endpoint, stats in metrics_data["requests"].items():
+                                if stats["rate"] > 0:
+                                    print(f"  {endpoint}: {stats['rate']:.2f}")
 
-                # Responses
-                if "responses" in metrics_data and metrics_data["responses"]:
-                    print("\nResponses per second (with latency):")
-                    for endpoint, stats in metrics_data["responses"].items():
-                        if stats["rate"] > 0:
-                            print(f"  {endpoint}: {stats['rate']:.2f} (avg: {stats['avg']*1000:.2f}ms, p99: {stats['p99']*1000:.2f}ms)")
+                        # Responses
+                        if "responses" in metrics_data and metrics_data["responses"]:
+                            print("\nResponses per second (with latency):")
+                            for endpoint, stats in metrics_data["responses"].items():
+                                if stats["rate"] > 0:
+                                    print(f"  {endpoint}: {stats['rate']:.2f} (avg: {stats['avg']*1000:.2f}ms, p99: {stats['p99']*1000:.2f}ms)")
 
-                # Tokens
-                if "tokens" in metrics_data and metrics_data["tokens"]:
-                    print("\nTokens per second:")
-                    for endpoint, stats in metrics_data["tokens"].items():
-                        if stats["rate"] > 0:
-                            print(f"  {endpoint}: {stats['rate']:.2f}")
+                        # Tokens
+                        if "tokens" in metrics_data and metrics_data["tokens"]:
+                            print("\nTokens per second:")
+                            for endpoint, stats in metrics_data["tokens"].items():
+                                if stats["rate"] > 0:
+                                    print(f"  {endpoint}: {stats['rate']:.2f}")
 
-                # Errors
-                if "errors" in metrics_data and metrics_data["errors"]:
-                    has_errors = any(stats["rate"] > 0 for stats in metrics_data["errors"].values())
-                    if has_errors:
-                        print("\nErrors per second:")
-                        for endpoint, stats in metrics_data["errors"].items():
-                            if stats["rate"] > 0:
-                                print(f"  {endpoint}: {stats['rate']:.2f}")
+                        # Errors
+                        if "errors" in metrics_data and metrics_data["errors"]:
+                            has_errors = any(stats["rate"] > 0 for stats in metrics_data["errors"].values())
+                            if has_errors:
+                                print("\nErrors per second:")
+                                for endpoint, stats in metrics_data["errors"].items():
+                                    if stats["rate"] > 0:
+                                        print(f"  {endpoint}: {stats['rate']:.2f}")
 
-                # Streaming stats
-                if "streaming_stats" in metrics_data:
-                    stream_stats = metrics_data["streaming_stats"]
-                    if stream_stats.get("active_streams", 0) > 0 or stream_stats.get("completed_streams", 0) > 0:
-                        print("\nStreaming Statistics:")
-                        print(f"  Active streams: {stream_stats.get('active_streams', 0)}")
-                        print(f"  Completed streams: {stream_stats.get('completed_streams', 0)}")
-                        print(f"  Failed streams: {stream_stats.get('failed_streams', 0)}")
+                        # Streaming stats
+                        if "streaming_stats" in metrics_data:
+                            stream_stats = metrics_data["streaming_stats"]
+                            if stream_stats.get("active_streams", 0) > 0 or stream_stats.get("completed_streams", 0) > 0:
+                                print("\nStreaming Statistics:")
+                                print(f"  Active streams: {stream_stats.get('active_streams', 0)}")
+                                print(f"  Completed streams: {stream_stats.get('completed_streams', 0)}")
+                                print(f"  Failed streams: {stream_stats.get('failed_streams', 0)}")
 
-                        if stream_stats.get("ttft"):
-                            ttft = stream_stats["ttft"]
-                            print(f"  TTFT: avg={ttft['avg']*1000:.2f}ms, p50={ttft['p50']*1000:.2f}ms, p99={ttft['p99']*1000:.2f}ms")
+                                if stream_stats.get("ttft"):
+                                    ttft = stream_stats["ttft"]
+                                    print(f"  TTFT: avg={ttft['avg']*1000:.2f}ms, p50={ttft['p50']*1000:.2f}ms, p99={ttft['p99']*1000:.2f}ms")
 
-                        if stream_stats.get("tokens_per_second"):
-                            tps = stream_stats["tokens_per_second"]
-                            print(f"  Tokens/sec: avg={tps['avg']:.2f}, p50={tps['p50']:.2f}, p99={tps['p99']:.2f}")
+                                if stream_stats.get("tokens_per_second"):
+                                    tps = stream_stats["tokens_per_second"]
+                                    print(f"  Tokens/sec: avg={tps['avg']:.2f}, p50={tps['p50']:.2f}, p99={tps['p99']:.2f}")
 
-                print("=" * 70)
+                        print("=" * 70)
 
-        except requests.exceptions.ConnectionError:
+        except aiohttp.ClientConnectorError:
             print(f"ERROR: Cannot connect to FakeAI server at {base_url}", file=sys.stderr)
             print(f"       Make sure the server is running.", file=sys.stderr)
+            sys.exit(1)
+        except asyncio.TimeoutError:
+            print(f"ERROR: Connection to {base_url} timed out", file=sys.stderr)
             sys.exit(1)
         except Exception as e:
             print(f"ERROR: {e}", file=sys.stderr)
@@ -782,13 +792,13 @@ def metrics(
             while True:
                 # Clear screen (cross-platform)
                 print("\033[2J\033[H", end="")
-                fetch_and_display()
+                asyncio.run(fetch_and_display())
                 print("\n(Press Ctrl+C to stop)")
                 time_module.sleep(5)
         except KeyboardInterrupt:
             print("\n\nStopped watching metrics")
     else:
-        fetch_and_display()
+        asyncio.run(fetch_and_display())
 
 
 @app.command(name="cache-stats")
@@ -816,61 +826,69 @@ def cache_stats(
         # Display cache stats from remote server
         $ fakeai cache-stats --host 192.168.1.100 --port 9000
     """
-    import requests
+    import asyncio
+    import aiohttp
 
-    base_url = f"http://{host}:{port}"
+    async def fetch_cache_stats():
+        base_url = f"http://{host}:{port}"
 
-    try:
-        # Check if cache stats endpoint exists
-        response = requests.get(f"{base_url}/cache-stats", timeout=5)
-        response.raise_for_status()
-        cache_data = response.json()
+        try:
+            # Check if cache stats endpoint exists
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{base_url}/cache-stats", timeout=aiohttp.ClientTimeout(total=5)) as response:
+                    response.raise_for_status()
+                    cache_data = await response.json()
 
-        print("=" * 70)
-        print("FakeAI KV Cache Statistics")
-        print("=" * 70)
+                    print("=" * 70)
+                    print("FakeAI KV Cache Statistics")
+                    print("=" * 70)
 
-        if "enabled" in cache_data and not cache_data["enabled"]:
-            print("\nKV Cache: DISABLED")
-            print("\nTo enable KV cache, start the server with:")
-            print("  $ fakeai server --enable-kv-cache")
-            print("=" * 70)
-            return
+                    if "enabled" in cache_data and not cache_data["enabled"]:
+                        print("\nKV Cache: DISABLED")
+                        print("\nTo enable KV cache, start the server with:")
+                        print("  $ fakeai server --enable-kv-cache")
+                        print("=" * 70)
+                        return
 
-        print(f"\nCache Configuration:")
-        print(f"  - Enabled: {cache_data.get('enabled', False)}")
-        print(f"  - Block size: {cache_data.get('block_size', 'N/A')} tokens")
-        print(f"  - Workers: {cache_data.get('num_workers', 'N/A')}")
-        print(f"  - Overlap weight: {cache_data.get('overlap_weight', 'N/A')}")
+                    print(f"\nCache Configuration:")
+                    print(f"  - Enabled: {cache_data.get('enabled', False)}")
+                    print(f"  - Block size: {cache_data.get('block_size', 'N/A')} tokens")
+                    print(f"  - Workers: {cache_data.get('num_workers', 'N/A')}")
+                    print(f"  - Overlap weight: {cache_data.get('overlap_weight', 'N/A')}")
 
-        if "stats" in cache_data:
-            stats = cache_data["stats"]
-            print(f"\nCache Performance:")
-            print(f"  - Total requests: {stats.get('total_requests', 0)}")
-            print(f"  - Cache hits: {stats.get('cache_hits', 0)}")
-            print(f"  - Cache misses: {stats.get('cache_misses', 0)}")
-            hit_rate = stats.get('hit_rate', 0) * 100
-            print(f"  - Hit rate: {hit_rate:.2f}%")
-            print(f"  - Cached blocks: {stats.get('cached_blocks', 0)}")
-            print(f"  - Tokens saved: {stats.get('tokens_saved', 0)}")
-            print(f"  - Avg speedup: {stats.get('avg_speedup', 0):.2f}x")
+                    if "stats" in cache_data:
+                        stats = cache_data["stats"]
+                        print(f"\nCache Performance:")
+                        print(f"  - Total requests: {stats.get('total_requests', 0)}")
+                        print(f"  - Cache hits: {stats.get('cache_hits', 0)}")
+                        print(f"  - Cache misses: {stats.get('cache_misses', 0)}")
+                        hit_rate = stats.get('hit_rate', 0) * 100
+                        print(f"  - Hit rate: {hit_rate:.2f}%")
+                        print(f"  - Cached blocks: {stats.get('cached_blocks', 0)}")
+                        print(f"  - Tokens saved: {stats.get('tokens_saved', 0)}")
+                        print(f"  - Avg speedup: {stats.get('avg_speedup', 0):.2f}x")
 
-        print("=" * 70)
+                    print("=" * 70)
 
-    except requests.exceptions.ConnectionError:
-        print(f"ERROR: Cannot connect to FakeAI server at {base_url}", file=sys.stderr)
-        print(f"       Make sure the server is running.", file=sys.stderr)
-        sys.exit(1)
-    except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 404:
-            print("ERROR: Cache stats endpoint not found.", file=sys.stderr)
-            print("       This feature may not be available in your server version.", file=sys.stderr)
-        else:
+        except aiohttp.ClientConnectorError:
+            print(f"ERROR: Cannot connect to FakeAI server at {base_url}", file=sys.stderr)
+            print(f"       Make sure the server is running.", file=sys.stderr)
+            sys.exit(1)
+        except asyncio.TimeoutError:
+            print(f"ERROR: Connection to {base_url} timed out", file=sys.stderr)
+            sys.exit(1)
+        except aiohttp.ClientResponseError as e:
+            if e.status == 404:
+                print("ERROR: Cache stats endpoint not found.", file=sys.stderr)
+                print("       This feature may not be available in your server version.", file=sys.stderr)
+            else:
+                print(f"ERROR: HTTP {e.status}", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
             print(f"ERROR: {e}", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"ERROR: {e}", file=sys.stderr)
-        sys.exit(1)
+            sys.exit(1)
+
+    asyncio.run(fetch_cache_stats())
 
 
 @app.command
@@ -911,7 +929,8 @@ def interactive(
         # Connect to remote server with API key
         $ fakeai interactive --host 192.168.1.100 --api-key sk-test-key
     """
-    import requests
+    import asyncio
+    import aiohttp
 
     base_url = f"http://{host}:{port}"
     current_model = "openai/gpt-oss-120b"
@@ -919,13 +938,17 @@ def interactive(
     conversation_history = []
 
     # Test connection
-    try:
-        response = requests.get(f"{base_url}/health", timeout=5)
-        response.raise_for_status()
-    except Exception as e:
-        print(f"ERROR: Cannot connect to FakeAI server at {base_url}", file=sys.stderr)
-        print(f"       {e}", file=sys.stderr)
-        sys.exit(1)
+    async def test_connection():
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{base_url}/health", timeout=aiohttp.ClientTimeout(total=5)) as response:
+                    response.raise_for_status()
+        except Exception as e:
+            print(f"ERROR: Cannot connect to FakeAI server at {base_url}", file=sys.stderr)
+            print(f"       {e}", file=sys.stderr)
+            sys.exit(1)
+
+    asyncio.run(test_connection())
 
     print("=" * 70)
     print("FakeAI Interactive REPL")
@@ -948,6 +971,114 @@ def interactive(
         print("  <message>          - Send a chat completion request")
         print()
 
+    async def handle_models_command():
+        try:
+            headers = {}
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{base_url}/v1/models", headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as response:
+                    response.raise_for_status()
+                    models_data = await response.json()
+                    print("\nAvailable models:")
+                    for model in models_data.get("data", []):
+                        print(f"  - {model['id']}")
+                    print()
+        except Exception as e:
+            print(f"ERROR: {e}")
+
+    async def handle_metrics_command():
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{base_url}/metrics", timeout=aiohttp.ClientTimeout(total=5)) as response:
+                    response.raise_for_status()
+                    metrics_data = await response.json()
+                    print(json.dumps(metrics_data, indent=2))
+        except Exception as e:
+            print(f"ERROR: {e}")
+
+    async def handle_chat_completion(user_input):
+        nonlocal conversation_history
+
+        conversation_history.append({"role": "user", "content": user_input})
+
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        request_data = {
+            "model": current_model,
+            "messages": conversation_history,
+            "stream": streaming,
+        }
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                if streaming:
+                    # Handle streaming response
+                    async with session.post(
+                        f"{base_url}/v1/chat/completions",
+                        headers=headers,
+                        json=request_data,
+                        timeout=aiohttp.ClientTimeout(total=30),
+                    ) as response:
+                        response.raise_for_status()
+
+                        print("\nAssistant: ", end="", flush=True)
+                        full_content = ""
+                        async for line in response.content:
+                            if line:
+                                line_str = line.decode("utf-8").strip()
+                                if line_str.startswith("data: "):
+                                    data_str = line_str[6:]
+                                    if data_str.strip() == "[DONE]":
+                                        break
+                                    try:
+                                        chunk_data = json.loads(data_str)
+                                        if chunk_data["choices"][0]["delta"].get("content"):
+                                            content = chunk_data["choices"][0]["delta"]["content"]
+                                            print(content, end="", flush=True)
+                                            full_content += content
+                                    except json.JSONDecodeError:
+                                        pass
+                        print("\n")
+
+                        # Add assistant response to history
+                        conversation_history.append({"role": "assistant", "content": full_content})
+
+                else:
+                    # Handle non-streaming response
+                    async with session.post(
+                        f"{base_url}/v1/chat/completions",
+                        headers=headers,
+                        json=request_data,
+                        timeout=aiohttp.ClientTimeout(total=30),
+                    ) as response:
+                        response.raise_for_status()
+                        result = await response.json()
+
+                        assistant_message = result["choices"][0]["message"]["content"]
+                        print(f"\nAssistant: {assistant_message}\n")
+
+                        # Add assistant response to history
+                        conversation_history.append({"role": "assistant", "content": assistant_message})
+
+        except aiohttp.ClientResponseError as e:
+            print(f"\nERROR: HTTP {e.status}")
+            try:
+                error_data = json.loads(e.message)
+                print(f"       {error_data.get('error', {}).get('message', str(e))}")
+            except:
+                print(f"       {e}")
+            print()
+            # Remove the failed user message from history
+            conversation_history.pop()
+
+        except Exception as e:
+            print(f"\nERROR: {e}\n")
+            # Remove the failed user message from history
+            conversation_history.pop()
+
     while True:
         try:
             user_input = input(f"[{current_model}]> ").strip()
@@ -968,28 +1099,10 @@ def interactive(
                     show_help()
 
                 elif cmd == "models":
-                    try:
-                        headers = {}
-                        if api_key:
-                            headers["Authorization"] = f"Bearer {api_key}"
-                        response = requests.get(f"{base_url}/v1/models", headers=headers, timeout=5)
-                        response.raise_for_status()
-                        models_data = response.json()
-                        print("\nAvailable models:")
-                        for model in models_data.get("data", []):
-                            print(f"  - {model['id']}")
-                        print()
-                    except Exception as e:
-                        print(f"ERROR: {e}")
+                    asyncio.run(handle_models_command())
 
                 elif cmd == "metrics":
-                    try:
-                        response = requests.get(f"{base_url}/metrics", timeout=5)
-                        response.raise_for_status()
-                        metrics_data = response.json()
-                        print(json.dumps(metrics_data, indent=2))
-                    except Exception as e:
-                        print(f"ERROR: {e}")
+                    asyncio.run(handle_metrics_command())
 
                 elif cmd == "clear":
                     conversation_history = []
@@ -1030,84 +1143,7 @@ def interactive(
                 continue
 
             # Send chat completion request
-            conversation_history.append({"role": "user", "content": user_input})
-
-            headers = {"Content-Type": "application/json"}
-            if api_key:
-                headers["Authorization"] = f"Bearer {api_key}"
-
-            request_data = {
-                "model": current_model,
-                "messages": conversation_history,
-                "stream": streaming,
-            }
-
-            try:
-                if streaming:
-                    # Handle streaming response
-                    response = requests.post(
-                        f"{base_url}/v1/chat/completions",
-                        headers=headers,
-                        json=request_data,
-                        stream=True,
-                        timeout=30,
-                    )
-                    response.raise_for_status()
-
-                    print("\nAssistant: ", end="", flush=True)
-                    full_content = ""
-                    for line in response.iter_lines():
-                        if line:
-                            line_str = line.decode("utf-8")
-                            if line_str.startswith("data: "):
-                                data_str = line_str[6:]
-                                if data_str.strip() == "[DONE]":
-                                    break
-                                try:
-                                    chunk_data = json.loads(data_str)
-                                    if chunk_data["choices"][0]["delta"].get("content"):
-                                        content = chunk_data["choices"][0]["delta"]["content"]
-                                        print(content, end="", flush=True)
-                                        full_content += content
-                                except json.JSONDecodeError:
-                                    pass
-                    print("\n")
-
-                    # Add assistant response to history
-                    conversation_history.append({"role": "assistant", "content": full_content})
-
-                else:
-                    # Handle non-streaming response
-                    response = requests.post(
-                        f"{base_url}/v1/chat/completions",
-                        headers=headers,
-                        json=request_data,
-                        timeout=30,
-                    )
-                    response.raise_for_status()
-                    result = response.json()
-
-                    assistant_message = result["choices"][0]["message"]["content"]
-                    print(f"\nAssistant: {assistant_message}\n")
-
-                    # Add assistant response to history
-                    conversation_history.append({"role": "assistant", "content": assistant_message})
-
-            except requests.exceptions.HTTPError as e:
-                print(f"\nERROR: HTTP {e.response.status_code}")
-                try:
-                    error_data = e.response.json()
-                    print(f"       {error_data.get('error', {}).get('message', str(e))}")
-                except:
-                    print(f"       {e}")
-                print()
-                # Remove the failed user message from history
-                conversation_history.pop()
-
-            except Exception as e:
-                print(f"\nERROR: {e}\n")
-                # Remove the failed user message from history
-                conversation_history.pop()
+            asyncio.run(handle_chat_completion(user_input))
 
         except KeyboardInterrupt:
             print("\n\nGoodbye!")
