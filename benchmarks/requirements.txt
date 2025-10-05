@@ -1,0 +1,9 @@
+# FakeAI Benchmark Suite Requirements
+# Core dependencies
+httpx>=0.25.0
+
+# Optional: Memory benchmarking
+psutil>=5.9.0
+
+# Optional: Chart generation
+matplotlib>=3.7.0

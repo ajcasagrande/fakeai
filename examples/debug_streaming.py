@@ -33,7 +33,7 @@ async def debug_streaming() -> None:
         print("Sending request with max_tokens=100...")
         
         stream = await client.chat.completions.create(
-            model="gpt-4",
+            model="openai/gpt-oss-120b",
             messages=[{"role": "user", "content": "Say hello"}],
             stream=True,
             max_tokens=100,  # Explicitly set max_tokens
@@ -104,7 +104,7 @@ async def debug_streaming() -> None:
         start_time = time.time()
         
         response = await client.chat.completions.create(
-            model="gpt-4",
+            model="openai/gpt-oss-120b",
             messages=[{"role": "user", "content": "Say hello"}],
             stream=False,
             max_tokens=100,

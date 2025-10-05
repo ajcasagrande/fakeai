@@ -1,0 +1,276 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+        pip install pytest-cov pytest-xdist pytest-asyncio
+
+    - name: Run tests with coverage
+      run: |
+        pytest tests/ \
+          --cov=fakeai \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term \
+          -v \
+          --tb=short \
+          --maxfail=5 \
+          -n auto
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage.xml
+        flags: unittests
+        name: codecov-${{ matrix.os }}-py${{ matrix.python-version }}
+        fail_ci_if_error: false
+
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+        pip install black isort flake8 mypy
+
+    - name: Check formatting with Black
+      run: black --check fakeai/
+
+    - name: Check import sorting with isort
+      run: isort --check-only fakeai/
+
+    - name: Lint with flake8
+      run: flake8 fakeai/ --max-line-length=88 --extend-ignore=E203,W503
+
+    - name: Type check with mypy
+      run: mypy fakeai/ --ignore-missing-imports
+      continue-on-error: true
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+        pip install openai httpx
+
+    - name: Start FakeAI server
+      run: |
+        fakeai-server --port 8000 --ttft 5 --itl 1 &
+        echo "Waiting for server to start..."
+        sleep 5
+
+    - name: Test health endpoint
+      run: |
+        curl -f http://localhost:8000/health || exit 1
+
+    - name: Test with OpenAI client
+      run: |
+        python -c "
+        from openai import OpenAI
+        client = OpenAI(base_url='http://localhost:8000', api_key='test')
+        response = client.chat.completions.create(
+            model='openai/gpt-oss-120b',
+            messages=[{'role': 'user', 'content': 'test'}]
+        )
+        assert response.choices[0].message.content
+        print('OpenAI client test passed')
+        "
+
+    - name: Test streaming
+      run: |
+        python -c "
+        from openai import OpenAI
+        client = OpenAI(base_url='http://localhost:8000', api_key='test')
+        stream = client.chat.completions.create(
+            model='openai/gpt-oss-120b',
+            messages=[{'role': 'user', 'content': 'test'}],
+            stream=True
+        )
+        chunks = list(stream)
+        assert len(chunks) > 0
+        print(f'Streaming test passed: {len(chunks)} chunks')
+        "
+
+    - name: Test embeddings
+      run: |
+        python -c "
+        from openai import OpenAI
+        client = OpenAI(base_url='http://localhost:8000', api_key='test')
+        response = client.embeddings.create(
+            model='sentence-transformers/all-mpnet-base-v2',
+            input='test'
+        )
+        assert len(response.data[0].embedding) > 0
+        print('Embeddings test passed')
+        "
+
+    - name: Test metrics endpoint
+      run: |
+        curl -f http://localhost:8000/metrics || exit 1
+        echo "Metrics endpoint test passed"
+
+  performance:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install httpx uvloop
+
+    - name: Start server with minimal latency
+      run: |
+        fakeai-server --port 8000 --ttft 1 --itl 0.1 --response-delay 0.0 &
+        sleep 3
+
+    - name: Run load test (1000 requests)
+      run: |
+        python - << 'EOF'
+        import asyncio
+        import httpx
+        import time
+
+        async def make_request(client, semaphore):
+            async with semaphore:
+                response = await client.post(
+                    "http://localhost:8000/v1/chat/completions",
+                    json={
+                        "model": "openai/gpt-oss-120b",
+                        "messages": [{"role": "user", "content": "test"}],
+                        "max_tokens": 10
+                    }
+                )
+                return response.status_code == 200
+
+        async def load_test():
+            semaphore = asyncio.Semaphore(100)
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                start = time.time()
+                tasks = [make_request(client, semaphore) for _ in range(1000)]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                elapsed = time.time() - start
+
+                success = sum(1 for r in results if r is True)
+                print(f"Completed 1000 requests in {elapsed:.2f}s")
+                print(f"Success rate: {success/1000*100:.1f}%")
+                print(f"Throughput: {1000/elapsed:.2f} req/s")
+
+                assert success >= 950, f"Too many failures: {1000-success}"
+
+        asyncio.run(load_test())
+        EOF
+
+  security:
+    name: Security Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install httpx
+
+    - name: Start server with security enabled
+      run: |
+        fakeai-server --port 8000 --enable-security --api-key sk-test-key &
+        sleep 3
+
+    - name: Test authentication required
+      run: |
+        # Request without API key should fail
+        status=$(curl -s -o /dev/null -w "%{http_code}" \
+          -X POST http://localhost:8000/v1/chat/completions \
+          -H "Content-Type: application/json" \
+          -d '{"model":"openai/gpt-oss-120b","messages":[{"role":"user","content":"test"}]}')
+
+        if [ "$status" -eq 401 ]; then
+          echo "Authentication test passed (401 without key)"
+        else
+          echo "Expected 401, got $status"
+          exit 1
+        fi
+
+    - name: Test with valid API key
+      run: |
+        # Request with API key should succeed
+        status=$(curl -s -o /dev/null -w "%{http_code}" \
+          -X POST http://localhost:8000/v1/chat/completions \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer sk-test-key" \
+          -d '{"model":"openai/gpt-oss-120b","messages":[{"role":"user","content":"test"}]}')
+
+        if [ "$status" -eq 200 ]; then
+          echo "Authentication test passed (200 with key)"
+        else
+          echo "Expected 200, got $status"
+          exit 1
+        fi

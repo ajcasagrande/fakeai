@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FakeAI Dynamo Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #8b5cf6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1e293b;
+            --dark-light: #334155;
+            --gray: #64748b;
+            --light: #f1f5f9;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            color: #e0e7ff;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .status-card {
+            flex: 1;
+            min-width: 200px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .status-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .status-card h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            opacity: 0.8;
+            color: #e0e7ff;
+        }
+
+        .status-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .status-label {
+            font-size: 0.85rem;
+            opacity: 0.7;
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .card-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            font-size: 0.95rem;
+            opacity: 0.8;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success) 0%, var(--primary) 100%);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 250px;
+            margin-top: 20px;
+        }
+
+        .gpu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .gpu-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .gpu-header {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #a5b4fc;
+        }
+
+        .gpu-metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            font-size: 0.9rem;
+        }
+
+        .health-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .health-healthy {
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+        }
+
+        .health-warning {
+            background: var(--warning);
+            box-shadow: 0 0 10px var(--warning);
+        }
+
+        .health-critical {
+            background: var(--danger);
+            box-shadow: 0 0 10px var(--danger);
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-mini {
+            text-align: center;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+
+        .stat-mini-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-mini-label {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2rem;
+            opacity: 0.7;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .tier-indicator {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .tier-g1 {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .tier-g2 {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        }
+
+        .tier-g3 {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .tier-g4 {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            opacity: 0.7;
+            margin-top: 40px;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .status-card {
+                min-width: 100%;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 15px;
+            background: rgba(16, 185, 129, 0.2);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .tooltip {
+            position: relative;
+            cursor: help;
+        }
+
+        .tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            z-index: 100;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                <div>
+                    <h1>🚀 FakeAI Dynamo Dashboard</h1>
+                    <p>NVIDIA AI-Dynamo Inference Monitoring • Real-time GPU & LLM Metrics</p>
+                </div>
+                <div class="live-indicator">
+                    <div class="live-dot"></div>
+                    <span>LIVE</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button class="btn btn-primary" onclick="refreshData()">
+                🔄 Refresh Now
+            </button>
+            <button class="btn btn-secondary" onclick="toggleAutoRefresh()">
+                ⏸️ <span id="autoRefreshBtn">Pause Auto-Refresh</span>
+            </button>
+            <button class="btn btn-secondary" onclick="exportData()">
+                💾 Export Metrics
+            </button>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-card">
+                <h3>Requests/sec</h3>
+                <div class="status-value pulse" id="rps">--</div>
+                <div class="status-label">Current throughput</div>
+            </div>
+            <div class="status-card">
+                <h3>TTFT p50</h3>
+                <div class="status-value" id="ttft">--</div>
+                <div class="status-label">Time to first token</div>
+            </div>
+            <div class="status-card">
+                <h3>Cache Hit Rate</h3>
+                <div class="status-value" id="cache-hit">--</div>
+                <div class="status-label">KV cache efficiency</div>
+            </div>
+            <div class="status-card">
+                <h3>Active Streams</h3>
+                <div class="status-value" id="active-streams">--</div>
+                <div class="status-label">Concurrent requests</div>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="grid">
+            <!-- GPU Metrics (DCGM) -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">🎮 GPU Metrics (DCGM)</div>
+                    <div class="card-badge">4× H100</div>
+                </div>
+                <div class="gpu-grid" id="gpu-metrics">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading GPU data...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Latency Breakdown -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">⚡ Latency Breakdown</div>
+                    <div class="card-badge">Dynamo</div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="latencyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- KVBM Memory Tiers -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">🗂️ KVBM Memory Tiers</div>
+                    <div class="card-badge">4-Tier</div>
+                </div>
+                <div id="kvbm-metrics">
+                    <div class="metric-row">
+                        <span class="metric-label">G1: GPU HBM <span class="tier-indicator tier-g1">HOT</span></span>
+                        <span class="metric-value" id="kvbm-g1">--</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="kvbm-g1-progress" style="width: 0%"></div>
+                    </div>
+
+                    <div class="metric-row" style="margin-top: 15px;">
+                        <span class="metric-label">G2: CPU DRAM <span class="tier-indicator tier-g2">WARM</span></span>
+                        <span class="metric-value" id="kvbm-g2">--</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="kvbm-g2-progress" style="width: 0%"></div>
+                    </div>
+
+                    <div class="metric-row" style="margin-top: 15px;">
+                        <span class="metric-label">G3: Local SSD <span class="tier-indicator tier-g3">COLD</span></span>
+                        <span class="metric-value" id="kvbm-g3">--</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="kvbm-g3-progress" style="width: 0%"></div>
+                    </div>
+
+                    <div class="metric-row" style="margin-top: 15px;">
+                        <span class="metric-label">G4: Remote <span class="tier-indicator tier-g4">ARCHIVE</span></span>
+                        <span class="metric-value" id="kvbm-g4">--</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="kvbm-g4-progress" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Throughput Chart -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">📊 Throughput</div>
+                    <div class="card-badge">Last 60s</div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="throughputChart"></canvas>
+                </div>
+            </div>
+
+            <!-- SLA Planner -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">🎯 SLA-Based Planner</div>
+                    <div class="card-badge">Auto-Scale</div>
+                </div>
+                <div>
+                    <div class="metric-row">
+                        <span class="metric-label">TTFT Target</span>
+                        <span class="metric-value" id="sla-ttft-target">200ms</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">ITL Target</span>
+                        <span class="metric-value" id="sla-itl-target">25ms</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Predicted Load</span>
+                        <span class="metric-value" id="sla-predicted">-- req/s</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Prefill Workers</span>
+                        <span class="metric-value" id="sla-prefill-workers">--</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Decode Workers</span>
+                        <span class="metric-value" id="sla-decode-workers">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Disaggregated Router -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">🔀 Disaggregated Router</div>
+                    <div class="card-badge">Prefill/Decode</div>
+                </div>
+                <div>
+                    <div class="stats-grid">
+                        <div class="stat-mini">
+                            <div class="stat-mini-value" id="router-local">--</div>
+                            <div class="stat-mini-label">Local</div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="stat-mini-value" id="router-remote">--</div>
+                            <div class="stat-mini-label">Remote</div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="stat-mini-value" id="router-ratio">--%</div>
+                            <div class="stat-mini-label">Remote %</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prefill Queue -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">📥 Prefill Queue</div>
+                    <div class="card-badge">FIFO</div>
+                </div>
+                <div>
+                    <div class="metric-row">
+                        <span class="metric-label">Current Depth</span>
+                        <span class="metric-value" id="queue-depth">--</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Max Depth</span>
+                        <span class="metric-value" id="queue-max">--</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Utilization</span>
+                        <span class="metric-value" id="queue-util">--%</span>
+                    </div>
+                    <div class="progress-bar" style="margin-top: 15px;">
+                        <div class="progress-fill" id="queue-progress" style="width: 0%"></div>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Rejection Rate</span>
+                        <span class="metric-value" id="queue-rejection">--%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Endpoints -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">🌐 Registered Endpoints</div>
+                    <div class="card-badge" id="endpoint-count">0</div>
+                </div>
+                <div id="endpoints-list">
+                    <div class="loading">No endpoints registered</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>FakeAI v0.0.5 with NVIDIA AI-Dynamo Architecture • Built with ❤️</p>
+            <p style="margin-top: 10px; font-size: 0.85rem; opacity: 0.6;">
+                Auto-refresh: <span id="refresh-interval">5s</span> |
+                Last updated: <span id="last-update">Never</span>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let autoRefresh = true;
+        let refreshInterval = 5000; // 5 seconds
+        let charts = {};
+        let refreshTimer;
+
+        // Initialize charts
+        function initCharts() {
+            // Latency chart
+            const latencyCtx = document.getElementById('latencyChart').getContext('2d');
+            charts.latency = new Chart(latencyCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Queue', 'Prefill', 'Decode', 'Total'],
+                    datasets: [{
+                        label: 'p50 (ms)',
+                        data: [0, 0, 0, 0],
+                        backgroundColor: 'rgba(99, 102, 241, 0.7)',
+                    }, {
+                        label: 'p90 (ms)',
+                        data: [0, 0, 0, 0],
+                        backgroundColor: 'rgba(139, 92, 246, 0.7)',
+                    }, {
+                        label: 'p99 (ms)',
+                        data: [0, 0, 0, 0],
+                        backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#fff' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: '#fff' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        x: {
+                            ticks: { color: '#fff' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        }
+                    }
+                }
+            });
+
+            // Throughput chart (line)
+            const throughputCtx = document.getElementById('throughputChart').getContext('2d');
+            charts.throughput = new Chart(throughputCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Requests/sec',
+                        data: [],
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: 'Tokens/sec',
+                        data: [],
+                        borderColor: 'rgba(99, 102, 241, 1)',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#fff' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            ticks: { color: '#fff' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            ticks: { color: '#fff' },
+                            grid: { drawOnChartArea: false, color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        x: {
+                            ticks: { color: '#fff' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Fetch and update all metrics
+        async function refreshData() {
+            try {
+                // Fetch multiple endpoints
+                const [metrics, kvCache, dcgm, dynamo] = await Promise.all([
+                    fetch('/metrics').then(r => r.json()),
+                    fetch('/kv-cache-metrics').then(r => r.json()),
+                    fetch('/dcgm-metrics/json').then(r => r.json()).catch(() => null),
+                    fetch('/dynamo-metrics/json').then(r => r.json()).catch(() => null)
+                ]);
+
+                // Update status bar
+                updateStatusBar(metrics, dynamo);
+
+                // Update GPU metrics
+                if (dcgm) {
+                    updateGPUMetrics(dcgm);
+                }
+
+                // Update Dynamo metrics
+                if (dynamo) {
+                    updateDynamoMetrics(dynamo);
+                }
+
+                // Update KV cache
+                updateKVCache(kvCache);
+
+                // Update charts
+                updateCharts(dynamo, metrics);
+
+                // Update last refresh time
+                document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+
+            } catch (error) {
+                console.error('Error fetching metrics:', error);
+            }
+        }
+
+        function updateStatusBar(metrics, dynamo) {
+            // RPS
+            const rps = metrics.requests?.['/v1/chat/completions']?.rate || 0;
+            document.getElementById('rps').textContent = rps.toFixed(1);
+
+            // TTFT
+            if (dynamo?.latency?.ttft?.p50) {
+                document.getElementById('ttft').textContent = dynamo.latency.ttft.p50.toFixed(0) + 'ms';
+            }
+
+            // Cache hit rate
+            const cacheHit = dynamo?.cache?.hit_rate || 0;
+            document.getElementById('cache-hit').textContent = cacheHit.toFixed(1) + '%';
+
+            // Active streams
+            const activeStreams = metrics.streaming_stats?.active_streams || 0;
+            document.getElementById('active-streams').textContent = activeStreams;
+        }
+
+        function updateGPUMetrics(dcgm) {
+            const container = document.getElementById('gpu-metrics');
+            let html = '';
+
+            Object.keys(dcgm).sort().forEach(gpuKey => {
+                const gpu = dcgm[gpuKey];
+                const health = gpu.temperature_c > 85 ? 'critical' : (gpu.temperature_c > 75 ? 'warning' : 'healthy');
+
+                html += `
+                    <div class="gpu-card">
+                        <div class="gpu-header">
+                            <span class="health-indicator health-${health}"></span>
+                            GPU ${gpu.gpu_id}
+                        </div>
+                        <div class="gpu-metric">
+                            <span>Utilization:</span>
+                            <span>${gpu.gpu_utilization_pct}%</span>
+                        </div>
+                        <div class="gpu-metric">
+                            <span>Temperature:</span>
+                            <span>${gpu.temperature_c}°C</span>
+                        </div>
+                        <div class="gpu-metric">
+                            <span>Power:</span>
+                            <span>${gpu.power_usage_w.toFixed(0)}W</span>
+                        </div>
+                        <div class="gpu-metric">
+                            <span>Memory:</span>
+                            <span>${(gpu.memory_used_mib / 1024).toFixed(1)}GB</span>
+                        </div>
+                        <div class="gpu-metric">
+                            <span>Tensor Cores:</span>
+                            <span>${gpu.tensor_active_pct.toFixed(1)}%</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function updateDynamoMetrics(dynamo) {
+            // Update latency chart
+            if (charts.latency && dynamo.latency) {
+                const lat = dynamo.latency;
+                charts.latency.data.datasets[0].data = [
+                    lat.queue.p50, lat.prefill.p50, lat.decode.p50, lat.total.p50
+                ];
+                charts.latency.data.datasets[1].data = [
+                    lat.queue.p90, lat.prefill.p90, lat.decode.p90, lat.total.p90
+                ];
+                charts.latency.data.datasets[2].data = [
+                    lat.queue.p99, lat.prefill.p99, lat.decode.p99, lat.total.p99
+                ];
+                charts.latency.update('none');
+            }
+
+            // Update router stats
+            if (dynamo.disaggregation) {
+                // Not available, use placeholder
+            }
+
+            // Update throughput chart (add point)
+            if (charts.throughput && dynamo.throughput) {
+                const time = new Date().toLocaleTimeString();
+
+                if (charts.throughput.data.labels.length > 20) {
+                    charts.throughput.data.labels.shift();
+                    charts.throughput.data.datasets[0].data.shift();
+                    charts.throughput.data.datasets[1].data.shift();
+                }
+
+                charts.throughput.data.labels.push(time);
+                charts.throughput.data.datasets[0].data.push(dynamo.throughput.requests_per_second);
+                charts.throughput.data.datasets[1].data.push(dynamo.throughput.tokens_per_second / 100); // Scale
+                charts.throughput.update('none');
+            }
+        }
+
+        function updateKVCache(kvCache) {
+            // Smart router stats
+            const router = kvCache.smart_router;
+            const cache = kvCache.cache_performance;
+
+            if (router && router.workers) {
+                // Could display worker details here
+            }
+        }
+
+        function updateCharts(dynamo, metrics) {
+            // Additional chart updates can go here
+        }
+
+        function toggleAutoRefresh() {
+            autoRefresh = !autoRefresh;
+            const btn = document.getElementById('autoRefreshBtn');
+            btn.textContent = autoRefresh ? 'Pause Auto-Refresh' : 'Resume Auto-Refresh';
+
+            if (autoRefresh) {
+                startAutoRefresh();
+            } else {
+                if (refreshTimer) {
+                    clearTimeout(refreshTimer);
+                }
+            }
+        }
+
+        function startAutoRefresh() {
+            if (refreshTimer) {
+                clearTimeout(refreshTimer);
+            }
+
+            if (autoRefresh) {
+                refreshData();
+                refreshTimer = setTimeout(startAutoRefresh, refreshInterval);
+            }
+        }
+
+        function exportData() {
+            // Export all metrics as JSON
+            Promise.all([
+                fetch('/metrics').then(r => r.json()),
+                fetch('/kv-cache-metrics').then(r => r.json()),
+                fetch('/dcgm-metrics/json').then(r => r.json()).catch(() => ({})),
+                fetch('/dynamo-metrics/json').then(r => r.json()).catch(() => ({}))
+            ]).then(([metrics, kvCache, dcgm, dynamo]) => {
+                const data = {
+                    timestamp: new Date().toISOString(),
+                    metrics,
+                    kv_cache: kvCache,
+                    dcgm,
+                    dynamo
+                };
+
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `fakeai-metrics-${Date.now()}.json`;
+                a.click();
+            });
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            refreshData();
+            startAutoRefresh();
+        });
+    </script>
+</body>
+</html>

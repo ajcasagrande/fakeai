@@ -1,0 +1,75 @@
+services:
+  # FakeAI API Server
+  fakeai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fakeai:latest
+    container_name: fakeai-server
+    ports:
+      - "8001:8000"
+    environment:
+      # Server Configuration
+      - FAKEAI_HOST=0.0.0.0
+      - FAKEAI_PORT=8000
+      - FAKEAI_DEBUG=false
+
+      # Response Simulation Settings
+      - FAKEAI_RESPONSE_DELAY=0.5
+      - FAKEAI_RANDOM_DELAY=true
+      - FAKEAI_MAX_VARIANCE=0.3
+
+      # Authentication (uncomment to enable)
+      # - FAKEAI_REQUIRE_API_KEY=true
+      # - FAKEAI_API_KEYS=sk-test-key-1,sk-test-key-2
+
+      # Rate Limiting (uncomment to enable with Redis)
+      # - FAKEAI_RATE_LIMIT_ENABLED=true
+      # - FAKEAI_REQUESTS_PER_MINUTE=100
+      # - FAKEAI_REDIS_URL=redis://redis:6379/0
+    # volumes:
+      # Optional: Mount config files
+      # - ./config:/app/config:ro
+      # Optional: Mount logs directory
+      # - ./logs:/app/logs
+    networks:
+      - fakeai-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    # depends_on:
+      # Uncomment when using Redis profile
+      # redis:
+      #   condition: service_healthy
+
+  # Optional: Redis for distributed rate limiting
+  redis:
+    image: redis:7-alpine
+    container_name: fakeai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - fakeai-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    profiles:
+      - with-redis
+
+networks:
+  fakeai-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local

@@ -26,11 +26,13 @@ classifiers = [
 dependencies = [
     "fastapi>=0.103.0",
     "uvicorn>=0.23.0",
+    "hypercorn>=0.16.0",
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
     "numpy>=1.24.0",
     "faker>=13.0.0",
     "python-multipart>=0.0.9",
+    "cyclopts>=3.0.0",
 ]
 
 [project.urls]
@@ -74,6 +76,42 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+    "--disable-warnings",
+    "-ra",
+    "--color=yes",
+]
+asyncio_mode = "auto"
+markers = [
+    "unit: Unit tests for individual components",
+    "integration: Integration tests for API endpoints",
+    "service: Service layer tests",
+    "behavior: Behavior-focused tests",
+    "edge_case: Edge case and error handling tests",
+    "slow: Tests that take significant time",
+    "auth: Authentication-related tests",
+    "streaming: Streaming response tests",
+    "multimodal: Multi-modal content tests",
+    "metrics: Metrics and monitoring tests",
+]
+log_cli = false
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore::UserWarning:pydantic",
+]
 
 [project.scripts]
 fakeai-server = "fakeai:run_server"
