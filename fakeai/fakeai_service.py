@@ -1897,8 +1897,8 @@ class FakeAIService:
         itl_max = itl_base * (1.0 + itl_variance)
 
         # Stream reasoning content first (for deepseek-ai/DeepSeek-R1 models)
-        if reasoning_tokens:
-            for i, token in enumerate(reasoning_tokens):
+        if reasoning_tokens_list:
+            for i, token in enumerate(reasoning_tokens_list):
                 # Record the timestamp for this token
                 current_time = time.time()
                 relative_time = round((current_time - stream_start_time) * 1000)  # milliseconds
