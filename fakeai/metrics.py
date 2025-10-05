@@ -235,17 +235,26 @@ class MetricsTracker:
             MetricType.STREAMING: defaultdict(lambda: MetricsWindow()),
         }
 
-        # Endpoints to skip tracking (non-OpenAI endpoints)
-        self._skip_endpoints = {
-            "/metrics",
-            "/dcgm/metrics",
-            "/dcgm/metrics/json",
-            "/dynamo/metrics",
-            "/dynamo/metrics/json",
-            "/kv-cache/metrics",
+        # Core API endpoints to track (allowlist)
+        self._tracked_endpoints = {
+            # OpenAI API endpoints
+            "/v1/chat/completions",
+            "/v1/completions",
+            "/v1/embeddings",
+            "/v1/images/generations",
+            "/v1/audio/speech",
+            "/v1/audio/transcriptions",
+            "/v1/moderations",
+            "/v1/files",
+            "/v1/batches",
+            "/v1/responses",
+            # NVIDIA NIM endpoints
+            "/v1/ranking",
+            "/v1/text/generation",
+            # Solido RAG endpoint
             "/rag/api/prompt",
-            "/dashboard",
-            "/dashboard/dynamo",
+            # Realtime (WebSocket is handled separately)
+            "/v1/realtime",
         }
 
         # Queue for response times (used for per-request timing)
@@ -273,20 +282,14 @@ class MetricsTracker:
         """
         Check if an endpoint should be tracked.
 
-        Skip tracking for:
-        - Non-OpenAI endpoints (metrics, dashboards)
-        - Static file endpoints
+        Only track core API endpoints (allowlist approach):
+        - OpenAI API endpoints (/v1/*)
+        - NVIDIA NIM endpoints
+        - Solido RAG endpoint
+        - Other core inference endpoints
         """
-        # Skip exact matches
-        if endpoint in self._skip_endpoints:
-            return False
-
-        # Skip anything starting with /static/
-        if endpoint.startswith("/static/"):
-            return False
-
-        # Track everything else (OpenAI API endpoints, /health, etc.)
-        return True
+        # Only track endpoints in the allowlist
+        return endpoint in self._tracked_endpoints
 
     def track_request(self, endpoint: str) -> None:
         """Track a new request to a specific endpoint."""
