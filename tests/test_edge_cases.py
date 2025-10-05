@@ -171,10 +171,12 @@ class TestErrorHandling:
         assert response.model == "completely-invalid-model-xyz"
 
     @pytest.mark.asyncio
-    async def test_get_model_with_invalid_id_raises(self, service_no_auth):
-        """get_model should raise for truly non-existent models."""
-        with pytest.raises(ValueError):
-            await service_no_auth.get_model("this-model-definitely-does-not-exist")
+    async def test_get_model_auto_creates(self, service_no_auth):
+        """get_model should auto-create models that don't exist."""
+        # Should auto-create the model
+        model = await service_no_auth.get_model("this-model-definitely-does-not-exist")
+        assert model.id == "this-model-definitely-does-not-exist"
+        assert model.owned_by == "custom"
 
     @pytest.mark.asyncio
     async def test_invalid_image_model_raises(self, service_no_auth):

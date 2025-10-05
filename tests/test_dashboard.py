@@ -9,8 +9,8 @@ import aiohttp
 import json
 
 
-async def test_endpoint(session, url, name):
-    """Test if endpoint returns valid data."""
+async def check_endpoint(session, url, name):
+    """Check if endpoint returns valid data."""
     try:
         print(f"Testing {name}...")
         async with session.get(url, timeout=aiohttp.ClientTimeout(total=2)) as response:
@@ -68,7 +68,7 @@ async def main():
     async with aiohttp.ClientSession() as session:
         for endpoint, name in endpoints:
             url = base_url + endpoint
-            success = await test_endpoint(session, url, name)
+            success = await check_endpoint(session, url, name)
             results.append((name, success))
 
     print()

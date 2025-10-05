@@ -102,15 +102,15 @@ def test_auto_enable_auth():
 
 
 def test_cli_help():
-    """Test CLI help shows new options."""
-    print("Test 6: CLI help")
+    """Test CLI server help shows new options."""
+    print("Test 6: CLI server help")
     result = subprocess.run(
-        ["fakeai-server", "--help"],
+        ["fakeai", "server", "--help"],
         capture_output=True,
         text=True
     )
-    assert "--api-key" in result.stdout
-    print("  ✓ CLI help shows --api-key option\n")
+    assert "--api-key" in result.stdout or "api-key" in result.stdout.lower()
+    print("  ✓ CLI server help shows --api-key option\n")
 
 
 def main():

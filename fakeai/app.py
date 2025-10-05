@@ -404,13 +404,16 @@ async def list_models() -> ModelListResponse:
     return await fakeai_service.list_models()
 
 
-@app.get("/v1/models/{model_id}", dependencies=[Depends(verify_api_key)])
+@app.get("/v1/models/{model_id:path}", dependencies=[Depends(verify_api_key)])
 async def get_model(model_id: str):
     """Get model details"""
-    return await fakeai_service.get_model(model_id)
+    try:
+        return await fakeai_service.get_model(model_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@app.get("/v1/models/{model_id}/capabilities", dependencies=[Depends(verify_api_key)])
+@app.get("/v1/models/{model_id:path}/capabilities", dependencies=[Depends(verify_api_key)])
 async def get_model_capabilities(model_id: str) -> ModelCapabilitiesResponse:
     """Get model capabilities including context window, pricing, and feature support"""
     return await fakeai_service.get_model_capabilities(model_id)

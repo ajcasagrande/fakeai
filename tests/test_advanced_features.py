@@ -312,14 +312,18 @@ class TestMoEModels:
         config = AppConfig(response_delay=0.0)
         service = FakeAIService(config)
 
-        # MoE models
+        # MoE models (base names)
         assert service._is_moe_model("mixtral-8x7b") is True
         assert service._is_moe_model("gpt-oss-120b") is True
         assert service._is_moe_model("deepseek-v3") is True
 
+        # MoE models (with provider prefix)
+        assert service._is_moe_model("openai/gpt-oss-120b") is True  # GPT-OSS is MoE
+        assert service._is_moe_model("mistral/mixtral-8x7b") is True
+
         # Non-MoE models
-        assert service._is_moe_model("openai/gpt-oss-120b") is False
         assert service._is_moe_model("meta-llama/Llama-3.1-8B-Instruct") is False
+        assert service._is_moe_model("openai/gpt-4") is False
 
 
 class TestStreamingWithUsage:

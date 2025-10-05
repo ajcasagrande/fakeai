@@ -1362,6 +1362,9 @@ class FakeAIService:
         # Simulate some processing delay
         await asyncio.sleep(random.uniform(0.05, 0.2))
 
+        # Auto-create model if it doesn't exist
+        self._ensure_model_exists(model_id)
+
         if model_id not in self.models:
             raise ValueError(f"Model '{model_id}' not found")
 
@@ -1671,6 +1674,18 @@ class FakeAIService:
             finish_reason=finish_reason,
         )
 
+        # Generate logprobs if requested
+        logprobs_result = None
+        if request.logprobs:
+            # Tokenize completion text
+            completion_tokens_list = re.findall(r"\w+|[^\w\s]", completion_text)
+            logprobs_result = create_chat_logprobs(
+                text=completion_text,
+                tokens=completion_tokens_list,
+                top_logprobs=request.top_logprobs or 0,
+                temperature=request.temperature or 1.0
+            )
+
         # Create response with KV cache statistics
         response = ChatCompletionResponse(
             id=f"chatcmpl-{uuid.uuid4().hex}",
@@ -1686,6 +1701,7 @@ class FakeAIService:
                         audio=audio_output,
                     ),
                     finish_reason=finish_reason,
+                    logprobs=logprobs_result,
                 )
                 for i in range(request.n or 1)
             ],
