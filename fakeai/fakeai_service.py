@@ -1890,6 +1890,12 @@ class FakeAIService:
         stream_start_time = time.time()
         token_timestamps = []
 
+        # Calculate ITL (inter-token latency) parameters for use throughout streaming
+        itl_base = self.config.itl_ms / 1000.0  # Convert ms to seconds
+        itl_variance = self.config.itl_variance_percent / 100.0
+        itl_min = itl_base * (1.0 - itl_variance)
+        itl_max = itl_base * (1.0 + itl_variance)
+
         # Stream reasoning content first (for deepseek-ai/DeepSeek-R1 models)
         if reasoning_tokens:
             for i, token in enumerate(reasoning_tokens):
@@ -1925,6 +1931,131 @@ class FakeAIService:
                 yield chunk
 
                 # Simulate variable typing speed (inter-token latency)
+                token_delay = random.uniform(itl_min, itl_max)
+                await asyncio.sleep(token_delay)
+
+        # Stream tool calls if requested
+        if should_call_tools and tool_calls_to_stream:
+            from fakeai.models import ToolCallDelta, FunctionDelta
+
+            for tool_call_idx, tool_call in enumerate(tool_calls_to_stream):
+                # Stream tool call in chunks: id, type, function name, then arguments
+
+                # Chunk 1: Tool call id and type
+                chunk = ChatCompletionChunk(
+                    id=stream_id,
+                    created=int(time.time()),
+                    model=request.model,
+                    choices=[
+                        ChatCompletionChunkChoice(
+                            index=j,
+                            delta=Delta(
+                                tool_calls=[
+                                    ToolCallDelta(
+                                        index=tool_call_idx,
+                                        id=tool_call.id,
+                                        type="function",
+                                    )
+                                ]
+                            ),
+                            finish_reason=None,
+                        )
+                        for j in range(request.n or 1)
+                    ],
+                    system_fingerprint=system_fingerprint,
+                )
+                yield chunk
+                await asyncio.sleep(random.uniform(itl_min, itl_max))
+
+                # Chunk 2: Function name
+                chunk = ChatCompletionChunk(
+                    id=stream_id,
+                    created=int(time.time()),
+                    model=request.model,
+                    choices=[
+                        ChatCompletionChunkChoice(
+                            index=j,
+                            delta=Delta(
+                                tool_calls=[
+                                    ToolCallDelta(
+                                        index=tool_call_idx,
+                                        function=FunctionDelta(name=tool_call.function.name),
+                                    )
+                                ]
+                            ),
+                            finish_reason=None,
+                        )
+                        for j in range(request.n or 1)
+                    ],
+                    system_fingerprint=system_fingerprint,
+                )
+                yield chunk
+                await asyncio.sleep(random.uniform(itl_min, itl_max))
+
+                # Chunk 3+: Function arguments (stream in chunks)
+                args_str = tool_call.function.arguments
+                args_chunks = [args_str[i:i+20] for i in range(0, len(args_str), 20)]
+
+                for args_chunk in args_chunks:
+                    chunk = ChatCompletionChunk(
+                        id=stream_id,
+                        created=int(time.time()),
+                        model=request.model,
+                        choices=[
+                            ChatCompletionChunkChoice(
+                                index=j,
+                                delta=Delta(
+                                    tool_calls=[
+                                        ToolCallDelta(
+                                            index=tool_call_idx,
+                                            function=FunctionDelta(arguments=args_chunk),
+                                        )
+                                    ]
+                                ),
+                                finish_reason=None,
+                            )
+                            for j in range(request.n or 1)
+                        ],
+                        system_fingerprint=system_fingerprint,
+                    )
+                    yield chunk
+                    await asyncio.sleep(random.uniform(itl_min, itl_max))
+
+        # Stream the regular content token by token (unless tool calls)
+        elif not should_call_tools:
+            for i, token in enumerate(content_tokens):
+                # Record the timestamp for this token
+                current_time = time.time()
+                relative_time = round((current_time - stream_start_time) * 1000)  # milliseconds
+                token_timestamps.append(relative_time)
+
+                # For tokens that are alphanumeric (words), add space before if not first
+                # For punctuation and special chars, no space needed
+                chunk_text = token
+                if i > 0 and (token[0].isalnum() if token else False):
+                    chunk_text = " " + chunk_text
+
+                # Add timing information to the Delta object
+                chunk = ChatCompletionChunk(
+                    id=stream_id,
+                    created=int(time.time()),
+                    model=request.model,
+                    choices=[
+                        ChatCompletionChunkChoice(
+                            index=j,
+                            delta=Delta(
+                                content=chunk_text,
+                                token_timing=[relative_time]  # Include timing for this token
+                            ),
+                            finish_reason=None,
+                        )
+                        for j in range(request.n or 1)
+                    ],
+                    system_fingerprint=system_fingerprint,
+                )
+                yield chunk
+
+                # Simulate variable typing speed - this gives us inter-token latency
                 # Use configured ITL with variance
                 itl_base = self.config.itl_ms / 1000.0  # Convert ms to seconds
                 itl_variance = self.config.itl_variance_percent / 100.0
@@ -1932,48 +2063,6 @@ class FakeAIService:
                 itl_max = itl_base * (1.0 + itl_variance)
                 token_delay = random.uniform(itl_min, itl_max)
                 await asyncio.sleep(token_delay)
-
-        # Stream the regular content token by token
-        for i, token in enumerate(content_tokens):
-            # Record the timestamp for this token
-            current_time = time.time()
-            relative_time = round((current_time - stream_start_time) * 1000)  # milliseconds
-            token_timestamps.append(relative_time)
-
-            # For tokens that are alphanumeric (words), add space before if not first
-            # For punctuation and special chars, no space needed
-            chunk_text = token
-            if i > 0 and (token[0].isalnum() if token else False):
-                chunk_text = " " + chunk_text
-
-            # Add timing information to the Delta object
-            chunk = ChatCompletionChunk(
-                id=stream_id,
-                created=int(time.time()),
-                model=request.model,
-                choices=[
-                    ChatCompletionChunkChoice(
-                        index=j,
-                        delta=Delta(
-                            content=chunk_text,
-                            token_timing=[relative_time]  # Include timing for this token
-                        ),
-                        finish_reason=None,
-                    )
-                    for j in range(request.n or 1)
-                ],
-                system_fingerprint=system_fingerprint,
-            )
-            yield chunk
-
-            # Simulate variable typing speed - this gives us inter-token latency
-            # Use configured ITL with variance
-            itl_base = self.config.itl_ms / 1000.0  # Convert ms to seconds
-            itl_variance = self.config.itl_variance_percent / 100.0
-            itl_min = itl_base * (1.0 - itl_variance)
-            itl_max = itl_base * (1.0 + itl_variance)
-            token_delay = random.uniform(itl_min, itl_max)
-            await asyncio.sleep(token_delay)
 
         # Include usage in final chunk if requested
         if request.stream_options and request.stream_options.include_usage:

@@ -282,7 +282,8 @@ class TestHealthAndMetrics:
         data = response.json()
 
         assert "status" in data
-        assert data["status"] == "healthy"
+        assert data["status"] in ["healthy", "starting"]  # Can be starting during test setup
+        assert "ready" in data  # Should have readiness flag
 
     def test_metrics_returns_200(self, client_no_auth):
         """Metrics endpoint should return 200."""
