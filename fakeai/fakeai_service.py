@@ -1254,9 +1254,25 @@ class FakeAIService:
         # Serialize messages to a canonical JSON format for stable hashing
         message_data = []
         for msg in messages:
+            # Serialize content (handle Pydantic models)
+            content_data = msg.content
+            if isinstance(content_data, list):
+                # Handle list of content parts (multimodal)
+                content_data = []
+                for part in msg.content:
+                    if hasattr(part, "model_dump"):
+                        # Pydantic model - convert to dict
+                        content_data.append(part.model_dump())
+                    elif isinstance(part, dict):
+                        # Already a dict
+                        content_data.append(part)
+                    else:
+                        # Unknown type, convert to string
+                        content_data.append(str(part))
+
             msg_dict = {
                 "role": msg.role.value if hasattr(msg.role, "value") else str(msg.role),
-                "content": msg.content,
+                "content": content_data,
             }
             # Include optional fields if present
             if msg.name:
@@ -1501,6 +1517,12 @@ class FakeAIService:
         # Process audio inputs if present
         input_audio_tokens, audio_transcript = self._process_audio_input(request.messages)
 
+        # Process vision inputs if present (calculate image tokens)
+        input_image_tokens = 0
+        for msg in request.messages:
+            if msg.content:
+                input_image_tokens += calculate_message_image_tokens(msg.content, request.model)
+
         # Extract prompt text for token counting and KV cache routing
         prompt_text = " ".join(extract_text_content(msg.content) for msg in request.messages if msg.content)
 
@@ -1508,7 +1530,11 @@ class FakeAIService:
         if audio_transcript:
             prompt_text = f"{prompt_text} {audio_transcript}".strip()
 
-        prompt_tokens = calculate_token_count(prompt_text)
+        # Calculate text tokens
+        text_tokens = calculate_token_count(prompt_text)
+
+        # Total prompt tokens = text + image + audio tokens
+        prompt_tokens = text_tokens + input_image_tokens + input_audio_tokens
 
         # Start Dynamo metrics tracking for this request
         dynamo_request = self.dynamo_metrics.start_request(
