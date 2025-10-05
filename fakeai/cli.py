@@ -148,14 +148,14 @@ def load_config_file(config_path: str | None) -> dict:
 
 # Create the main Cyclopts app
 app = cyclopts.App(
-    name="fakeai-server",
+    name="fakeai",
     help="FakeAI - OpenAI Compatible API Server for Testing and Development",
     version="0.0.5",
 )
 
 
-@app.default
-def serve(
+@app.command
+def server(
     *,
     config_file: Annotated[
         str | None,
@@ -351,34 +351,34 @@ def serve(
 
     Examples:
         # Start with default settings (no authentication)
-        $ fakeai-server
+        $ fakeai server
 
         # Start with config file
-        $ fakeai-server --config-file myconfig.yaml
+        $ fakeai server --config-file myconfig.yaml
 
         # Start on a different host and port
-        $ fakeai-server --host 0.0.0.0 --port 9000
+        $ fakeai server --host 0.0.0.0 --port 9000
 
         # Enable authentication with direct API keys
-        $ fakeai-server --api-key sk-test-key1 --api-key sk-test-key2
+        $ fakeai server --api-key sk-test-key1 --api-key sk-test-key2
 
         # Load API keys from a file
-        $ fakeai-server --api-key /path/to/keys.txt
+        $ fakeai server --api-key /path/to/keys.txt
 
         # Enable rate limiting with tier
-        $ fakeai-server --enable-rate-limiting --rate-limit-tier tier-3
+        $ fakeai server --enable-rate-limiting --rate-limit-tier tier-3
 
         # Custom rate limits
-        $ fakeai-server --enable-rate-limiting --rate-limit-rpm 1000 --rate-limit-tpm 50000
+        $ fakeai server --enable-rate-limiting --rate-limit-rpm 1000 --rate-limit-tpm 50000
 
         # Configure KV cache
-        $ fakeai-server --enable-kv-cache --kv-cache-workers 8
+        $ fakeai server --enable-kv-cache --kv-cache-workers 8
 
         # Disable safety features
-        $ fakeai-server --no-enable-safety --no-enable-moderation
+        $ fakeai server --no-enable-safety --no-enable-moderation
 
         # Customize response timing
-        $ fakeai-server --response-delay 1.0 --max-variance 0.5
+        $ fakeai server --response-delay 1.0 --max-variance 0.5
     """
     # Load config file (if specified or auto-detected)
     file_config = load_config_file(config_file)
@@ -590,10 +590,10 @@ def status(
 
     Examples:
         # Check local server status
-        $ fakeai-server status
+        $ fakeai status
 
         # Check remote server status
-        $ fakeai-server status --host 192.168.1.100 --port 9000
+        $ fakeai status --host 192.168.1.100 --port 9000
     """
     import requests
 
@@ -672,19 +672,19 @@ def metrics(
 
     Examples:
         # Display metrics in pretty format
-        $ fakeai-server metrics
+        $ fakeai metrics
 
         # Display metrics in JSON format
-        $ fakeai-server metrics --format json
+        $ fakeai metrics --format json
 
         # Export metrics in Prometheus format
-        $ fakeai-server metrics --format prometheus > metrics.prom
+        $ fakeai metrics --format prometheus > metrics.prom
 
         # Export metrics in CSV format
-        $ fakeai-server metrics --format csv > metrics.csv
+        $ fakeai metrics --format csv > metrics.csv
 
         # Continuously watch metrics
-        $ fakeai-server metrics --watch
+        $ fakeai metrics --watch
     """
     import requests
     import time as time_module
@@ -811,10 +811,10 @@ def cache_stats(
 
     Examples:
         # Display cache stats
-        $ fakeai-server cache-stats
+        $ fakeai cache-stats
 
         # Display cache stats from remote server
-        $ fakeai-server cache-stats --host 192.168.1.100 --port 9000
+        $ fakeai cache-stats --host 192.168.1.100 --port 9000
     """
     import requests
 
@@ -833,7 +833,7 @@ def cache_stats(
         if "enabled" in cache_data and not cache_data["enabled"]:
             print("\nKV Cache: DISABLED")
             print("\nTo enable KV cache, start the server with:")
-            print("  $ fakeai-server --enable-kv-cache")
+            print("  $ fakeai server --enable-kv-cache")
             print("=" * 70)
             return
 
@@ -906,10 +906,10 @@ def interactive(
 
     Examples:
         # Start interactive mode
-        $ fakeai-server interactive
+        $ fakeai interactive
 
         # Connect to remote server with API key
-        $ fakeai-server interactive --host 192.168.1.100 --api-key sk-test-key
+        $ fakeai interactive --host 192.168.1.100 --api-key sk-test-key
     """
     import requests
 

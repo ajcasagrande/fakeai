@@ -29,7 +29,7 @@ pip install fakeai
 
 ```bash
 # Start server
-fakeai-server
+fakeai server
 
 # Use with OpenAI client
 from openai import OpenAI
@@ -102,16 +102,16 @@ export FAKEAI_REQUIRE_API_KEY=false
 
 ```bash
 # Basic usage
-fakeai-server --host 0.0.0.0 --port 9001
+fakeai server --host 0.0.0.0 --port 9001
 
 # Configure latency
-fakeai-server --ttft 20 --itl 5
+fakeai server --ttft 20 --itl 5
 
 # Latency with variance
-fakeai-server --ttft 50:30 --itl 10:20  # 50ms ±30%, 10ms ±20%
+fakeai server --ttft 50:30 --itl 10:20  # 50ms ±30%, 10ms ±20%
 
 # Enable security
-fakeai-server --enable-security --api-key sk-test-key
+fakeai server --enable-security --api-key sk-test-key
 ```
 
 ### Config File
@@ -130,7 +130,7 @@ enable_security: false
 Run with config:
 
 ```bash
-fakeai-server --config-file fakeai.yaml
+fakeai server --config-file fakeai.yaml
 ```
 
 ## API Endpoints
@@ -319,7 +319,7 @@ pip install aiperf
 
 ```bash
 # Start server
-fakeai-server --port 9001 --ttft 20 --itl 5
+fakeai server --port 9001 --ttft 20 --itl 5
 
 # Run benchmark
 aiperf profile \
@@ -380,16 +380,16 @@ curl http://localhost:8000/dynamo-metrics
 
 ```bash
 # Show metrics
-fakeai-server metrics
+fakeai metrics
 
 # Watch metrics (refresh every 5s)
-fakeai-server metrics --watch
+fakeai metrics --watch
 
 # Check server status
-fakeai-server status
+fakeai status
 
 # KV cache statistics
-fakeai-server cache-stats
+fakeai cache-stats
 ```
 
 ### Dashboards
@@ -507,21 +507,21 @@ See `CONFIGURATION_REFERENCE.md` for complete list.
 
 ```bash
 # Start server
-fakeai-server
+fakeai server
 
 # Server options
-fakeai-server --host 0.0.0.0 --port 9001 --debug
-fakeai-server --ttft 20 --itl 5
-fakeai-server --enable-security --api-key sk-test
+fakeai server --host 0.0.0.0 --port 9001 --debug
+fakeai server --ttft 20 --itl 5
+fakeai server --enable-security --api-key sk-test
 
 # Monitoring
-fakeai-server status
-fakeai-server metrics
-fakeai-server metrics --watch
-fakeai-server cache-stats
+fakeai status
+fakeai metrics
+fakeai metrics --watch
+fakeai cache-stats
 
 # Interactive mode
-fakeai-server interactive
+fakeai interactive
 ```
 
 ## Use Cases
@@ -529,7 +529,7 @@ fakeai-server interactive
 ### Local Development
 
 ```bash
-fakeai-server
+fakeai server
 ```
 
 Test OpenAI API integrations locally without API costs or rate limits.
@@ -540,7 +540,7 @@ Test OpenAI API integrations locally without API costs or rate limits.
 - name: Start FakeAI
   run: |
     pip install fakeai
-    fakeai-server --port 8000 &
+    fakeai server --port 8000 &
     sleep 2
 
 - name: Run tests
@@ -554,7 +554,7 @@ Test OpenAI API integrations locally without API costs or rate limits.
 
 ```bash
 # Minimal latency
-fakeai-server --ttft 5 --itl 1
+fakeai server --ttft 5 --itl 1
 
 # Run AIPerf
 aiperf profile \
@@ -690,13 +690,13 @@ See `DEPLOYMENT_K8S.md` for complete manifests.
 
 **Port already in use:**
 ```bash
-fakeai-server --port 9001
+fakeai server --port 9001
 ```
 
 **Slow performance:**
 ```bash
 pip install uvloop
-fakeai-server --ttft 5 --itl 1
+fakeai server --ttft 5 --itl 1
 ```
 
 **AIPerf benchmark fails:**

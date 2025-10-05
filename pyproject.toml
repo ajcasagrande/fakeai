@@ -118,4 +118,5 @@ filterwarnings = [
 ]
 
 [project.scripts]
-fakeai-server = "fakeai:run_server"
+fakeai = "fakeai.cli:main"
+fakeai-server = "fakeai.cli:main"  # Deprecated: kept for backward compatibility
