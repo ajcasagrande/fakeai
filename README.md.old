@@ -1,0 +1,736 @@
+# FakeAI: OpenAI Compatible API Server
+
+[![PyPI version](https://badge.fury.io/py/fakeai.svg)](https://badge.fury.io/py/fakeai)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/release/python-3100/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+This is a fully-featured FastAPI implementation that mimics the OpenAI API. It supports all endpoints and features of the official OpenAI API while returning simulated responses instead of performing actual inference.
+
+## Features
+
+- **Complete API Compatibility**: Implements all endpoints of the OpenAI API with the same request/response formats
+- **Simulated Responses**: Generates realistic responses with appropriate delays to simulate real workloads
+- **Streaming Support**: Supports streaming for chat completions, text completions, and tool calls
+- **Multi-Modal Content**: Full support for text, images (via URLs or base64), and audio inputs
+- **Tool Calling**: Complete function calling and tool use capabilities with parallel execution support
+- **Structured Outputs**: JSON Schema validation for constrained responses
+- **Enhanced Token Usage**: Detailed token breakdowns including cached tokens, reasoning tokens, and audio tokens
+- **Log Probabilities**: Token-level log probabilities for chat completions
+- **Responses API**: OpenAI's latest Responses API format (March 2025)
+- **NIM Rankings API**: NVIDIA NIM reranking capabilities for search and retrieval
+- **Content Moderation**: OpenAI Moderation API for classifying potentially harmful content
+- **AI-Dynamo KV Cache**: NVIDIA AI-Dynamo-style KV cache reuse with radix tree prefix matching and smart routing
+- **Batch API**: Asynchronous batch processing for high-volume inference
+- **Realtime API**: WebSocket-based bidirectional streaming for real-time conversations
+- **Usage & Billing APIs**: Track usage metrics and costs across projects and models
+- **Organization Management**: Full project and user management APIs
+- **Authentication**: Simulates API key authentication with configurable rate limiting
+- **Configurable**: Easy configuration options for response time, randomness, etc.
+
+## Supported Endpoints
+
+The server implements all major OpenAI API endpoints:
+
+### Core OpenAI Endpoints
+- `/v1/models` - List and retrieve available models
+- `/v1/chat/completions` - Chat completions with streaming, tools, multi-modal content
+- `/v1/completions` - Text completions with streaming support
+- `/v1/embeddings` - Text embeddings generation
+- `/v1/images/generations` - DALL-E image generation
+- `/v1/audio/speech` - Text-to-speech synthesis
+- `/v1/moderations` - Content moderation and safety classification
+- `/v1/files` - File upload, retrieval, and management
+
+### Batch Processing
+- `/v1/batches` - Create, retrieve, list, and cancel batch jobs
+
+### Real-time Communication
+- `/v1/realtime` - WebSocket endpoint for real-time bidirectional streaming
+
+### Extended API Endpoints
+- `/v1/responses` - OpenAI Responses API (March 2025 format)
+- `/v1/ranking` - NVIDIA NIM Rankings API for document reranking
+- `/v1/text/generation` - Azure OpenAI compatibility endpoint
+
+### Organization & Project Management
+- `/v1/organization/users` - Organization user management
+- `/v1/organization/invites` - Organization invitations
+- `/v1/organization/projects` - Project management
+- `/v1/organization/projects/{project_id}/users` - Project user management
+- `/v1/organization/projects/{project_id}/service_accounts` - Service accounts
+
+### Usage & Billing
+- `/v1/organization/usage/completions` - Completions usage data
+- `/v1/organization/usage/embeddings` - Embeddings usage data
+- `/v1/organization/usage/images` - Images usage data
+- `/v1/organization/usage/audio_speeches` - Audio synthesis usage
+- `/v1/organization/usage/audio_transcriptions` - Audio transcription usage
+- `/v1/organization/costs` - Cost aggregation and billing
+
+### Utility Endpoints
+- `/health` - Health check endpoint
+- `/metrics` - Server metrics and statistics
+- `/kv-cache-metrics` - KV cache performance and smart routing metrics
+
+## Requirements
+
+- Python 3.10+
+- FastAPI
+- Uvicorn
+- Pydantic
+- Pydantic-Settings
+- NumPy
+- Faker
+- Python-Multipart
+
+## Installation
+
+### Option 1: Install from PyPI (recommended)
+
+```bash
+pip install fakeai
+```
+
+### Option 2: Install from source
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/ajcasagrande/fakeai.git
+cd fakeai
+```
+
+2. Install the package in development mode:
+
+```bash
+pip install -e .
+```
+
+## Quick Start
+
+### Option 1: Using the command-line tool
+
+After installation, you can start the server using the provided command-line tool:
+
+```bash
+fakeai-server
+```
+
+### Option 2: Running the Python module
+
+You can also run the server as a Python module:
+
+```bash
+python -m fakeai.run_server
+```
+
+### Option 3: For development
+
+During development, you can run the server directly from the source directory:
+
+```bash
+python run_server.py
+```
+
+The server will be running at `http://localhost:8000` by default, and you can access the FastAPI documentation at `http://localhost:8000/docs`
+
+## Configuration
+
+The server can be configured using environment variables:
+
+- `FAKEAI_HOST`: Host to bind the server (default: `127.0.0.1`)
+- `FAKEAI_PORT`: Port to bind the server (default: `8000`)
+- `FAKEAI_DEBUG`: Enable debug mode (`true` or `false`, default: `false`)
+- `FAKEAI_RESPONSE_DELAY`: Base delay for responses in seconds (default: `0.5`)
+- `FAKEAI_RANDOM_DELAY`: Add random variation to response delays (`true` or `false`, default: `true`)
+- `FAKEAI_MAX_VARIANCE`: Maximum variance for random delays as a factor (default: `0.3`)
+- `FAKEAI_API_KEYS`: Comma-separated list of valid API keys (default: `sk-fakeai-1234567890abcdef,sk-test-abcdefghijklmnop`)
+- `FAKEAI_REQUIRE_API_KEY`: Whether to require API key authentication (`true` or `false`, default: `true`)
+
+## Example Usage with OpenAI Python Client
+
+Once the server is running, you can use it with the official OpenAI Python client:
+
+```python
+from openai import OpenAI
+
+# Initialize the client with the FakeAI server URL
+client = OpenAI(
+    api_key="sk-fakeai-1234567890abcdef",  # Any key from the allowed list
+    base_url="http://localhost:8000",
+)
+
+# Example 1: Basic chat completion
+response = client.chat.completions.create(
+    model="openai/gpt-oss-120b",
+    messages=[
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Tell me about artificial intelligence."}
+    ]
+)
+print(response.choices[0].message.content)
+
+# Example 2: Streaming chat completion
+for chunk in client.chat.completions.create(
+    model="openai/gpt-oss-120b",
+    messages=[
+        {"role": "user", "content": "Write a short poem about technology."}
+    ],
+    stream=True
+):
+    if chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="")
+
+# Example 3: Multi-modal content (images)
+response = client.chat.completions.create(
+    model="openai/gpt-oss-120b",
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "What's in this image?"},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": "https://example.com/image.jpg",
+                        "detail": "high"
+                    }
+                }
+            ]
+        }
+    ]
+)
+print(response.choices[0].message.content)
+
+# Example 4: Function calling / Tool use
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Get the current weather for a location",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {"type": "string"},
+                    "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}
+                },
+                "required": ["location"]
+            }
+        }
+    }
+]
+
+response = client.chat.completions.create(
+    model="openai/gpt-oss-120b",
+    messages=[{"role": "user", "content": "What's the weather in San Francisco?"}],
+    tools=tools,
+    parallel_tool_calls=True
+)
+print(response.choices[0].message.tool_calls)
+
+# Example 5: Structured outputs with JSON Schema
+response = client.chat.completions.create(
+    model="openai/gpt-oss-120b",
+    messages=[{"role": "user", "content": "Extract: John is 30 years old"}],
+    response_format={
+        "type": "json_schema",
+        "json_schema": {
+            "name": "person_info",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "age": {"type": "number"}
+                },
+                "required": ["name", "age"]
+            }
+        }
+    }
+)
+print(response.choices[0].message.content)
+
+# Example 6: Log probabilities
+response = client.chat.completions.create(
+    model="openai/gpt-oss-120b",
+    messages=[{"role": "user", "content": "Say hello"}],
+    logprobs=True,
+    top_logprobs=5
+)
+print(response.choices[0].logprobs)
+
+# Example 7: Embeddings
+response = client.embeddings.create(
+    model="sentence-transformers/all-mpnet-base-v2",
+    input="The quick brown fox jumps over the lazy dog."
+)
+print(f"Embedding dimensions: {len(response.data[0].embedding)}")
+```
+
+### Using the Responses API
+
+```python
+import httpx
+
+# The Responses API is a newer format (March 2025)
+response = httpx.post(
+    "http://localhost:8000/v1/responses",
+    headers={"Authorization": "Bearer sk-fakeai-1234567890abcdef"},
+    json={
+        "model": "openai/gpt-oss-120b",
+        "input": "Tell me about AI",
+        "instructions": "You are a helpful assistant",
+        "max_output_tokens": 500,
+        "store": True,
+        "metadata": {"user_id": "123"}
+    }
+)
+data = response.json()
+print(data["output"][0]["content"])
+```
+
+### Using the Rankings API
+
+```python
+import httpx
+
+# NVIDIA NIM Rankings API for reranking documents
+response = httpx.post(
+    "http://localhost:8000/v1/ranking",
+    headers={"Authorization": "Bearer sk-fakeai-1234567890abcdef"},
+    json={
+        "model": "nvidia/nv-rerankqa-mistral-4b-v3",
+        "query": {"text": "What is machine learning?"},
+        "passages": [
+            {"text": "Machine learning is a subset of AI..."},
+            {"text": "Python is a programming language..."},
+            {"text": "Deep learning uses neural networks..."}
+        ],
+        "truncate": "END"
+    }
+)
+data = response.json()
+for ranking in data["rankings"]:
+    print(f"Index {ranking['index']}: score {ranking['logit']}")
+```
+
+### Using the Moderation API
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="sk-fakeai-1234567890abcdef",
+    base_url="http://localhost:8000",
+)
+
+# Moderate text content
+response = client.moderations.create(
+    input="I want to hurt someone"
+)
+
+result = response.results[0]
+print(f"Flagged: {result.flagged}")
+print(f"Categories: {result.categories}")
+print(f"Scores: {result.category_scores}")
+
+# Moderate multiple inputs
+response = client.moderations.create(
+    input=["Hello world", "Violent content here", "Another text"]
+)
+
+for idx, result in enumerate(response.results):
+    print(f"Input {idx}: flagged={result.flagged}")
+```
+
+### KV Cache and Smart Routing
+
+FakeAI simulates NVIDIA AI-Dynamo's KV cache reuse with radix tree prefix matching:
+
+```python
+# KV cache metrics are automatically tracked
+# Check cache performance
+response = httpx.get("http://localhost:8000/kv-cache-metrics")
+metrics = response.json()
+
+print(f"Cache hit rate: {metrics['cache_performance']['cache_hit_rate']}%")
+print(f"Token reuse rate: {metrics['cache_performance']['token_reuse_rate']}%")
+print(f"Smart router stats: {metrics['smart_router']}")
+```
+
+**How it works:**
+- Radix tree stores prefixes of previous requests
+- Smart router finds longest matching prefix
+- Routes to workers with best cache overlap
+- Reduces redundant prefill computation
+- Simulates realistic cache hit rates and token reuse
+
+### Batch Processing
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="sk-fakeai-1234567890abcdef",
+    base_url="http://localhost:8000",
+)
+
+# Create batch job
+batch = client.batches.create(
+    input_file_id="file-abc123",
+    endpoint="/v1/chat/completions",
+    completion_window="24h"
+)
+
+print(f"Batch ID: {batch.id}")
+print(f"Status: {batch.status}")
+
+# Check batch status
+batch = client.batches.retrieve(batch.id)
+print(f"Status: {batch.status}")
+print(f"Completed: {batch.request_counts.completed}/{batch.request_counts.total}")
+
+# List all batches
+batches = client.batches.list(limit=10)
+for batch in batches.data:
+    print(f"{batch.id}: {batch.status}")
+```
+
+## Using FakeAI as a Library
+
+You can also use FakeAI programmatically in your Python code:
+
+```python
+from fakeai import app, AppConfig
+
+# Create a custom configuration
+config = AppConfig(
+    host="0.0.0.0",  # Allow external connections
+    port=9000,       # Use a different port
+    debug=True,      # Enable debug mode
+    require_api_key=False  # Disable API key requirement
+)
+
+# Access the FastAPI app
+app_instance = app  # Use this for more advanced FastAPI configuration
+
+# Run the server programmatically
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("fakeai:app", host=config.host, port=config.port, reload=config.debug)
+```
+
+## Advanced Features
+
+### Multi-Modal Content Support
+
+FakeAI supports rich multi-modal content in chat completions:
+
+- **Text**: Standard text content in messages
+- **Images**: Via URL or base64-encoded data URIs (e.g., `data:image/png;base64,...`)
+- **Audio**: Audio inputs in base64 format with configurable format and parameters
+
+Example:
+```python
+messages = [
+    {
+        "role": "user",
+        "content": [
+            {"type": "text", "text": "Analyze this image"},
+            {"type": "image_url", "image_url": {"url": "data:image/png;base64,iVBORw0KGgo...", "detail": "high"}},
+            {"type": "input_audio", "input_audio": {"data": "audio_base64_data", "format": "wav"}}
+        ]
+    }
+]
+```
+
+### Tool Calling and Function Execution
+
+Full support for OpenAI's function calling and tool use:
+
+- Define tools with JSON Schema parameters
+- Parallel or sequential tool execution (`parallel_tool_calls` parameter)
+- Streaming tool calls with incremental deltas
+- Automatic function argument validation
+
+```python
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_current_weather",
+            "description": "Get the current weather",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {"type": "string"},
+                    "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}
+                },
+                "required": ["location"]
+            }
+        }
+    }
+]
+```
+
+### Structured Outputs with JSON Schema
+
+Enforce response structure using JSON Schema:
+
+```python
+response_format = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "math_problem",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "steps": {"type": "array", "items": {"type": "string"}},
+                "answer": {"type": "number"}
+            },
+            "required": ["steps", "answer"]
+        }
+    }
+}
+```
+
+### Enhanced Token Usage Tracking
+
+Detailed token usage breakdown:
+- **Prompt tokens**: Input tokens with cached token tracking
+- **Completion tokens**: Output tokens with reasoning token details
+- **Audio tokens**: Separate tracking for audio modalities
+- **Prediction tokens**: Accepted and rejected speculative decoding tokens
+
+### Log Probabilities
+
+Request token-level log probabilities for chat completions:
+- Set `logprobs=True` to enable
+- Use `top_logprobs` (1-20) to get alternative tokens
+- Includes token bytes and UTF-8 representation
+
+### Responses API
+
+The newer Responses API format provides:
+- Simplified request/response structure
+- Built-in conversation storage with `store` parameter
+- Metadata support for request tracking
+- Multiple output items in a single response
+
+### NIM Rankings API
+
+NVIDIA NIM-compatible reranking for search and retrieval:
+- Rerank passages based on query relevance
+- Returns logit scores for each passage
+- Supports truncation strategies (START/END/NONE)
+- Useful for RAG (Retrieval-Augmented Generation) pipelines
+
+## Advanced Usage
+
+### Custom Response Generation
+
+The server uses a `SimulatedGenerator` class to generate responses based on the input. You can customize the response generation logic in `fakeai_service.py` to better suit your needs.
+
+### Response Timing Simulation
+
+The server simulates realistic response times based on factors like:
+
+- Model complexity (e.g., GPT-4 is slower than GPT-3.5)
+- Input length
+- Output length
+- Temperature setting
+
+These timings can be adjusted in the `FakeAIService` class.
+
+### Key Components
+
+The main components of FakeAI are:
+
+- `FakeAIService` - The core service that simulates the OpenAI API endpoints
+- `SimulatedGenerator` - A utility for generating realistic responses
+- `AppConfig` - Configuration settings with environment variable support (via `FAKEAI_` prefix)
+- `MetricsTracker` - Tracks request counts, response times, and errors
+
+### Error Simulation
+
+You can test error handling by:
+
+- Using an invalid API key (e.g., "invalid")
+- Requesting a non-existent model
+- Using an invalid file ID
+
+## Comparing with the Real API
+
+This server aims to be a drop-in replacement for the real OpenAI API in development and testing environments. The key differences are:
+
+1. **Response Quality**: Generated responses are simplistic compared to actual AI models
+2. **Performance**: Simulated responses are generated much faster than actual inference
+3. **Cost**: No tokens are consumed, making it ideal for development and testing
+
+## Chat Completions API Parameters
+
+FakeAI supports all standard OpenAI chat completion parameters:
+
+### Basic Parameters
+- `model` - Model ID (e.g., "openai/gpt-oss-120b", "openai/gpt-oss-120b", "meta-llama/Llama-3.1-8B-Instruct")
+- `messages` - Array of message objects with role and content
+- `temperature` - Randomness (0.0 to 2.0)
+- `top_p` - Nucleus sampling
+- `n` - Number of completions to generate
+- `stream` - Enable streaming responses
+- `stop` - Stop sequences
+- `max_tokens` / `max_completion_tokens` - Maximum output length
+
+### Advanced Parameters
+- `presence_penalty` / `frequency_penalty` - Token repetition control
+- `logit_bias` - Modify token probabilities
+- `user` - User identifier for tracking
+- `seed` - Deterministic sampling
+- `logprobs` - Enable log probability output
+- `top_logprobs` - Number of top tokens to return (1-20)
+- `response_format` - Output format (text, json_object, json_schema)
+- `store` - Store conversation for future reference
+- `metadata` - Attach custom metadata
+- `service_tier` - Service tier preference ("auto", "default")
+
+### Tool Calling Parameters
+- `tools` - Array of tool definitions
+- `tool_choice` - Control tool selection (auto, none, required, or specific tool)
+- `parallel_tool_calls` - Enable/disable parallel tool execution
+
+### Multi-Modal Parameters
+- `stream_options` - Configure streaming behavior (include_usage)
+- Content types: text, image_url, input_audio
+
+## Use Cases
+
+- **Development and Testing**: Test applications that use the OpenAI API without incurring costs
+- **CI/CD Pipelines**: Validate API integration in automated testing environments
+- **Demos and Presentations**: Demonstrate AI-powered features without live API dependencies
+- **Error Handling**: Test error scenarios and edge cases safely
+- **Performance Testing**: Benchmark applications with controlled, predictable response times
+- **Multi-Modal Development**: Test image and audio processing workflows
+- **Tool Calling Development**: Develop and test function calling integrations
+- **RAG System Testing**: Use the rankings API to test retrieval-augmented generation pipelines
+- **Structured Output Testing**: Validate JSON Schema-based response parsing
+- **Load Testing**: Simulate high-volume API usage without rate limits or costs
+
+## API Compatibility
+
+FakeAI implements 100% schema-compliant endpoints for:
+
+### OpenAI APIs
+- **Chat Completions API** - Full compatibility with GPT-4, GPT-4o, GPT-3.5-turbo
+  - All parameters supported including streaming, tools, multi-modal content
+  - Enhanced with logprobs, structured outputs, and token usage details
+- **Completions API** - Legacy text completion endpoint
+- **Embeddings API** - Text embedding generation
+- **Images API** - DALL-E image generation simulation
+- **Files API** - File upload and management
+- **Responses API** - March 2025 format with simplified structure
+
+### Extended APIs
+- **NVIDIA NIM Rankings API** - Document reranking for RAG systems
+- **Azure OpenAI Text Generation** - Compatibility endpoint
+
+### Model Support
+
+Simulated models include:
+
+**OpenAI Models:**
+- GPT-4 family: `openai/gpt-oss-120b`, `openai/gpt-oss-120b`, `openai/gpt-oss-120b`, `openai/gpt-oss-20b`
+- GPT-3.5 family: `meta-llama/Llama-3.1-8B-Instruct`, `meta-llama/Llama-3.1-8B-Instruct-16k`, `meta-llama/Llama-3.1-8B-Instruct`
+- Reasoning models: `deepseek-ai/DeepSeek-R1`, `deepseek-ai/DeepSeek-R1`, `deepseek-ai/DeepSeek-R1-Distill-Qwen-32B`
+- Open-source reasoning: `gpt-oss-120b`, `gpt-oss-20b` (Apache 2.0)
+- Embeddings: `sentence-transformers/all-mpnet-base-v2`, `nomic-ai/nomic-embed-text-v1.5`, `BAAI/bge-m3`
+- Images: `stabilityai/stable-diffusion-2-1`, `stabilityai/stable-diffusion-xl-base-1.0`
+- Audio: `whisper-1`, `tts-1`, `tts-1-hd`
+
+**Third-Party Models:**
+- Mistral MoE: `mixtral-8x7b`, `mixtral-8x22b`
+- DeepSeek: `deepseek-v3`, `deepseek-ai/DeepSeek-R1-Distill-Llama-8B`
+- NVIDIA NIM: `nvidia/nv-rerankqa-mistral-4b-v3`
+
+**Dynamic Model Support:**
+Any model ID can be used - FakeAI automatically creates model entries on first use, supporting custom and fine-tuned models.
+
+## API Documentation
+
+For detailed API documentation and interactive testing:
+
+1. Start the server: `fakeai-server`
+2. Visit the auto-generated docs: `http://localhost:8000/docs`
+3. Or view the ReDoc version: `http://localhost:8000/redoc`
+
+The FastAPI documentation provides:
+- Complete endpoint reference
+- Request/response schemas
+- Interactive API testing
+- Example payloads
+- Authentication testing
+
+## Testing
+
+Run the comprehensive test suite to verify all features:
+
+```bash
+# Run all tests
+python test_complete_implementation.py
+
+# Or use pytest if available
+pytest
+```
+
+The test suite validates:
+- Schema compliance for all models
+- Service method implementations
+- API endpoint integration
+- Multi-modal content handling
+- Tool calling functionality
+- Structured outputs
+- Streaming responses
+- Token usage tracking
+
+## Contributing
+
+Contributions are welcome! If you find any issues or have suggestions for improvements, please open an issue or submit a pull request.
+
+## Development
+
+### Setup development environment
+
+1. Clone the repository:
+```bash
+git clone https://github.com/ajcasagrande/fakeai.git
+cd fakeai
+```
+
+2. Create a virtual environment:
+```bash
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
+
+3. Install in development mode:
+```bash
+pip install -e ".[dev]"
+```
+
+### Running tests
+
+```bash
+pytest
+```
+
+### Code formatting
+
+```bash
+black .
+isort .
+```
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the LICENSE file for details.

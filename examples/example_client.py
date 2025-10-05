@@ -6,13 +6,12 @@ This script demonstrates various uses of the FakeAI server using the official Op
 """
 #  SPDX-License-Identifier: Apache-2.0
 
-import asyncio
 import time
 
 from openai import OpenAI
 
 
-async def main():
+def main():
     """Run examples of using the FakeAI server."""
     print("FakeAI Server Example Client")
     print("============================\n")
@@ -33,7 +32,7 @@ async def main():
     print("2. Chat completion example:")
     start_time = time.time()
     response = client.chat.completions.create(
-        model="gpt-4",
+        model="openai/gpt-oss-120b",
         messages=[
             {"role": "system", "content": "You are a helpful assistant."},
             {
@@ -54,7 +53,7 @@ async def main():
     print("  Response: ", end="", flush=True)
     start_time = time.time()
     for chunk in client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="meta-llama/Llama-3.1-8B-Instruct",
         messages=[{"role": "user", "content": "Write a short poem about technology."}],
         stream=True,
     ):
@@ -68,7 +67,7 @@ async def main():
     print("4. Text completion example:")
     start_time = time.time()
     response = client.completions.create(
-        model="gpt-3.5-turbo", prompt="Once upon a time,", max_tokens=30
+        model="meta-llama/Llama-3.1-8B-Instruct", prompt="Once upon a time,", max_tokens=30
     )
     elapsed = time.time() - start_time
     print(f"  Response (in {elapsed:.2f}s): {response.choices[0].text}")
@@ -78,7 +77,7 @@ async def main():
     print("5. Embedding example:")
     start_time = time.time()
     response = client.embeddings.create(
-        model="text-embedding-ada-002",
+        model="sentence-transformers/all-mpnet-base-v2",
         input="The quick brown fox jumps over the lazy dog.",
     )
     elapsed = time.time() - start_time
@@ -92,7 +91,7 @@ async def main():
     print("6. Image generation example:")
     start_time = time.time()
     response = client.images.generate(
-        model="dall-e-3",
+        model="stabilityai/stable-diffusion-xl-base-1.0",
         prompt="A futuristic city with flying cars and tall skyscrapers",
         n=1,
         size="1024x1024",
@@ -105,4 +104,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

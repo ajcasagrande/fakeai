@@ -1,0 +1,101 @@
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sunday at 2 AM
+
+jobs:
+  aiperf-benchmark:
+    name: AIPerf Benchmarking
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install aiperf
+
+    - name: Start FakeAI server
+      run: |
+        fakeai-server --port 9001 --ttft 20 --itl 5 &
+        sleep 5
+
+    - name: Verify server is running
+      run: |
+        curl -f http://localhost:9001/health || exit 1
+
+    - name: Run AIPerf benchmark
+      run: |
+        cd benchmarks
+        python run_aiperf_benchmarks.py --quick --url http://localhost:9001
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: |
+          benchmarks/artifacts/benchmark_summary.json
+          benchmarks/artifacts/BENCHMARK_REPORT.md
+        retention-days: 30
+
+    - name: Display results summary
+      run: |
+        cat benchmarks/artifacts/BENCHMARK_REPORT.md
+
+  custom-benchmarks:
+    name: Custom Benchmark Suite
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install httpx psutil
+
+    - name: Start FakeAI server
+      run: |
+        fakeai-server --port 8000 --ttft 10 --itl 2 &
+        sleep 5
+
+    - name: Run throughput benchmark
+      run: |
+        cd benchmarks
+        python benchmark_throughput.py http://localhost:8000 test
+
+    - name: Run concurrency benchmark
+      run: |
+        cd benchmarks
+        python benchmark_concurrent.py http://localhost:8000 test
+
+    - name: Run KV cache benchmark
+      run: |
+        cd benchmarks
+        python benchmark_kv_cache.py http://localhost:8000 test
+
+    - name: Upload results
+      uses: actions/upload-artifact@v4
+      with:
+        name: custom-benchmark-results
+        path: |
+          benchmarks/*_results.json
+          benchmarks/*_results.md
+        retention-days: 30
