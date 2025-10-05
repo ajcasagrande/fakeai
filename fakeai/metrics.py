@@ -243,6 +243,7 @@ class MetricsTracker:
             "/dynamo/metrics",
             "/dynamo/metrics/json",
             "/kv-cache/metrics",
+            "/rag/api/prompt",
             "/dashboard",
             "/dashboard/dynamo",
         }

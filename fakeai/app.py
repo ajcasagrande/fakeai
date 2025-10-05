@@ -79,6 +79,8 @@ from fakeai.models import (
     ResponsesResponse,
     ServiceAccount,
     ServiceAccountListResponse,
+    SolidoRagRequest,
+    SolidoRagResponse,
     SpeechRequest,
     TextGenerationRequest,
     TextGenerationResponse,
@@ -550,6 +552,18 @@ async def create_response(request: ResponsesRequest):
 async def create_ranking(request: RankingRequest) -> RankingResponse:
     """Create a NVIDIA NIM ranking response"""
     return await fakeai_service.create_ranking(request)
+
+
+# Solido RAG API endpoint
+@app.post("/rag/api/prompt", dependencies=[Depends(verify_api_key)])
+async def create_solido_rag(request: SolidoRagRequest) -> SolidoRagResponse:
+    """
+    Create a Solido RAG response with retrieval-augmented generation.
+
+    Retrieves relevant documents based on filters and generates
+    context-aware responses using the specified inference model.
+    """
+    return await fakeai_service.create_solido_rag(request)
 
 
 # Metrics endpoints

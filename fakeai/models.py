@@ -254,6 +254,22 @@ class VideoContent(BaseModel):
 ContentPart = TextContent | ImageContent | InputAudioContent | VideoContent
 
 
+# RAG Document Model (defined early for use in ChatCompletionResponse)
+
+class RagDocument(BaseModel):
+    """Retrieved document for RAG context."""
+
+    id: str = Field(description="Document ID.")
+    content: str = Field(description="Document content/text.")
+    score: float = Field(description="Relevance score (0.0-1.0).", ge=0.0, le=1.0)
+    metadata: dict[str, Any] | None = Field(
+        default=None, description="Optional document metadata."
+    )
+    source: str | None = Field(
+        default=None, description="Document source/origin."
+    )
+
+
 # Audio Output Configuration
 
 class AudioConfig(BaseModel):
@@ -1149,6 +1165,40 @@ class RankingObject(BaseModel):
 
     index: int = Field(description="Zero-based index of passage in original request.")
     logit: float = Field(description="Raw unnormalized relevance score (higher is better).")
+
+
+class SolidoRagRequest(BaseModel):
+    """Request for Solido RAG endpoint (/rag/api/prompt)."""
+
+    query: str | list[str] = Field(
+        description="Query text for retrieval (string or array of strings)."
+    )
+    filters: dict[str, Any] | None = Field(
+        default=None,
+        description="Metadata filters for document retrieval (e.g. {'family': 'Solido', 'tool': 'SDE'})."
+    )
+    inference_model: str = Field(
+        default="meta-llama/Llama-3.1-70B-Instruct",
+        description="Model to use for generation."
+    )
+    top_k: int | None = Field(
+        default=5, description="Number of documents to retrieve.", ge=1, le=20
+    )
+    stream: bool | None = Field(
+        default=False, description="Whether to stream the response."
+    )
+
+
+class SolidoRagResponse(BaseModel):
+    """Response for Solido RAG endpoint."""
+
+    content: str = Field(description="Generated content with RAG context.")
+    retrieved_docs: list[RagDocument] | None = Field(
+        default=None, description="Retrieved documents (if requested)."
+    )
+    usage: Usage | None = Field(
+        default=None, description="Token usage information."
+    )
 
 
 class RankingResponse(BaseModel):

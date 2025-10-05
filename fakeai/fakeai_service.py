@@ -2923,6 +2923,174 @@ class FakeAIService:
             category_applied_input_types=applied_types,
         )
 
+    # Solido RAG API method
+
+    async def create_solido_rag(self, request) -> dict[str, Any]:
+        """
+        Create a Solido RAG (Retrieval-Augmented Generation) response.
+
+        Simulates document retrieval based on filters and generates
+        an answer using the inference model with augmented context.
+
+        Args:
+            request: SolidoRagRequest object
+
+        Returns:
+            SolidoRagResponse with generated content
+        """
+        from fakeai.models import RagDocument, SolidoRagResponse, Usage
+
+        # Normalize query to list
+        queries = request.query if isinstance(request.query, list) else [request.query]
+        combined_query = " ".join(queries)
+
+        # Simulate document retrieval with filters
+        filters = request.filters or {}
+        top_k = request.top_k or 5
+
+        # Generate simulated documents based on filters
+        retrieved_docs = []
+        for i in range(top_k):
+            # Create document IDs and content related to query
+            doc_id = f"doc-{uuid.uuid4().hex[:8]}"
+
+            # Generate realistic content based on filters
+            if filters.get("family") == "Solido" and filters.get("tool") == "SDE":
+                # Generate Solido Design Environment documentation snippets
+                doc_content = self._generate_solido_doc_content(combined_query, i)
+                source = f"Solido_SDE_User_Guide_2024.2_p{100 + i * 15}"
+            else:
+                # Generic documentation
+                doc_content = fake.paragraph(nb_sentences=3)
+                source = f"document_{i}.txt"
+
+            # Calculate relevance score (decreasing order)
+            score = max(0.5, 0.95 - (i * 0.1))
+
+            retrieved_docs.append(
+                RagDocument(
+                    id=doc_id,
+                    content=doc_content,
+                    score=score,
+                    metadata=filters,
+                    source=source,
+                )
+            )
+
+        # Generate augmented response using retrieved context
+        context_text = "\n\n".join([doc.content for doc in retrieved_docs[:3]])
+
+        # Create prompt with context
+        augmented_prompt = f"Context:\n{context_text}\n\nQuestion: {combined_query}\n\nAnswer:"
+
+        # Calculate tokens
+        prompt_tokens = calculate_token_count(augmented_prompt)
+
+        # Generate completion
+        completion_text = await self._generate_simulated_completion(
+            messages=[],  # Context already in augmented_prompt
+            max_tokens=200,
+            temperature=0.7,
+        )
+
+        completion_tokens = calculate_token_count(completion_text)
+
+        # Build response
+        response = SolidoRagResponse(
+            content=completion_text,
+            retrieved_docs=retrieved_docs,
+            usage=Usage(
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=prompt_tokens + completion_tokens,
+            ),
+        )
+
+        return response.model_dump()
+
+    def _generate_solido_doc_content(self, query: str, index: int) -> str:
+        """Generate Solido-specific documentation content."""
+        query_lower = query.lower()
+
+        # Context-aware content based on query keywords
+        if "pvtmc" in query_lower or "corner" in query_lower:
+            templates = [
+                "PVTMC Verifier provides fast, accurate full coverage verification of worst case corners. It analyzes process, voltage, and temperature variations to identify critical operating conditions.",
+                "Corner analysis in Solido DE identifies worst-case operating conditions across PVT variations. The PVTMC Verifier tool automates this process with statistical methods.",
+                "Process-Voltage-Temperature Monte Carlo (PVTMC) verification ensures your design meets specifications across all operating corners by analyzing statistical distributions.",
+            ]
+        elif "sweep" in query_lower or "variable" in query_lower:
+            templates = [
+                "Sweep configuration allows you to sweep design variables with a simple setup. Select variables from the dropdown and configure sweep ranges manually or using automatic stepping.",
+                "Variable grouping in sweeps creates specific combinations rather than running all permutations. Linked variables must have the same number of points in each variable.",
+                "Sweep ranges can be specified as comma-separated values (-40, 25, 125) or using start:step:end notation (-40:10:125) for automatic population.",
+            ]
+        elif "simulation" in query_lower or "test" in query_lower:
+            templates = [
+                "Solido Design Environment supports multiple simulation types including transient analysis, AC analysis, and DC operating point calculations across process corners.",
+                "Test configuration allows selection of specific tests, corner groups, and cluster settings for distributed simulation runs.",
+                "Simulation results can be viewed across distributions with cross-selection support, enabling efficient debugging and design iteration.",
+            ]
+        else:
+            templates = [
+                f"Solido Design Environment (SDE) is a comprehensive variation-aware design platform for custom IC design workflows. {fake.sentence()}",
+                f"The Solido platform leverages AI-enabled technologies for library characterization, IP validation, and worst-case corner verification. {fake.sentence()}",
+                f"Solido tools integrate seamlessly with industry-standard EDA flows, providing automated analysis and optimization capabilities. {fake.sentence()}",
+            ]
+
+        return templates[index % len(templates)]
+
+    async def _retrieve_rag_context(
+        self,
+        query: str,
+        filters: dict[str, Any],
+        top_k: int
+    ) -> tuple[list, str]:
+        """
+        Retrieve documents for RAG context.
+
+        Args:
+            query: Search query
+            filters: Metadata filters
+            top_k: Number of documents to retrieve
+
+        Returns:
+            Tuple of (retrieved_documents, context_text)
+        """
+        from fakeai.models import RagDocument
+
+        # Generate retrieved documents
+        retrieved_docs = []
+        for i in range(top_k):
+            doc_id = f"doc-{uuid.uuid4().hex[:8]}"
+
+            # Generate content based on filters
+            if filters.get("family") == "Solido":
+                doc_content = self._generate_solido_doc_content(query, i)
+                source = f"Solido_SDE_User_Guide_p{100 + i * 15}"
+            else:
+                doc_content = fake.paragraph(nb_sentences=2)
+                source = f"document_{i}.txt"
+
+            score = max(0.5, 0.95 - (i * 0.1))
+
+            retrieved_docs.append(
+                RagDocument(
+                    id=doc_id,
+                    content=doc_content,
+                    score=score,
+                    metadata=filters,
+                    source=source,
+                )
+            )
+
+        # Create context string
+        context_text = "Retrieved Context:\n" + "\n\n".join([
+            f"[{i+1}] {doc.content}" for i, doc in enumerate(retrieved_docs)
+        ])
+
+        return retrieved_docs, context_text
+
     # Batch API methods
 
     async def create_batch(self, request: CreateBatchRequest) -> Batch:

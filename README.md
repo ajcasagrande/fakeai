@@ -63,6 +63,7 @@ print(response.choices[0].message.content)
 - **Responses API** - March 2025 format
 - **Vector Stores** - Document storage and retrieval
 - **Video Input** - NVIDIA Cosmos extension for video understanding
+- **Solido RAG** - Retrieval-augmented generation for documentation queries
 
 ### NVIDIA AI-Dynamo Features
 
