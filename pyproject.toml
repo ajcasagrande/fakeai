@@ -108,6 +108,7 @@ markers = [
     "streaming: Streaming response tests",
     "multimodal: Multi-modal content tests",
     "metrics: Metrics and monitoring tests",
+    "prompt_caching: Prompt caching tests",
 ]
 log_cli = false
 log_cli_level = "INFO"

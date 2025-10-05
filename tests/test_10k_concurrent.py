@@ -153,7 +153,8 @@ async def quick_test(num_requests=100):
     return success == num_requests
 
 
-if __name__ == "__main__":
+async def main():
+    """Main entry point."""
     import sys
 
     print()
@@ -161,39 +162,50 @@ if __name__ == "__main__":
     print()
 
     # Check if server is running
-    import requests
-    try:
-        r = requests.get('http://localhost:9001/health', timeout=2)
-        print("✓ Server is running on port 9001")
-        print()
-    except:
+    async def check_server():
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get('http://localhost:9001/health', timeout=aiohttp.ClientTimeout(total=2)) as r:
+                    if r.status == 200:
+                        print("✓ Server is running on port 9001")
+                        print()
+                        return True
+        except:
+            pass
         print("✗ Server not running on port 9001")
         print()
         print("Start server with:")
-        print("  FAKEAI_RESPONSE_DELAY=0.0 python run_server.py --port 9001")
+        print("  FAKEAI_RESPONSE_DELAY=0.0 fakeai server --port 9001")
         print()
+        return False
+
+    if not await check_server():
         sys.exit(1)
 
     # Run tests
     if len(sys.argv) > 1 and sys.argv[1] == 'quick':
         # Quick test mode
-        success = asyncio.run(quick_test(100))
+        success = await quick_test(100)
     elif len(sys.argv) > 1 and sys.argv[1] == 'full':
         # Full 10k test
-        success = asyncio.run(load_test_concurrent(10000, batch_size=1000))
+        success = await load_test_concurrent(10000, batch_size=1000)
     else:
         # Progressive test
         print("Running progressive test (100 → 1000 → 10000)...")
         print()
 
-        success = asyncio.run(quick_test(100))
+        success = await quick_test(100)
         if success:
             print("✓ 100 requests passed, trying 1000...")
-            success = asyncio.run(load_test_concurrent(1000, batch_size=500))
+            success = await load_test_concurrent(1000, batch_size=500)
 
         if success:
             print()
             print("✓ 1000 requests passed, trying 10000...")
-            success = asyncio.run(load_test_concurrent(10000, batch_size=1000))
+            success = await load_test_concurrent(10000, batch_size=1000)
 
     sys.exit(0 if success else 1)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
