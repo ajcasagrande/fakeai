@@ -7,19 +7,24 @@ It can be used to export metrics in a format compatible with AIPerf benchmarking
 """
 
 import json
-import requests
+import asyncio
+import aiohttp
 import time
 import argparse
 import sys
 from typing import Dict, Any
 
 
-def get_metrics(url="http://localhost:8000") -> Dict[str, Any]:
+async def get_metrics(url="http://localhost:8000") -> Dict[str, Any]:
     """Get metrics from the FakeAI server."""
     try:
-        response = requests.get(f"{url}/metrics")
-        return response.json()
-    except requests.RequestException as e:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{url}/metrics") as response:
+                return await response.json()
+    except aiohttp.ClientConnectorError as e:
+        print(f"Error getting metrics: {e}")
+        return {}
+    except asyncio.TimeoutError as e:
         print(f"Error getting metrics: {e}")
         return {}
 
