@@ -1600,18 +1600,47 @@ class FakeAIService:
         # Calculate remaining budget for regular completion
         remaining_budget = max(10, effective_max_tokens - reasoning_tokens)
 
-        # Generate simulated response
-        if is_structured_output:
+        # Check if we should generate tool calls
+        should_call_tools = False
+        tool_calls = None
+        if request.tools and not is_structured_output:
+            # Import tool calling engine
+            from fakeai.tool_calling import ToolDecisionEngine, ToolCallGenerator
+
+            engine = ToolDecisionEngine()
+            should_call_tools = engine.should_call_tools(request.messages, request.tools, request.tool_choice)
+
+            if should_call_tools:
+                # Generate tool calls instead of regular completion
+                generator = ToolCallGenerator()
+                tool_calls = generator.generate_tool_calls(
+                    tools_to_call=request.tools,
+                    messages=request.messages,
+                    parallel=request.parallel_tool_calls if request.parallel_tool_calls is not None else True,
+                )
+                completion_text = None  # No content when calling tools
+                completion_tokens = 0
+            else:
+                # Generate regular response
+                completion_text = await self._generate_simulated_completion(
+                    request.messages,
+                    max_tokens=remaining_budget,
+                    temperature=request.temperature or 1.0,
+                )
+                completion_tokens = calculate_token_count(completion_text)
+        elif is_structured_output:
             # Generate data matching the JSON schema
             generated_data = generate_from_schema(json_schema_obj)
             completion_text = format_as_json_string(generated_data)
+            completion_tokens = calculate_token_count(completion_text)
         else:
+            # Regular completion
             completion_text = await self._generate_simulated_completion(
                 request.messages,
                 max_tokens=remaining_budget,
                 temperature=request.temperature or 1.0,
             )
-        completion_tokens = calculate_token_count(completion_text)
+            completion_tokens = calculate_token_count(completion_text)
 
         # Handle predicted outputs (EAGLE/speculative decoding)
         accepted_pred_tokens = 0
@@ -1699,8 +1728,9 @@ class FakeAIService:
                         content=completion_text,
                         reasoning_content=reasoning_content,
                         audio=audio_output,
+                        tool_calls=tool_calls if should_call_tools else None,
                     ),
-                    finish_reason=finish_reason,
+                    finish_reason="tool_calls" if should_call_tools else finish_reason,
                     logprobs=logprobs_result,
                 )
                 for i in range(request.n or 1)

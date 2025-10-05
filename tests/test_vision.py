@@ -24,58 +24,65 @@ class TestCalculateImageTokens:
         assert calculate_image_tokens(4096, 4096, "low", "openai/gpt-oss-120b") == 85
 
     def test_high_detail_single_tile(self):
-        """High detail for small images (single tile)."""
-        # 512×512 or smaller = 1 tile
-        # openai/gpt-oss-120b: 85 + (170 × 1) = 255
-        assert calculate_image_tokens(512, 512, "high", "openai/gpt-oss-120b") == 255
-        assert calculate_image_tokens(256, 256, "high", "openai/gpt-oss-120b") == 255
-        assert calculate_image_tokens(400, 300, "high", "openai/gpt-oss-120b") == 255
+        """High detail for small images."""
+        # Images get scaled to 768px on shortest side, then tiled
+        # 512×512 -> 768×768 = 2×2 = 4 tiles = 765 tokens
+        assert calculate_image_tokens(512, 512, "high", "openai/gpt-oss-120b") == 765
+        # 256×256 -> 768×768 = 2×2 = 4 tiles = 765 tokens
+        assert calculate_image_tokens(256, 256, "high", "openai/gpt-oss-120b") == 765
+        # 400×300 -> 1024×768 = 2×2 = 4 tiles = 765 tokens
+        assert calculate_image_tokens(400, 300, "high", "openai/gpt-oss-120b") == 765
 
     def test_high_detail_single_tile_mini(self):
         """High detail for small images on openai/gpt-oss-20b."""
-        # openai/gpt-oss-20b: 2833 + (5667 × 1) = 8500
-        assert calculate_image_tokens(512, 512, "high", "openai/gpt-oss-20b") == 8500
-        assert calculate_image_tokens(256, 256, "high", "openai/gpt-oss-20b") == 8500
+        # openai/gpt-oss-20b: scaled to 768px shortest side
+        # 512×512 -> 768×768 = 2×2 = 4 tiles: 2833 + (5667 × 4) = 25501
+        assert calculate_image_tokens(512, 512, "high", "openai/gpt-oss-20b") == 25501
+        # 256×256 -> 768×768 = 2×2 = 4 tiles: 2833 + (5667 × 4) = 25501
+        assert calculate_image_tokens(256, 256, "high", "openai/gpt-oss-20b") == 25501
 
     def test_high_detail_multiple_tiles(self):
         """High detail for larger images requiring multiple tiles."""
-        # 1024×1024 after scaling: 768×768, tiles: 2×2 = 4 tiles
+        # 1024×1024: shortest=1024, scale to 768: 768×768 = 2×2 = 4 tiles
         # openai/gpt-oss-120b: 85 + (170 × 4) = 765
         assert calculate_image_tokens(1024, 1024, "high", "openai/gpt-oss-120b") == 765
 
-        # 2048×1024 after scaling: 1536×768, tiles: 3×2 = 6 tiles
+        # 2048×1024: shortest=1024, scale to 768: 1536×768 = 3×2 = 6 tiles
         # openai/gpt-oss-120b: 85 + (170 × 6) = 1105
         assert calculate_image_tokens(2048, 1024, "high", "openai/gpt-oss-120b") == 1105
 
-        # 2048×2048 after scaling: 1536×1536, tiles: 3×3 = 9 tiles
-        # openai/gpt-oss-120b: 85 + (170 × 9) = 1615
-        assert calculate_image_tokens(2048, 2048, "high", "openai/gpt-oss-120b") == 1615
+        # 2048×2048: shortest=2048, scale to 768: 768×768 = 2×2 = 4 tiles
+        # openai/gpt-oss-120b: 85 + (170 × 4) = 765
+        assert calculate_image_tokens(2048, 2048, "high", "openai/gpt-oss-120b") == 765
 
     def test_high_detail_multiple_tiles_mini(self):
         """High detail for larger images on openai/gpt-oss-20b."""
-        # 1024×1024: 4 tiles
+        # 1024×1024: shortest=1024, scale to 768: 768×768 = 2×2 = 4 tiles
         # openai/gpt-oss-20b: 2833 + (5667 × 4) = 25501
         assert calculate_image_tokens(1024, 1024, "high", "openai/gpt-oss-20b") == 25501
 
     def test_high_detail_wide_image(self):
         """High detail for wide rectangular images."""
-        # 3000×500 → scales to 2048×341 → then 2048×768 → tiles: 4×2 = 8 tiles
-        # openai/gpt-oss-120b: 85 + (170 × 8) = 1445
+        # 3000×500 → scales to 2048×341 → then scale shortest (341) to 768: ~4607×768
+        # Tiles: 10×2 = 20 tiles (ceil(4607/512) × ceil(768/512))
+        # openai/gpt-oss-120b: 85 + (170 × 20) = 3485
         result = calculate_image_tokens(3000, 500, "high", "openai/gpt-oss-120b")
-        assert result == 1445
+        assert result == 3485
 
     def test_high_detail_tall_image(self):
         """High detail for tall rectangular images."""
-        # 500×3000 → scales to 341×2048 → then 768×2048 → tiles: 2×4 = 8 tiles
-        # openai/gpt-oss-120b: 85 + (170 × 8) = 1445
+        # 500×3000 → scales to 341×2048 → then scale shortest (341) to 768: 768×~4607
+        # Tiles: 2×10 = 20 tiles
+        # openai/gpt-oss-120b: 85 + (170 × 20) = 3485
         result = calculate_image_tokens(500, 3000, "high", "openai/gpt-oss-120b")
-        assert result == 1445
+        assert result == 3485
 
     def test_high_detail_very_large_image(self):
         """High detail for very large images requiring initial downscaling."""
-        # 4096×4096 → scales to 2048×2048 → then 1536×1536 → tiles: 3×3 = 9 tiles
-        # openai/gpt-oss-120b: 85 + (170 × 9) = 1615
-        assert calculate_image_tokens(4096, 4096, "high", "openai/gpt-oss-120b") == 1615
+        # 4096×4096 → scales to 2048×2048 → then scale shortest (2048) to 768: 768×768
+        # Tiles: 2×2 = 4 tiles
+        # openai/gpt-oss-120b: 85 + (170 × 4) = 765
+        assert calculate_image_tokens(4096, 4096, "high", "openai/gpt-oss-120b") == 765
 
     def test_auto_detail_small_image_uses_low(self):
         """Auto detail should use low for small images."""
@@ -87,10 +94,10 @@ class TestCalculateImageTokens:
     def test_auto_detail_large_image_uses_high(self):
         """Auto detail should use high for large images."""
         # Images over 512×512 should use high detail
-        # 1024×1024: 4 tiles = 765 tokens
+        # 1024×1024: scales to 768×768 = 4 tiles = 765 tokens
         assert calculate_image_tokens(1024, 1024, "auto", "openai/gpt-oss-120b") == 765
-        # 2048×2048: 9 tiles = 1615 tokens
-        assert calculate_image_tokens(2048, 2048, "auto", "openai/gpt-oss-120b") == 1615
+        # 2048×2048: scales to 768×768 = 4 tiles = 765 tokens
+        assert calculate_image_tokens(2048, 2048, "auto", "openai/gpt-oss-120b") == 765
 
 
 class TestParseImageDimensionsFromUrl:
@@ -302,10 +309,10 @@ class TestCalculateMessageImageTokens:
                 },
             },
         ]
-        # First image: 512×512 high = 255 tokens
+        # First image: 512×512 high -> 768×768 = 4 tiles = 765 tokens
         # Second image: low = 85 tokens
-        # Total: 340 tokens
-        assert calculate_message_image_tokens(content, "openai/gpt-oss-120b") == 340
+        # Total: 850 tokens
+        assert calculate_message_image_tokens(content, "openai/gpt-oss-120b") == 850
 
     def test_gpt_4o_mini_higher_costs(self):
         """openai/gpt-oss-20b has higher token costs."""
@@ -318,11 +325,11 @@ class TestCalculateMessageImageTokens:
                 },
             },
         ]
-        # Single tile on openai/gpt-oss-20b: 2833 + (5667 × 1) = 8500
-        assert calculate_message_image_tokens(content, "openai/gpt-oss-20b") == 8500
+        # 512×512 scaled to 768×768 = 4 tiles on openai/gpt-oss-20b: 2833 + (5667 × 4) = 25501
+        assert calculate_message_image_tokens(content, "openai/gpt-oss-20b") == 25501
 
-        # Same image on openai/gpt-oss-120b: 85 + (170 × 1) = 255
-        assert calculate_message_image_tokens(content, "openai/gpt-oss-120b") == 255
+        # Same image on openai/gpt-oss-120b: 85 + (170 × 4) = 765
+        assert calculate_message_image_tokens(content, "openai/gpt-oss-120b") == 765
 
     def test_auto_detail_selection(self):
         """Auto detail selection based on image size."""
@@ -361,7 +368,7 @@ class TestCalculateMessageImageTokens:
                 },
             },
         ]
-        # 2048×1024: 6 tiles = 1105 tokens
+        # 2048×1024: shortest=1024, scale to 768: 1536×768 = 3×2 = 6 tiles = 1105 tokens
         assert calculate_message_image_tokens(content, "openai/gpt-oss-120b") == 1105
 
 
@@ -369,20 +376,21 @@ class TestEdgeCases:
     """Test edge cases and boundary conditions."""
 
     def test_very_small_image(self):
-        """Very small images still get minimum tokens."""
-        assert calculate_image_tokens(1, 1, "high", "openai/gpt-oss-120b") == 255  # 1 tile minimum
+        """Very small images get scaled up."""
+        # 1×1: shortest=1, scale to 768: 768×768 = 2×2 = 4 tiles = 765 tokens
+        assert calculate_image_tokens(1, 1, "high", "openai/gpt-oss-120b") == 765
 
     def test_exact_tile_boundaries(self):
-        """Images exactly at tile boundaries."""
-        # Exactly 512×512 = 1 tile
-        assert calculate_image_tokens(512, 512, "high", "openai/gpt-oss-120b") == 255
-        # Exactly 1024×512 after scaling = 2×1 = 2 tiles
-        assert calculate_image_tokens(1024, 512, "high", "openai/gpt-oss-120b") == 425
+        """Images at various boundaries."""
+        # 512×512: scales to 768×768 = 2×2 = 4 tiles = 765 tokens
+        assert calculate_image_tokens(512, 512, "high", "openai/gpt-oss-120b") == 765
+        # 1024×512: shortest=512, scale to 768: 1536×768 = 3×2 = 6 tiles = 1105 tokens
+        assert calculate_image_tokens(1024, 512, "high", "openai/gpt-oss-120b") == 1105
 
     def test_aspect_ratio_preservation(self):
         """Verify aspect ratio is considered in scaling."""
-        # 4000×2000 (2:1) should scale to 2048×1024, then 1536×768 (still 2:1)
-        # Tiles: 3×2 = 6 tiles
+        # 4000×2000 (2:1): scale to 2048×1024, then shortest (1024) to 768: 1536×768
+        # Tiles: 3×2 = 6 tiles = 1105 tokens
         assert calculate_image_tokens(4000, 2000, "high", "openai/gpt-oss-120b") == 1105
 
     def test_malformed_url_defaults(self):

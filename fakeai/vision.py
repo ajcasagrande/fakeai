@@ -55,12 +55,11 @@ def calculate_image_tokens(width: int, height: int, detail: str, model: str) -> 
         width = int(width * scale_factor)
         height = int(height * scale_factor)
 
-    # Step 2: Scale shortest side to be at least 768px
+    # Step 2: Scale shortest side to exactly 768px
     min_dimension = min(width, height)
-    if min_dimension < 768:
-        scale_factor = 768 / min_dimension
-        width = int(width * scale_factor)
-        height = int(height * scale_factor)
+    scale_factor = 768 / min_dimension
+    width = int(width * scale_factor)
+    height = int(height * scale_factor)
 
     # Step 3: Calculate number of 512×512 tiles
     tiles_width = math.ceil(width / 512)
@@ -68,9 +67,9 @@ def calculate_image_tokens(width: int, height: int, detail: str, model: str) -> 
     num_tiles = tiles_width * tiles_height
 
     # Different models use different base costs
-    is_mini = "mini" in model.lower()
+    is_mini = "mini" in model.lower() or model.endswith("gpt-oss-20b") or "gpt-oss-20b" == model.split("/")[-1]
     if is_mini:
-        # openai/gpt-oss-20b: 2833 + (5667 × tiles)
+        # openai/gpt-oss-20b (mini models): 2833 + (5667 × tiles)
         return 2833 + (5667 * num_tiles)
     else:
         # openai/gpt-oss-120b and other vision models: 85 + (170 × tiles)
