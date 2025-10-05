@@ -55,6 +55,10 @@ from fakeai.models import (
     ErrorResponse,
     FileListResponse,
     FileObject,
+    FineTuningJob,
+    FineTuningJobList,
+    FineTuningJobRequest,
+    FineTuningCheckpointList,
     ImageGenerationRequest,
     ImageGenerationResponse,
     ImagesUsageResponse,
@@ -1252,6 +1256,77 @@ async def realtime_websocket(
     except Exception as e:
         logger.exception(f"Unexpected error in Realtime WebSocket: {str(e)}")
 
+
+# Fine-Tuning API endpoints
+@app.post("/v1/fine_tuning/jobs", dependencies=[Depends(verify_api_key)])
+async def create_fine_tuning_job(request: FineTuningJobRequest) -> FineTuningJob:
+    """Create a new fine-tuning job."""
+    try:
+        return await fakeai_service.create_fine_tuning_job(request)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/v1/fine_tuning/jobs", dependencies=[Depends(verify_api_key)])
+async def list_fine_tuning_jobs(
+    limit: int = Query(default=20, ge=1, le=100),
+    after: str | None = Query(default=None),
+) -> FineTuningJobList:
+    """List fine-tuning jobs with pagination."""
+    return await fakeai_service.list_fine_tuning_jobs(limit=limit, after=after)
+
+
+@app.get("/v1/fine_tuning/jobs/{job_id}", dependencies=[Depends(verify_api_key)])
+async def retrieve_fine_tuning_job(job_id: str) -> FineTuningJob:
+    """Retrieve a specific fine-tuning job."""
+    try:
+        return await fakeai_service.retrieve_fine_tuning_job(job_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.post("/v1/fine_tuning/jobs/{job_id}/cancel", dependencies=[Depends(verify_api_key)])
+async def cancel_fine_tuning_job(job_id: str) -> FineTuningJob:
+    """Cancel a running or queued fine-tuning job."""
+    try:
+        return await fakeai_service.cancel_fine_tuning_job(job_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/v1/fine_tuning/jobs/{job_id}/events", dependencies=[Depends(verify_api_key)])
+async def list_fine_tuning_events(
+    job_id: str,
+    limit: int = Query(default=20, ge=1, le=100),
+):
+    """Stream fine-tuning events via Server-Sent Events (SSE)."""
+    try:
+        async def event_stream():
+            async for event in fakeai_service.list_fine_tuning_events(job_id, limit):
+                yield event
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            },
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get("/v1/fine_tuning/jobs/{job_id}/checkpoints", dependencies=[Depends(verify_api_key)])
+async def list_fine_tuning_checkpoints(
+    job_id: str,
+    limit: int = Query(default=10, ge=1, le=100),
+) -> FineTuningCheckpointList:
+    """List checkpoints for a fine-tuning job."""
+    try:
+        return await fakeai_service.list_fine_tuning_checkpoints(job_id, limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 # Vector Stores API endpoints
