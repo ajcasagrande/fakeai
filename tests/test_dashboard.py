@@ -4,38 +4,39 @@ Quick test script to verify dashboard endpoints are working.
 
 Run this to check if all required endpoints return valid data.
 """
-import requests
+import asyncio
+import aiohttp
 import json
 
 
-def test_endpoint(url, name):
+async def test_endpoint(session, url, name):
     """Test if endpoint returns valid data."""
     try:
         print(f"Testing {name}...")
-        response = requests.get(url, timeout=2)
-
-        if response.status_code == 200:
-            # Try to parse as JSON
-            try:
-                data = response.json()
-                print(f"  ✅ {name}: OK (returned {len(json.dumps(data))} bytes)")
-                return True
-            except json.JSONDecodeError:
-                # Not JSON, check if it's text (Prometheus format)
-                if response.headers.get('content-type', '').startswith('text/plain'):
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=2)) as response:
+            if response.status == 200:
+                # Try to parse as JSON
+                content_type = response.headers.get('content-type', '')
+                if 'application/json' in content_type:
+                    data = await response.json()
+                    print(f"  ✅ {name}: OK (returned {len(json.dumps(data))} bytes)")
+                    return True
+                elif content_type.startswith('text/plain'):
+                    # Prometheus format
+                    await response.text()
                     print(f"  ✅ {name}: OK (Prometheus format)")
                     return True
                 else:
                     print(f"  ⚠️  {name}: Returned non-JSON data")
                     return False
-        else:
-            print(f"  ❌ {name}: Failed (status {response.status_code})")
-            return False
+            else:
+                print(f"  ❌ {name}: Failed (status {response.status})")
+                return False
 
-    except requests.exceptions.ConnectionError:
+    except aiohttp.ClientConnectorError:
         print(f"  ❌ {name}: Connection failed (is server running?)")
         return False
-    except requests.exceptions.Timeout:
+    except asyncio.TimeoutError:
         print(f"  ❌ {name}: Timeout")
         return False
     except Exception as e:
@@ -43,7 +44,7 @@ def test_endpoint(url, name):
         return False
 
 
-def main():
+async def main():
     """Test all dashboard endpoints."""
     base_url = "http://localhost:8000"
 
@@ -64,10 +65,11 @@ def main():
     ]
 
     results = []
-    for endpoint, name in endpoints:
-        url = base_url + endpoint
-        success = test_endpoint(url, name)
-        results.append((name, success))
+    async with aiohttp.ClientSession() as session:
+        for endpoint, name in endpoints:
+            url = base_url + endpoint
+            success = await test_endpoint(session, url, name)
+            results.append((name, success))
 
     print()
     print("=" * 60)
@@ -94,7 +96,7 @@ def main():
         print("⚠️  Some endpoints failed. Dashboard may not work correctly.")
         print()
         print("Fix:")
-        print("  1. Make sure server is running: python run_server.py")
+        print("  1. Make sure server is running: fakeai server")
         print("  2. Check for errors in server logs")
         print("  3. See DASHBOARD_QUICK_FIX.md for troubleshooting")
 
@@ -103,5 +105,5 @@ def main():
 
 if __name__ == "__main__":
     import sys
-    success = main()
+    success = asyncio.run(main())
     sys.exit(0 if success else 1)

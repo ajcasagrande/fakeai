@@ -96,6 +96,7 @@ addopts = [
     "--color=yes",
 ]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 markers = [
     "unit: Unit tests for individual components",
     "integration: Integration tests for API endpoints",
