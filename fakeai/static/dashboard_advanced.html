@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FakeAI Dynamo Advanced Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #475569;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1920px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .navbar {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 20px 30px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            font-size: 2rem;
+        }
+
+        .brand-text h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .brand-text p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .navbar-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .live-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.7;
+                transform: scale(1.1);
+            }
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
+        }
+
+        .metric-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+            border-color: var(--accent-blue);
+        }
+
+        .metric-header {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .metric-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .col-span-12 {
+            grid-column: span 12;
+        }
+
+        .col-span-6 {
+            grid-column: span 6;
+        }
+
+        .col-span-4 {
+            grid-column: span 4;
+        }
+
+        .col-span-3 {
+            grid-column: span 3;
+        }
+
+        @media (max-width: 1200px) {
+            .col-span-6, .col-span-4, .col-span-3 {
+                grid-column: span 12;
+            }
+        }
+
+        .panel {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-icon {
+            font-size: 1.5rem;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-primary {
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--accent-blue);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--accent-green);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--accent-yellow);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 16px;
+        }
+
+        .gpu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .gpu-card {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .gpu-card:hover {
+            border-color: var(--accent-blue);
+            box-shadow: 0 8px 16px rgba(59, 130, 246, 0.1);
+        }
+
+        .gpu-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .gpu-name {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .health-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .health-badge.healthy {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--accent-green);
+        }
+
+        .health-badge.warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--accent-yellow);
+        }
+
+        .health-badge.critical {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--accent-red);
+        }
+
+        .health-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .gpu-metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 0.9rem;
+        }
+
+        .gpu-metric-label {
+            color: var(--text-secondary);
+        }
+
+        .gpu-metric-value {
+            font-weight: 600;
+        }
+
+        .progress-container {
+            margin-top: 8px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
+            border-radius: 10px;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tier-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .tier-card {
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            padding: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .tier-name {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tier-badge {
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
+        .tier-g1 .tier-badge {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--accent-green);
+        }
+
+        .tier-g2 .tier-badge {
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--accent-blue);
+        }
+
+        .tier-g3 .tier-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--accent-yellow);
+        }
+
+        .tier-g4 .tier-badge {
+            background: rgba(139, 92, 246, 0.2);
+            color: var(--accent-purple);
+        }
+
+        .tier-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+            margin-top: 8px;
+        }
+
+        .tier-util {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 12px 0;
+        }
+
+        .endpoint-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .endpoint-item {
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .endpoint-info {
+            flex: 1;
+        }
+
+        .endpoint-url {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .endpoint-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .endpoint-stats {
+            display: flex;
+            gap: 16px;
+            font-size: 0.875rem;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .loading-content {
+            text-align: center;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(59, 130, 246, 0.1);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .status-item {
+            text-align: center;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .status-item-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .status-item-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <div style="font-size: 1.125rem;">Initializing Dashboard...</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Navbar -->
+        <div class="navbar">
+            <div class="navbar-brand">
+                <div class="logo">🚀</div>
+                <div class="brand-text">
+                    <h1>FakeAI Dynamo Dashboard</h1>
+                    <p>NVIDIA AI-Dynamo • GPU Metrics • LLM Inference Monitoring</p>
+                </div>
+            </div>
+            <div class="navbar-controls">
+                <div class="live-badge">
+                    <div class="live-dot"></div>
+                    <span>LIVE</span>
+                </div>
+                <button class="btn btn-primary" onclick="refreshAll()">
+                    🔄 Refresh
+                </button>
+                <button class="btn btn-secondary" onclick="toggleAutoRefresh()">
+                    <span id="autoRefreshIcon">⏸️</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-header">Requests Per Second</div>
+                <div class="metric-value" id="stat-rps">--</div>
+                <div class="metric-subtitle">Current throughput</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-header">TTFT p50</div>
+                <div class="metric-value" id="stat-ttft">--</div>
+                <div class="metric-subtitle">Time to first token</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-header">Tokens/sec</div>
+                <div class="metric-value" id="stat-tps">--</div>
+                <div class="metric-subtitle">Token throughput</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-header">Cache Hit Rate</div>
+                <div class="metric-value" id="stat-cache">--</div>
+                <div class="metric-subtitle">KV cache efficiency</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-header">Active Streams</div>
+                <div class="metric-value" id="stat-streams">--</div>
+                <div class="metric-subtitle">Concurrent requests</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-header">Total Requests</div>
+                <div class="metric-value" id="stat-total">--</div>
+                <div class="metric-subtitle">Since server start</div>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+            <!-- GPU Metrics (DCGM) -->
+            <div class="col-span-6">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span class="panel-icon">🎮</span>
+                            GPU Metrics (DCGM)
+                        </div>
+                        <div class="badge badge-success">4× H100 80GB</div>
+                    </div>
+                    <div class="gpu-grid" id="gpuMetrics">
+                        <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                            Loading GPU data...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Latency Breakdown -->
+            <div class="col-span-6">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span class="panel-icon">⚡</span>
+                            Latency Breakdown (Dynamo)
+                        </div>
+                        <div class="badge badge-primary">p50/p90/p99</div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="latencyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KVBM Memory Tiers -->
+            <div class="col-span-4">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span class="panel-icon">🗂️</span>
+                            KVBM Memory Tiers
+                        </div>
+                        <div class="badge badge-primary">4-Tier</div>
+                    </div>
+                    <div class="tier-grid">
+                        <div class="tier-card tier-g1">
+                            <div class="tier-name">
+                                G1: GPU HBM
+                                <span class="tier-badge">HOT</span>
+                            </div>
+                            <div class="tier-util" id="tier-g1-util">--%</div>
+                            <div class="tier-stats">
+                                <span id="tier-g1-blocks">-- blocks</span>
+                                <span id="tier-g1-capacity">/ --</span>
+                            </div>
+                            <div class="progress-container">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="tier-g1-progress"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tier-card tier-g2">
+                            <div class="tier-name">
+                                G2: CPU DRAM
+                                <span class="tier-badge">WARM</span>
+                            </div>
+                            <div class="tier-util" id="tier-g2-util">--%</div>
+                            <div class="tier-stats">
+                                <span id="tier-g2-blocks">-- blocks</span>
+                                <span id="tier-g2-capacity">/ --</span>
+                            </div>
+                            <div class="progress-container">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="tier-g2-progress"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tier-card tier-g3">
+                            <div class="tier-name">
+                                G3: Local SSD
+                                <span class="tier-badge">COLD</span>
+                            </div>
+                            <div class="tier-util" id="tier-g3-util">--%</div>
+                            <div class="tier-stats">
+                                <span id="tier-g3-blocks">-- blocks</span>
+                                <span id="tier-g3-capacity">/ --</span>
+                            </div>
+                            <div class="progress-container">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="tier-g3-progress"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tier-card tier-g4">
+                            <div class="tier-name">
+                                G4: Remote
+                                <span class="tier-badge">ARCHIVE</span>
+                            </div>
+                            <div class="tier-util" id="tier-g4-util">--%</div>
+                            <div class="tier-stats">
+                                <span id="tier-g4-blocks">-- blocks</span>
+                                <span id="tier-g4-capacity">/ --</span>
+                            </div>
+                            <div class="progress-container">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="tier-g4-progress"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLA Planner -->
+            <div class="col-span-4">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span class="panel-icon">🎯</span>
+                            SLA-Based Planner
+                        </div>
+                        <div class="badge badge-warning">Auto-Scale</div>
+                    </div>
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-item-value" id="sla-prefill-workers">--</div>
+                            <div class="status-item-label">Prefill Workers</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-item-value" id="sla-decode-workers">--</div>
+                            <div class="status-item-label">Decode Workers</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-item-value" id="sla-predicted-load">--</div>
+                            <div class="status-item-label">Predicted Load</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+                        <div class="gpu-metric">
+                            <span class="gpu-metric-label">TTFT Target:</span>
+                            <span class="gpu-metric-value" id="sla-ttft-target">--</span>
+                        </div>
+                        <div class="gpu-metric">
+                            <span class="gpu-metric-label">ITL Target:</span>
+                            <span class="gpu-metric-value" id="sla-itl-target">--</span>
+                        </div>
+                        <div class="gpu-metric">
+                            <span class="gpu-metric-label">Scale Events:</span>
+                            <span class="gpu-metric-value">
+                                <span id="sla-scale-up">--</span>↑ / <span id="sla-scale-down">--</span>↓
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Disaggregated Router -->
+            <div class="col-span-4">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span class="panel-icon">🔀</span>
+                            Disaggregated Router
+                        </div>
+                        <div class="badge badge-primary">Prefill/Decode</div>
+                    </div>
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-item-value" id="router-local">--</div>
+                            <div class="status-item-label">Local Prefill</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-item-value" id="router-remote">--</div>
+                            <div class="status-item-label">Remote Prefill</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-item-value" id="router-ratio">--%</div>
+                            <div class="status-item-label">Remote Ratio</div>
+                        </div>
+                    </div>
+                    <div class="chart-container" style="height: 150px; margin-top: 20px;">
+                        <canvas id="routerChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Throughput Over Time -->
+            <div class="col-span-12">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span class="panel-icon">📈</span>
+                            Throughput & Performance
+                        </div>
+                        <div class="badge badge-success">Real-time</div>
+                    </div>
+                    <div class="chart-container" style="height: 250px;">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>FakeAI v0.0.5 • NVIDIA AI-Dynamo Simulation • DCGM Metrics • Complete LLM Observability</p>
+            <p style="margin-top: 8px; opacity: 0.6;">
+                Auto-refresh: <span id="refresh-status">ON (5s)</span> |
+                Last updated: <span id="last-update">Never</span>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        let autoRefresh = true;
+        let charts = {};
+        let refreshTimer;
+        let performanceData = {
+            timestamps: [],
+            rps: [],
+            tps: [],
+            ttft: []
+        };
+
+        // Initialize all charts
+        function initCharts() {
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#f1f5f9', font: { size: 11 } }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: '#94a3b8' },
+                        grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                    },
+                    x: {
+                        ticks: { color: '#94a3b8' },
+                        grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                    }
+                }
+            };
+
+            // Latency breakdown
+            charts.latency = new Chart(document.getElementById('latencyChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['Queue', 'Prefill', 'Decode', 'Total'],
+                    datasets: [
+                        {
+                            label: 'p50',
+                            data: [0, 0, 0, 0],
+                            backgroundColor: 'rgba(59, 130, 246, 0.8)'
+                        },
+                        {
+                            label: 'p90',
+                            data: [0, 0, 0, 0],
+                            backgroundColor: 'rgba(139, 92, 246, 0.8)'
+                        },
+                        {
+                            label: 'p99',
+                            data: [0, 0, 0, 0],
+                            backgroundColor: 'rgba(239, 68, 68, 0.8)'
+                        }
+                    ]
+                },
+                options: chartOptions
+            });
+
+            // Router pie chart
+            charts.router = new Chart(document.getElementById('routerChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Local Prefill', 'Remote Prefill'],
+                    datasets: [{
+                        data: [0, 0],
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(139, 92, 246, 0.8)'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#1e293b'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#f1f5f9', font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+
+            // Performance over time
+            charts.performance = new Chart(document.getElementById('performanceChart'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Requests/sec',
+                            data: [],
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Tokens/sec',
+                            data: [],
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: 'TTFT p50 (ms)',
+                            data: [],
+                            borderColor: '#8b5cf6',
+                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                            yAxisID: 'y2'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#f1f5f9' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' },
+                            title: { display: true, text: 'RPS', color: '#10b981' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            ticks: { color: '#94a3b8' },
+                            grid: { drawOnChartArea: false },
+                            title: { display: true, text: 'TPS', color: '#3b82f6' }
+                        },
+                        y2: {
+                            type: 'linear',
+                            display: false,
+                            position: 'right'
+                        },
+                        x: {
+                            ticks: { color: '#94a3b8', maxTicksLimit: 10 },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Refresh all data
+        async function refreshAll() {
+            try {
+                const [metrics, kvCache, dcgm, dynamo] = await Promise.all([
+                    fetch('/metrics').then(r => r.json()),
+                    fetch('/kv-cache-metrics').then(r => r.json()),
+                    fetch('/dcgm-metrics/json').then(r => r.json()).catch(() => null),
+                    fetch('/dynamo-metrics/json').then(r => r.json()).catch(() => null)
+                ]);
+
+                updateQuickStats(metrics, dynamo);
+                updateGPUMetrics(dcgm);
+                updateDynamoCharts(dynamo);
+                updateKVBMTiers(dynamo);
+                updatePerformanceChart(metrics, dynamo);
+
+                document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function updateQuickStats(metrics, dynamo) {
+            document.getElementById('stat-rps').textContent =
+                (metrics.requests?.['/v1/chat/completions']?.rate || 0).toFixed(1);
+
+            document.getElementById('stat-ttft').textContent =
+                dynamo?.latency?.ttft?.p50 ? dynamo.latency.ttft.p50.toFixed(0) + 'ms' : '--';
+
+            document.getElementById('stat-tps').textContent =
+                (metrics.tokens?.['/v1/chat/completions']?.rate || 0).toFixed(0);
+
+            document.getElementById('stat-cache').textContent =
+                dynamo?.cache?.hit_rate ? dynamo.cache.hit_rate.toFixed(1) + '%' : '--';
+
+            document.getElementById('stat-streams').textContent =
+                metrics.streaming_stats?.active_streams || 0;
+
+            const totalReqs = dynamo?.summary?.total_requests || 0;
+            document.getElementById('stat-total').textContent =
+                totalReqs.toLocaleString();
+        }
+
+        function updateGPUMetrics(dcgm) {
+            if (!dcgm) return;
+
+            let html = '';
+            Object.keys(dcgm).sort().forEach(key => {
+                const gpu = dcgm[key];
+                const temp = gpu.temperature_c;
+                const health = temp > 85 ? 'critical' : (temp > 75 ? 'warning' : 'healthy');
+
+                html += `
+                    <div class="gpu-card">
+                        <div class="gpu-header">
+                            <div class="gpu-name">GPU ${gpu.gpu_id}</div>
+                            <div class="health-badge ${health}">
+                                <div class="health-dot"></div>
+                                ${health.toUpperCase()}
+                            </div>
+                        </div>
+                        <div class="gpu-metric">
+                            <span class="gpu-metric-label">Utilization</span>
+                            <span class="gpu-metric-value">${gpu.gpu_utilization_pct}%</span>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${gpu.gpu_utilization_pct}%"></div>
+                            </div>
+                        </div>
+                        <div class="gpu-metric">
+                            <span class="gpu-metric-label">Temperature</span>
+                            <span class="gpu-metric-value">${temp}°C</span>
+                        </div>
+                        <div class="gpu-metric">
+                            <span class="gpu-metric-label">Power</span>
+                            <span class="gpu-metric-value">${gpu.power_usage_w.toFixed(0)}W</span>
+                        </div>
+                        <div class="gpu-metric">
+                            <span class="gpu-metric-label">Memory</span>
+                            <span class="gpu-metric-value">${(gpu.memory_used_mib/1024).toFixed(1)}GB</span>
+                        </div>
+                        <div class="gpu-metric">
+                            <span class="gpu-metric-label">Tensor Cores</span>
+                            <span class="gpu-metric-value">${gpu.tensor_active_pct.toFixed(1)}%</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('gpuMetrics').innerHTML = html;
+        }
+
+        function updateDynamoCharts(dynamo) {
+            if (!dynamo || !dynamo.latency) return;
+
+            const lat = dynamo.latency;
+            charts.latency.data.datasets[0].data = [
+                lat.queue.p50, lat.prefill.p50, lat.decode.p50, lat.total.p50
+            ];
+            charts.latency.data.datasets[1].data = [
+                lat.queue.p90, lat.prefill.p90, lat.decode.p90, lat.total.p90
+            ];
+            charts.latency.data.datasets[2].data = [
+                lat.queue.p99, lat.prefill.p99, lat.decode.p99, lat.total.p99
+            ];
+            charts.latency.update('none');
+        }
+
+        function updateKVBMTiers(dynamo) {
+            // Placeholder - would need actual KVBM endpoint
+            const tiers = ['g1', 'g2', 'g3', 'g4'];
+            tiers.forEach(tier => {
+                document.getElementById(`tier-${tier}-util`).textContent = '--';
+                document.getElementById(`tier-${tier}-blocks`).textContent = '-- blocks';
+                document.getElementById(`tier-${tier}-capacity`).textContent = '/ --';
+                document.getElementById(`tier-${tier}-progress`).style.width = '0%';
+            });
+        }
+
+        function updatePerformanceChart(metrics, dynamo) {
+            const timestamp = new Date().toLocaleTimeString();
+
+            // Limit history to 30 points
+            if (performanceData.timestamps.length >= 30) {
+                performanceData.timestamps.shift();
+                performanceData.rps.shift();
+                performanceData.tps.shift();
+                performanceData.ttft.shift();
+            }
+
+            performanceData.timestamps.push(timestamp);
+            performanceData.rps.push(metrics.requests?.['/v1/chat/completions']?.rate || 0);
+            performanceData.tps.push(metrics.tokens?.['/v1/chat/completions']?.rate || 0);
+            performanceData.ttft.push(dynamo?.latency?.ttft?.p50 || 0);
+
+            charts.performance.data.labels = performanceData.timestamps;
+            charts.performance.data.datasets[0].data = performanceData.rps;
+            charts.performance.data.datasets[1].data = performanceData.tps;
+            charts.performance.data.datasets[2].data = performanceData.ttft;
+            charts.performance.update('none');
+        }
+
+        function toggleAutoRefresh() {
+            autoRefresh = !autoRefresh;
+            document.getElementById('autoRefreshIcon').textContent = autoRefresh ? '⏸️' : '▶️';
+            document.getElementById('refresh-status').textContent =
+                autoRefresh ? 'ON (5s)' : 'PAUSED';
+
+            if (autoRefresh) {
+                startAutoRefresh();
+            } else if (refreshTimer) {
+                clearTimeout(refreshTimer);
+            }
+        }
+
+        function startAutoRefresh() {
+            if (refreshTimer) clearTimeout(refreshTimer);
+
+            if (autoRefresh) {
+                refreshAll();
+                refreshTimer = setTimeout(startAutoRefresh, 5000);
+            }
+        }
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', async () => {
+            console.log('Dashboard initializing...');
+
+            try {
+                initCharts();
+                console.log('Charts initialized');
+
+                await refreshAll();
+                console.log('Initial data loaded');
+
+                startAutoRefresh();
+                console.log('Auto-refresh started');
+            } catch (error) {
+                console.error('Initialization error:', error);
+                // Show error but still hide loading overlay
+                document.body.insertAdjacentHTML('beforeend',
+                    `<div style="position: fixed; bottom: 20px; right: 20px; background: rgba(239, 68, 68, 0.9); color: white; padding: 15px 20px; border-radius: 10px; z-index: 10000;">
+                        ⚠️ Error loading metrics. Check console for details.
+                    </div>`
+                );
+            } finally {
+                // Always hide loading overlay
+                setTimeout(() => {
+                    const overlay = document.getElementById('loadingOverlay');
+                    if (overlay) {
+                        overlay.style.display = 'none';
+                    }
+                }, 500);
+            }
+        });
+    </script>
+</body>
+</html>

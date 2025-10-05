@@ -30,7 +30,7 @@ async def simple_streaming_chat() -> None:
     
     start_time = time.time()
     stream = await client.chat.completions.create(
-        model="gpt-4",
+        model="openai/gpt-oss-120b",
         messages=[{"role": "user", "content": "Write a short story about AI"}],
         stream=True,
         max_tokens=150,  # Ensure we specify max_tokens to get a decent response
@@ -64,7 +64,7 @@ async def collect_full_response() -> None:
     
     start_time = time.time()
     stream = await client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="meta-llama/Llama-3.1-8B-Instruct",
         messages=[{"role": "user", "content": "Explain quantum computing in simple terms"}],
         stream=True,
     )
@@ -102,7 +102,7 @@ async def interactive_streaming() -> None:
     tokens_count = 0
     
     stream = await client.chat.completions.create(
-        model="gpt-4",
+        model="openai/gpt-oss-120b",
         messages=[{"role": "user", "content": "List 5 programming best practices"}],
         stream=True,
     )
@@ -173,7 +173,7 @@ async def stream_and_collect(client: AsyncOpenAI, messages: List[Dict[str, str]]
         The full response text
     """
     stream = await client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="meta-llama/Llama-3.1-8B-Instruct",
         messages=messages,
         stream=True,
     )
@@ -203,7 +203,7 @@ async def process_multiple_completions() -> None:
         result = ""
         
         stream = await client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="meta-llama/Llama-3.1-8B-Instruct",
             messages=[{"role": "user", "content": prompt}],
             stream=True,
             max_tokens=50,  # Keep responses shorter for this example
@@ -287,7 +287,7 @@ async def advanced_stream_processing() -> None:
     # Use the handler with a streaming request
     handler = StreamHandler()
     stream = await client.chat.completions.create(
-        model="gpt-4",
+        model="openai/gpt-oss-120b",
         messages=[{"role": "user", "content": "Explain how streaming works in APIs"}],
         stream=True,
     )
