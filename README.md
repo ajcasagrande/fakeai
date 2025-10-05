@@ -7,7 +7,6 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Tests](https://github.com/ajcasagrande/fakeai/workflows/Tests/badge.svg)](https://github.com/ajcasagrande/fakeai/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/ajcasagrande/fakeai/branch/main/graph/badge.svg)](https://codecov.io/gh/ajcasagrande/fakeai)
-[![DeepWiki](https://img.shields.io/badge/DeepWiki-CLAUDE.md-purple.svg)](CLAUDE.md)
 
 FakeAI is a high-performance simulation of the OpenAI API that returns realistic responses without performing actual inference. Ideal for development, testing, CI/CD pipelines, and LLM application benchmarking.
 
