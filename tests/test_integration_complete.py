@@ -959,9 +959,11 @@ class TestAdvancedFeatures:
                             "explanation": {"type": "string"},
                         },
                         "required": ["answer", "explanation"],
+                        "additionalProperties": False,  # Required for strict mode
                     },
                 ),
             ),
+            parallel_tool_calls=False,  # Required for strict mode
         )
 
         response = await service.create_chat_completion(request)

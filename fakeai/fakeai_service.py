@@ -634,16 +634,6 @@ class FakeAIService:
                 training_cutoff="2021-09",
                 pricing=ModelPricing(input_per_million=0.50, output_per_million=1.50),
             ),
-            "meta-llama/Llama-3.1-8B-Instruct": new_model(
-                "meta-llama/Llama-3.1-8B-Instruct",
-                owned_by="openai",
-                context_window=4096,
-                max_output_tokens=4096,
-                supports_tools=False,
-                training_cutoff="2021-09",
-                pricing=ModelPricing(input_per_million=1.50, output_per_million=2.00),
-            ),
-
             # GPT-4 Family
             "openai/gpt-oss-120b": new_model(
                 "openai/gpt-oss-120b",
