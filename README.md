@@ -8,7 +8,7 @@
 ---
 
 # FakeAI
-*The AI is fake. The API is fake. The responses are fake. But your code? That's real. Or is it? Welcome to the simulation.*
+> *The AI is fake. The API is fake. The responses are fake. But your code? That's real. Or is it? Welcome to the simulation.*
 
 FakeAI simulates the complete OpenAI API, as well as numerous NVIDIA AI services (NIM, AI-Dynamo, DCGM, Cosmos) with instant feedback and reproducible results. Develop and optimize your applications locally with realistic service behavior, then deploy to production infrastructure when ready.
 
