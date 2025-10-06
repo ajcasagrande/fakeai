@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fakeai"
-version = "0.3.0"
-description = "Simulated OpenAI Compatible API Server for Testing and Development"
+version = "0.3.1"
+description = "FakeAI: Rapid Development and Testing for AI Infrastructure"
 authors = [
     {name = "Anthony Casagrande"}
 ]
@@ -76,8 +76,8 @@ publish = [
 ]
 
 [tool.setuptools]
-packages = ["fakeai"]
-package-dir = {"fakeai" = "fakeai"}
+packages = {find = {}}
+package-dir = {"" = "."}
 include-package-data = true
 
 [tool.setuptools.package-data]
