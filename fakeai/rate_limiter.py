@@ -25,14 +25,14 @@ class RateLimitTier:
     tpm: int  # Tokens per minute
 
 
-# Pre-defined rate limit tiers matching OpenAI structure
+# Pre-defined rate limit tiers matching config/rate_limits.py
 RATE_LIMIT_TIERS = {
-    "free": RateLimitTier(name="free", rpm=60, tpm=10_000),
-    "tier-1": RateLimitTier(name="tier-1", rpm=500, tpm=30_000),
-    "tier-2": RateLimitTier(name="tier-2", rpm=5_000, tpm=450_000),
-    "tier-3": RateLimitTier(name="tier-3", rpm=10_000, tpm=1_000_000),
-    "tier-4": RateLimitTier(name="tier-4", rpm=30_000, tpm=5_000_000),
-    "tier-5": RateLimitTier(name="tier-5", rpm=100_000, tpm=15_000_000),
+    "free": RateLimitTier(name="free", rpm=3, tpm=200_000),
+    "tier-1": RateLimitTier(name="tier-1", rpm=500, tpm=2_000_000),
+    "tier-2": RateLimitTier(name="tier-2", rpm=5_000, tpm=10_000_000),
+    "tier-3": RateLimitTier(name="tier-3", rpm=10_000, tpm=30_000_000),
+    "tier-4": RateLimitTier(name="tier-4", rpm=30_000, tpm=150_000_000),
+    "tier-5": RateLimitTier(name="tier-5", rpm=30_000, tpm=300_000_000),
 }
 
 
@@ -101,10 +101,26 @@ class RateLimitBucket:
             return int(self.tokens)
 
     def reset_time(self) -> float:
-        """Get the Unix timestamp when the bucket will be full again."""
+        """Get the Unix timestamp when the bucket will be full again.
+
+        Returns the time when the bucket will be completely refilled.
+        If the bucket is already full, returns the time for the next refill window.
+        """
         with self._lock:
             self._refill()
             tokens_to_full = self.capacity - self.tokens
+
+            if tokens_to_full <= 0:
+                # Bucket is full - return end of current minute window
+                # (This aligns with the per-minute rate limit concept)
+                current_time = time.time()
+                # Calculate seconds until next minute boundary
+                seconds_in_minute = 60
+                seconds_since_minute_start = current_time % seconds_in_minute
+                seconds_until_next_minute = seconds_in_minute - seconds_since_minute_start
+                # Ensure at least 1 second in the future to avoid edge cases
+                return current_time + max(1.0, seconds_until_next_minute)
+
             time_to_full = tokens_to_full / self.refill_rate
             return time.time() + time_to_full
 
@@ -299,13 +315,24 @@ class RateLimiter:
         rpm_bucket = buckets["rpm"]
         tpm_bucket = buckets["tpm"]
 
+        # Calculate reset times, ensuring they're always in the future
+        rpm_reset = int(rpm_bucket.reset_time())
+        tpm_reset = int(tpm_bucket.reset_time())
+        current_time_int = int(time.time())
+
+        # Ensure reset times are always strictly > current time
+        if rpm_reset <= current_time_int:
+            rpm_reset = current_time_int + 1
+        if tpm_reset <= current_time_int:
+            tpm_reset = current_time_int + 1
+
         return {
             "x-ratelimit-limit-requests": str(rpm_bucket.capacity),
             "x-ratelimit-limit-tokens": str(tpm_bucket.capacity),
             "x-ratelimit-remaining-requests": str(rpm_bucket.remaining()),
             "x-ratelimit-remaining-tokens": str(tpm_bucket.remaining()),
-            "x-ratelimit-reset-requests": str(int(rpm_bucket.reset_time())),
-            "x-ratelimit-reset-tokens": str(int(tpm_bucket.reset_time())),
+            "x-ratelimit-reset-requests": str(rpm_reset),
+            "x-ratelimit-reset-tokens": str(tpm_reset),
         }
 
     def get_headers(self, api_key: str) -> dict[str, str]:

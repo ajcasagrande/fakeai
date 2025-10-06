@@ -92,12 +92,12 @@ def test_metrics_tracker_tracks_tokens(client):
 
 def test_metrics_tracker_tracks_errors(client):
     """Test that errors are tracked."""
-    # Make an invalid request
+    # Make an invalid request (missing required field)
     response = client.post(
         "/v1/chat/completions",
         json={
-            "model": "",  # Invalid
-            "messages": [{"role": "user", "content": "Test"}],
+            "model": "openai/gpt-oss-120b",
+            # Missing required "messages" field
         },
     )
 

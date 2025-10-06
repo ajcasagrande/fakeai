@@ -8,8 +8,10 @@ semantic embeddings (via sentence transformers) and random hash-based embeddings
 #  SPDX-License-Identifier: Apache-2.0
 
 import asyncio
+import base64
 import logging
 import random
+import struct
 from typing import Any
 
 from fakeai.config import AppConfig
@@ -120,6 +122,10 @@ class EmbeddingService:
         # Generate embeddings (semantic or random)
         embeddings = await self._generate_embeddings(inputs, dimensions)
 
+        # Convert to base64 if requested
+        if request.encoding_format == "base64":
+            embeddings = self._encode_embeddings_to_base64(embeddings)
+
         # Create response
         response = EmbeddingResponse(
             data=embeddings,
@@ -185,6 +191,31 @@ class EmbeddingService:
             )
 
         return embeddings
+
+    def _encode_embeddings_to_base64(self, embeddings: list[Embedding]) -> list[Embedding]:
+        """
+        Convert embedding vectors to base64 encoded strings.
+
+        Args:
+            embeddings: List of Embedding objects with float vectors
+
+        Returns:
+            List of Embedding objects with base64 encoded vectors
+        """
+        encoded_embeddings = []
+        for embedding in embeddings:
+            # Convert float list to bytes using struct
+            float_bytes = struct.pack(f"{len(embedding.embedding)}f", *embedding.embedding)
+            # Encode to base64
+            base64_str = base64.b64encode(float_bytes).decode("utf-8")
+            # Create new embedding with base64 string
+            encoded_embeddings.append(
+                Embedding(
+                    embedding=base64_str,
+                    index=embedding.index,
+                )
+            )
+        return encoded_embeddings
 
     def _process_embedding_input(
         self,

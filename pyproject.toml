@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fakeai"
-version = "0.3.1"
+version = "0.3.2"
 description = "FakeAI: Rapid Development and Testing for AI Infrastructure"
 authors = [
     {name = "Anthony Casagrande"}
@@ -133,6 +133,8 @@ markers = [
     "metrics: Metrics and monitoring tests",
     "prompt_caching: Prompt caching tests",
     "stress: Stress and load tests for performance validation",
+    "server_config: Configure server settings for test",
+    "dynamo: AI-Dynamo LLM inference metrics tests",
 ]
 log_cli = false
 log_cli_level = "INFO"

@@ -308,7 +308,7 @@ class BatchService:
             output_file = await self.file_manager.upload_file(
                 file_content=output_content.encode("utf-8"),
                 filename=f"{batch_id}_output.jsonl",
-                purpose="batch_output",
+                purpose="user_data",
             )
             self._batch_file_contents[output_file.id] = output_content
             batch.output_file_id = output_file.id
@@ -321,7 +321,7 @@ class BatchService:
                 error_file = await self.file_manager.upload_file(
                     file_content=error_content.encode("utf-8"),
                     filename=f"{batch_id}_errors.jsonl",
-                    purpose="batch_errors",
+                    purpose="user_data",
                 )
                 self._batch_file_contents[error_file.id] = error_content
                 batch.error_file_id = error_file.id
