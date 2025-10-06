@@ -4,10 +4,13 @@ Tests for Usage and Billing Tracking API.
 This module tests the comprehensive usage tracking and billing API
 implementation for FakeAI.
 """
+
 #  SPDX-License-Identifier: Apache-2.0
 
 import time
+
 import pytest
+
 from fakeai.config import AppConfig
 from fakeai.fakeai_service import FakeAIService, UsageTracker
 from fakeai.models import (
@@ -79,13 +82,17 @@ class TestUsageTracker:
     def test_calculate_cost_gpt35_turbo(self, usage_tracker):
         """Test cost calculation for GPT-3.5-turbo."""
         # GPT-3.5-turbo: $0.50 per 1M input, $1.50 per 1M output
-        cost = usage_tracker.calculate_cost("meta-llama/Llama-3.1-8B-Instruct", 1_000_000, 1_000_000)
+        cost = usage_tracker.calculate_cost(
+            "meta-llama/Llama-3.1-8B-Instruct", 1_000_000, 1_000_000
+        )
         assert cost == 2.0  # $0.50 + $1.50
 
     def test_calculate_cost_embeddings(self, usage_tracker):
         """Test cost calculation for embeddings."""
         # sentence-transformers/all-mpnet-base-v2: $0.10 per 1M tokens
-        cost = usage_tracker.calculate_cost("sentence-transformers/all-mpnet-base-v2", 1_000_000, 0)
+        cost = usage_tracker.calculate_cost(
+            "sentence-transformers/all-mpnet-base-v2", 1_000_000, 0
+        )
         assert cost == 0.10
 
     def test_calculate_cost_small_amounts(self, usage_tracker):
@@ -137,28 +144,32 @@ class TestUsageTracker:
         base_time = int(time.time())
 
         # Manually create records with specific timestamps
-        usage_tracker.usage_records.append({
-            "timestamp": base_time - 7200,  # 2 hours ago
-            "endpoint": "/v1/chat/completions",
-            "model": "openai/gpt-oss-120b",
-            "input_tokens": 100,
-            "output_tokens": 50,
-            "cached_tokens": 0,
-            "project_id": None,
-            "user_id": None,
-            "num_requests": 1,
-        })
-        usage_tracker.usage_records.append({
-            "timestamp": base_time,  # Now
-            "endpoint": "/v1/chat/completions",
-            "model": "openai/gpt-oss-120b",
-            "input_tokens": 200,
-            "output_tokens": 100,
-            "cached_tokens": 0,
-            "project_id": None,
-            "user_id": None,
-            "num_requests": 1,
-        })
+        usage_tracker.usage_records.append(
+            {
+                "timestamp": base_time - 7200,  # 2 hours ago
+                "endpoint": "/v1/chat/completions",
+                "model": "openai/gpt-oss-120b",
+                "input_tokens": 100,
+                "output_tokens": 50,
+                "cached_tokens": 0,
+                "project_id": None,
+                "user_id": None,
+                "num_requests": 1,
+            }
+        )
+        usage_tracker.usage_records.append(
+            {
+                "timestamp": base_time,  # Now
+                "endpoint": "/v1/chat/completions",
+                "model": "openai/gpt-oss-120b",
+                "input_tokens": 200,
+                "output_tokens": 100,
+                "cached_tokens": 0,
+                "project_id": None,
+                "user_id": None,
+                "num_requests": 1,
+            }
+        )
 
         # Get hourly buckets
         buckets = usage_tracker.get_usage_by_time_bucket(
@@ -306,9 +317,7 @@ class TestUsageTrackingIntegration:
         """Test that chat completions track usage."""
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[
-                Message(role=Role.USER, content="Hello, how are you?")
-            ],
+            messages=[Message(role=Role.USER, content="Hello, how are you?")],
         )
 
         initial_count = len(service.usage_tracker.usage_records)
@@ -365,9 +374,7 @@ class TestUsageTrackingIntegration:
         """Test tracking with metadata (project_id)."""
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[
-                Message(role=Role.USER, content="Hello")
-            ],
+            messages=[Message(role=Role.USER, content="Hello")],
             metadata={"project_id": "proj-test-123"},
             user="user-test-456",
         )

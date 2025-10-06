@@ -145,6 +145,7 @@ class TestNumpyMetricsWindow:
 
         # Run multiple threads
         import threading
+
         threads = [threading.Thread(target=add_events) for _ in range(5)]
         for t in threads:
             t.start()

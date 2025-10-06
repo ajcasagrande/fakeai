@@ -3,6 +3,7 @@ Edge case and error handling tests.
 
 Tests how the system handles unusual inputs, errors, and boundary conditions.
 """
+
 import pytest
 
 from fakeai.models import (
@@ -45,7 +46,9 @@ class TestEdgeCaseInputs:
 
         # Should successfully process
         assert response.choices[0].message.content
-        assert response.usage.prompt_tokens >= 1000  # Should count many tokens (at least 1000 words)
+        assert (
+            response.usage.prompt_tokens >= 1000
+        )  # Should count many tokens (at least 1000 words)
 
     @pytest.mark.asyncio
     async def test_multiple_system_messages(self, service_no_auth):
@@ -171,17 +174,17 @@ class TestErrorHandling:
         assert response.model == "completely-invalid-model-xyz"
 
     @pytest.mark.asyncio
-    async def test_get_model_with_invalid_id_raises(self, service_no_auth):
-        """get_model should raise for truly non-existent models."""
-        with pytest.raises(ValueError):
-            await service_no_auth.get_model("this-model-definitely-does-not-exist")
+    async def test_get_model_auto_creates(self, service_no_auth):
+        """get_model should auto-create models that don't exist."""
+        # Should auto-create the model
+        model = await service_no_auth.get_model("this-model-definitely-does-not-exist")
+        assert model.id == "this-model-definitely-does-not-exist"
+        assert model.owned_by == "custom"
 
     @pytest.mark.asyncio
     async def test_invalid_image_model_raises(self, service_no_auth):
         """Invalid image generation model should raise."""
-        request = ImageGenerationRequest(
-            model="invalid-image-model", prompt="Test"
-        )
+        request = ImageGenerationRequest(model="invalid-image-model", prompt="Test")
 
         with pytest.raises(ValueError, match="Invalid model"):
             await service_no_auth.generate_images(request)
@@ -240,7 +243,8 @@ class TestPromptProcessing:
         from fakeai.models import CompletionRequest
 
         request = CompletionRequest(
-            model="meta-llama/Llama-3.1-8B-Instruct", prompt=["Line 1", "Line 2", "Line 3"]
+            model="meta-llama/Llama-3.1-8B-Instruct",
+            prompt=["Line 1", "Line 2", "Line 3"],
         )
 
         response = await service_no_auth.create_completion(request)
@@ -254,7 +258,8 @@ class TestPromptProcessing:
         from fakeai.models import CompletionRequest
 
         request = CompletionRequest(
-            model="meta-llama/Llama-3.1-8B-Instruct", prompt=[1, 2, 3, 4, 5]  # Token IDs
+            model="meta-llama/Llama-3.1-8B-Instruct",
+            prompt=[1, 2, 3, 4, 5],  # Token IDs
         )
 
         response = await service_no_auth.create_completion(request)

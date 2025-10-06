@@ -3,10 +3,13 @@ Tests for TTFT and ITL configuration.
 
 Validates that --ttft and --itl CLI arguments work correctly with variance support.
 """
-import pytest
+
 import time
-from fakeai.cli import parse_latency_spec
+
+import pytest
+
 from fakeai import AppConfig
+from fakeai.cli import parse_latency_spec
 from fakeai.fakeai_service import FakeAIService
 from fakeai.models import ChatCompletionRequest, Message, Role
 
@@ -107,14 +110,20 @@ class TestTTFTConfiguration:
 
         async for chunk in service.create_chat_completion_stream(request):
             # First chunk with content (not role) - this is after TTFT delay
-            if chunk.choices and chunk.choices[0].delta.content and first_content_time is None:
+            if (
+                chunk.choices
+                and chunk.choices[0].delta.content
+                and first_content_time is None
+            ):
                 first_content_time = time.time()
                 break
 
         if first_content_time:
             ttft_actual = (first_content_time - start) * 1000  # ms
             # Should be close to 100ms (within 20ms tolerance for overhead + jitter)
-            assert 80 <= ttft_actual <= 120, f"TTFT was {ttft_actual:.1f}ms, expected ~100ms"
+            assert (
+                80 <= ttft_actual <= 120
+            ), f"TTFT was {ttft_actual:.1f}ms, expected ~100ms"
 
 
 class TestITLConfiguration:
@@ -188,7 +197,11 @@ class TestVarianceRange:
 
             async for chunk in service.create_chat_completion_stream(request):
                 # Measure to first content chunk (after TTFT delay)
-                if chunk.choices and chunk.choices[0].delta.content and first_content is None:
+                if (
+                    chunk.choices
+                    and chunk.choices[0].delta.content
+                    and first_content is None
+                ):
                     first_content = time.time()
                     break
 
@@ -197,8 +210,9 @@ class TestVarianceRange:
                 ttft_samples.append(ttft_ms)
 
         # All samples should be in range [75, 125] (100ms ± 20% + overhead)
-        assert all(75 <= s <= 125 for s in ttft_samples), \
-            f"TTFT samples {ttft_samples} should all be in [75, 125]ms"
+        assert all(
+            75 <= s <= 125 for s in ttft_samples
+        ), f"TTFT samples {ttft_samples} should all be in [75, 125]ms"
 
     @pytest.mark.asyncio
     async def test_zero_variance_exact(self):
@@ -222,14 +236,20 @@ class TestVarianceRange:
 
         async for chunk in service.create_chat_completion_stream(request):
             # Measure to first content (after TTFT delay)
-            if chunk.choices and chunk.choices[0].delta.content and first_content is None:
+            if (
+                chunk.choices
+                and chunk.choices[0].delta.content
+                and first_content is None
+            ):
                 first_content = time.time()
                 break
 
         if first_content:
             ttft_ms = (first_content - start) * 1000
             # With 0% variance, should be exactly 50ms (within system overhead tolerance)
-            assert 48 <= ttft_ms <= 55, f"TTFT with 0% variance was {ttft_ms:.1f}ms, expected ~50ms"
+            assert (
+                48 <= ttft_ms <= 55
+            ), f"TTFT with 0% variance was {ttft_ms:.1f}ms, expected ~50ms"
 
 
 class TestCLIIntegration:
@@ -327,7 +347,9 @@ class TestEndToEnd:
 
         # Total time should be approximately: 200ms TTFT + (5 tokens × 50ms)
         # = 200 + 250 = 450ms (should be > 400ms)
-        assert elapsed_ms >= 400, f"Slow config only took {elapsed_ms:.1f}ms, expected > 400ms"
+        assert (
+            elapsed_ms >= 400
+        ), f"Slow config only took {elapsed_ms:.1f}ms, expected > 400ms"
 
 
 if __name__ == "__main__":

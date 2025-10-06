@@ -3,6 +3,7 @@ Pytest fixtures for FakeAI tests.
 
 Provides shared fixtures for testing without duplicating setup code.
 """
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -49,6 +50,14 @@ def client_no_auth(config_no_auth, monkeypatch):
     """Test client with authentication disabled."""
     # Monkeypatch the config to disable auth
     monkeypatch.setenv("FAKEAI_REQUIRE_API_KEY", "false")
+
+    # Manually trigger startup event since TestClient doesn't
+    import asyncio
+
+    from fakeai import app as fakeai_app_module
+
+    fakeai_app_module.server_ready = True
+
     return TestClient(app)
 
 
@@ -57,17 +66,24 @@ def client_with_auth(monkeypatch):
     """Test client with authentication enabled."""
     # For pydantic-settings, list env vars need JSON format
     import json
+
     monkeypatch.setenv("FAKEAI_REQUIRE_API_KEY", "true")
     monkeypatch.setenv("FAKEAI_API_KEYS", json.dumps(["test-key-1", "test-key-2"]))
 
     # Need to reload the config after setting env vars
     from fakeai.app import config
     from fakeai.config import AppConfig
+
     new_config = AppConfig()
     # Update the global config
     for key, value in new_config.__dict__.items():
-        if not key.startswith('_'):
+        if not key.startswith("_"):
             setattr(config, key, value)
+
+    # Manually trigger startup event since TestClient doesn't
+    from fakeai import app as fakeai_app_module
+
+    fakeai_app_module.server_ready = True
 
     return TestClient(app)
 

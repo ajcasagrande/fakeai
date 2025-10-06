@@ -150,23 +150,47 @@ class BenchmarkRunner:
                     "success": True,
                     "elapsed_time": elapsed_time,
                     "metrics": {
-                        "request_throughput": metrics.get("request_throughput", {}).get("avg", 0),
-                        "request_latency_avg": metrics.get("request_latency", {}).get("avg", 0),
-                        "request_latency_p99": metrics.get("request_latency", {}).get("p99", 0),
-                        "ttft_avg": metrics.get("time_to_first_token", {}).get("avg", 0),
-                        "ttft_p99": metrics.get("time_to_first_token", {}).get("p99", 0),
-                        "output_token_throughput": metrics.get("output_token_throughput", {}).get("avg", 0),
-                        "input_tokens_avg": metrics.get("input_sequence_length", {}).get("avg", 0),
-                        "output_tokens_avg": metrics.get("output_sequence_length", {}).get("avg", 0),
+                        "request_throughput": metrics.get("request_throughput", {}).get(
+                            "avg", 0
+                        ),
+                        "request_latency_avg": metrics.get("request_latency", {}).get(
+                            "avg", 0
+                        ),
+                        "request_latency_p99": metrics.get("request_latency", {}).get(
+                            "p99", 0
+                        ),
+                        "ttft_avg": metrics.get("time_to_first_token", {}).get(
+                            "avg", 0
+                        ),
+                        "ttft_p99": metrics.get("time_to_first_token", {}).get(
+                            "p99", 0
+                        ),
+                        "output_token_throughput": metrics.get(
+                            "output_token_throughput", {}
+                        ).get("avg", 0),
+                        "input_tokens_avg": metrics.get(
+                            "input_sequence_length", {}
+                        ).get("avg", 0),
+                        "output_tokens_avg": metrics.get(
+                            "output_sequence_length", {}
+                        ).get("avg", 0),
                     },
                     "full_metrics_path": str(export_file),
                 }
 
                 print(f"✅ SUCCESS")
-                print(f"   Request Throughput: {summary['metrics']['request_throughput']:.2f} req/s")
-                print(f"   Output Token Throughput: {summary['metrics']['output_token_throughput']:.2f} tokens/s")
-                print(f"   Avg Latency: {summary['metrics']['request_latency_avg']:.2f} ms")
-                print(f"   P99 Latency: {summary['metrics']['request_latency_p99']:.2f} ms")
+                print(
+                    f"   Request Throughput: {summary['metrics']['request_throughput']:.2f} req/s"
+                )
+                print(
+                    f"   Output Token Throughput: {summary['metrics']['output_token_throughput']:.2f} tokens/s"
+                )
+                print(
+                    f"   Avg Latency: {summary['metrics']['request_latency_avg']:.2f} ms"
+                )
+                print(
+                    f"   P99 Latency: {summary['metrics']['request_latency_p99']:.2f} ms"
+                )
                 print(f"   TTFT (avg): {summary['metrics']['ttft_avg']:.2f} ms")
                 print(f"   Elapsed Time: {elapsed_time:.2f}s")
 
@@ -233,7 +257,9 @@ class BenchmarkRunner:
 
         if successful:
             print(f"\n## Successful Benchmarks\n")
-            print(f"{'Name':<60} {'Throughput':>15} {'P99 Latency':>15} {'TTFT P99':>15}")
+            print(
+                f"{'Name':<60} {'Throughput':>15} {'P99 Latency':>15} {'TTFT P99':>15}"
+            )
             print(f"{'-' * 60} {'-' * 15} {'-' * 15} {'-' * 15}")
             for result in successful:
                 metrics = result.get("metrics", {})
@@ -276,7 +302,9 @@ class BenchmarkRunner:
 
         with open(report_file, "w") as f:
             f.write("# FakeAI AIPerf Benchmark Report\n\n")
-            f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            f.write(
+                f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            )
             f.write(f"**Server URL:** {self.url}\n\n")
             f.write(f"**Total Benchmarks:** {len(self.results)}\n\n")
 
@@ -289,8 +317,12 @@ class BenchmarkRunner:
 
             if successful:
                 f.write("## Results\n\n")
-                f.write("| Benchmark | Throughput (rps) | Token Throughput (t/s) | Avg Latency (ms) | P99 Latency (ms) | TTFT Avg (ms) | TTFT P99 (ms) |\n")
-                f.write("|-----------|------------------|------------------------|------------------|------------------|---------------|---------------|\n")
+                f.write(
+                    "| Benchmark | Throughput (rps) | Token Throughput (t/s) | Avg Latency (ms) | P99 Latency (ms) | TTFT Avg (ms) | TTFT P99 (ms) |\n"
+                )
+                f.write(
+                    "|-----------|------------------|------------------------|------------------|------------------|---------------|---------------|\n"
+                )
 
                 for result in successful:
                     metrics = result.get("metrics", {})
@@ -307,7 +339,9 @@ class BenchmarkRunner:
             if failed:
                 f.write("\n## Failed Benchmarks\n\n")
                 for result in failed:
-                    f.write(f"- **{result['name']}**: {result.get('error', 'Unknown error')}\n")
+                    f.write(
+                        f"- **{result['name']}**: {result.get('error', 'Unknown error')}\n"
+                    )
 
             f.write("\n## Configuration Details\n\n")
             for result in self.results:

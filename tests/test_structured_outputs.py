@@ -1,9 +1,11 @@
 """
 Tests for structured outputs with JSON schema validation and generation.
 """
+
 #  SPDX-License-Identifier: Apache-2.0
 
 import json
+
 import pytest
 from openai import OpenAI
 
@@ -21,7 +23,6 @@ from fakeai.structured_outputs import (
     generate_from_schema,
     validate_strict_schema,
 )
-
 
 # Test Schemas
 
@@ -280,7 +281,9 @@ class TestSchemaGeneration:
             result = generate_from_schema(schema)
             assert isinstance(result, str)
             if expected_char:
-                assert expected_char in result, f"Format {format_type} should contain '{expected_char}'"
+                assert (
+                    expected_char in result
+                ), f"Format {format_type} should contain '{expected_char}'"
 
     def test_string_length_constraints(self):
         """Test string length constraints."""

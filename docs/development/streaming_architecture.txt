@@ -1,0 +1,500 @@
+================================================================================
+                 FAKEAI 3.0 - STREAMING ARCHITECTURE
+              Server-Sent Events (SSE) & WebSocket Streaming
+================================================================================
+
+                              CLIENT
+                                │
+                                │ POST /v1/chat/completions
+                                │ { "stream": true, ... }
+                                │
+                                v
+                      ┌──────────────────┐
+                      │  ROUTE HANDLER   │
+                      │  (app.py)        │
+                      └────────┬─────────┘
+                               │
+                               │ if request.stream:
+                               v
+                ┌──────────────────────────────┐
+                │  STREAM GENERATOR            │
+                │                              │
+                │  async def generate():       │
+                │    async for chunk in        │
+                │      service.stream(...):    │
+                │        yield chunk           │
+                └──────────────────────────────┘
+                               │
+                               v
+                ┌──────────────────────────────┐
+                │  FASTAPI STREAMING RESPONSE  │
+                │  media_type:                 │
+                │    "text/event-stream"       │
+                └──────────────────────────────┘
+                               │
+                               v
+                  ┌────────────┴────────────┐
+                  │                         │
+                  v                         v
+     ┌──────────────────────┐  ┌─────────────────────┐
+     │  CHAT COMPLETION     │  │   TEXT COMPLETION   │
+     │  STREAMING           │  │   STREAMING         │
+     └──────────────────────┘  └─────────────────────┘
+
+
+================================================================================
+                    STREAMING RESPONSE GENERATOR
+================================================================================
+
+Core Pattern (Used for Chat & Completions):
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  ASYNC GENERATOR FUNCTION                                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  async def create_chat_completion_stream(                               │
+│      request: ChatCompletionRequest                                     │
+│  ) -> AsyncGenerator[ChatCompletionChunk, None]:                        │
+│                                                                         │
+│      # 1. INITIALIZATION                                                │
+│      stream_id = f"chatcmpl-{uuid.uuid4().hex}"                        │
+│      start_time = time.time()                                           │
+│      metrics_tracker.start_stream(stream_id, endpoint)                  │
+│                                                                         │
+│      # 2. SETUP                                                         │
+│      model = request.model                                              │
+│      _ensure_model_exists(model)                                        │
+│      messages = request.messages                                        │
+│      prompt_text = _extract_text_content(messages)                      │
+│                                                                         │
+│      # 3. KV CACHE LOOKUP (Optional)                                    │
+│      tokens = tokenize_for_cache(prompt_text)                           │
+│      worker_id, matched_tokens, _ = kv_cache_router.route_request(tokens)│
+│      kv_cache_router.start_request(worker_id)                           │
+│      kv_cache_metrics.record_cache_lookup(endpoint, len(tokens), ...)   │
+│                                                                         │
+│      # 4. GENERATE COMPLETE RESPONSE FIRST                              │
+│      response_text = llm_generator.generate(prompt_text, model)         │
+│      completion_tokens = calculate_token_count(response_text)           │
+│                                                                         │
+│      # 5. TOKENIZE RESPONSE                                             │
+│      tokens = tokenize_text(response_text)  # Split by words/punct      │
+│                                                                         │
+│      # 6. YIELD FIRST CHUNK (role only)                                 │
+│      first_chunk = ChatCompletionChunk(                                 │
+│          id=stream_id,                                                  │
+│          choices=[ChatCompletionChunkChoice(                            │
+│              index=0,                                                   │
+│              delta=Delta(role="assistant", content=""),                 │
+│              finish_reason=None                                         │
+│          )]                                                             │
+│      )                                                                  │
+│      yield first_chunk                                                  │
+│      metrics_tracker.track_stream_first_token(stream_id)                │
+│                                                                         │
+│      # 7. YIELD TOKEN CHUNKS                                            │
+│      for i, token in enumerate(tokens):                                 │
+│          # Apply realistic delay                                        │
+│          delay = random.uniform(0.05, 0.2)  # 50-200ms per token        │
+│          await asyncio.sleep(delay)                                     │
+│                                                                         │
+│          # Build chunk with token timing                                │
+│          chunk = ChatCompletionChunk(                                   │
+│              id=stream_id,                                              │
+│              choices=[ChatCompletionChunkChoice(                        │
+│                  index=0,                                               │
+│                  delta=Delta(content=token),                            │
+│                  finish_reason=None,                                    │
+│                  token_timing={                                         │
+│                      "token_index": i,                                  │
+│                      "timestamp": time.time(),                          │
+│                      "cumulative_time": time.time() - start_time        │
+│                  }                                                      │
+│              )]                                                         │
+│          )                                                              │
+│          yield chunk                                                    │
+│          metrics_tracker.track_stream_token(stream_id)                  │
+│                                                                         │
+│      # 8. YIELD FINAL CHUNK (finish_reason + usage)                     │
+│      final_chunk = ChatCompletionChunk(                                 │
+│          id=stream_id,                                                  │
+│          choices=[ChatCompletionChunkChoice(                            │
+│              index=0,                                                   │
+│              delta=Delta(),                                             │
+│              finish_reason="stop"                                       │
+│          )],                                                            │
+│          usage=CompletionUsage(                                         │
+│              prompt_tokens=prompt_tokens,                               │
+│              completion_tokens=completion_tokens,                       │
+│              total_tokens=prompt_tokens + completion_tokens             │
+│          )                                                              │
+│      )                                                                  │
+│      yield final_chunk                                                  │
+│                                                                         │
+│      # 9. COMPLETE STREAM                                               │
+│      kv_cache_router.complete_request(worker_id, tokens, output_tokens) │
+│      metrics_tracker.complete_stream(stream_id, endpoint)               │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                    SERVER-SENT EVENTS (SSE) FORMAT
+================================================================================
+
+HTTP Response Headers:
+  Content-Type: text/event-stream
+  Cache-Control: no-cache
+  Connection: keep-alive
+
+SSE Format:
+  data: {JSON chunk}\n\n
+
+Example Stream:
+
+  data: {"id":"chatcmpl-abc123","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+  data: {"id":"chatcmpl-abc123","choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":null}]}
+
+  data: {"id":"chatcmpl-abc123","choices":[{"index":0,"delta":{"content":" there"},"finish_reason":null}]}
+
+  data: {"id":"chatcmpl-abc123","choices":[{"index":0,"delta":{"content":"!"},"finish_reason":null}]}
+
+  data: {"id":"chatcmpl-abc123","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":3,"total_tokens":13}}
+
+  data: [DONE]
+
+
+Key Features:
+  - Each line prefixed with "data: "
+  - Double newline between events
+  - Final [DONE] marker
+  - Client parses JSON from each data line
+
+
+================================================================================
+                    STREAMING METRICS TRACKING
+================================================================================
+
+Metrics Collected Per Stream:
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  StreamingMetrics Data Class                                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│  - stream_id: str                       Unique stream identifier        │
+│  - start_time: float                    When stream started             │
+│  - first_token_time: float | None       When first token sent (TTFT)    │
+│  - last_token_time: float | None        When last token sent            │
+│  - token_count: int                     Total tokens sent               │
+│  - completed: bool                      Successfully completed           │
+│  - failed: bool                         Stream failed                   │
+│  - error_message: str | None            Error details if failed         │
+│  - total_duration: float | None         Total time elapsed              │
+└─────────────────────────────────────────────────────────────────────────┘
+
+Calculated Metrics:
+  - TTFT (Time To First Token): first_token_time - start_time
+  - Tokens per Second: token_count / total_duration
+  - Stream Duration: last_token_time - start_time
+  - Average Inter-Token Latency: total_duration / token_count
+
+Aggregate Stats (Last 1000 Streams):
+  - Active Streams Count
+  - Completed Streams Count
+  - Failed Streams Count
+  - TTFT (avg, min, max, p50, p90, p99)
+  - Tokens/sec (avg, min, max, p50, p90, p99)
+
+
+================================================================================
+                    STREAMING STATE MANAGEMENT
+================================================================================
+
+Active Streams Storage:
+  _streaming_metrics: Dict[stream_id, StreamingMetrics]
+
+Completed Streams Storage:
+  _completed_streams: Deque[StreamingMetrics] (maxlen=1000)
+
+Failed Streams Storage:
+  _failed_streams: Deque[StreamingMetrics] (maxlen=1000)
+
+Thread Safety:
+  _streaming_lock: threading.Lock (protects all stream operations)
+
+Lifecycle Hooks:
+  ┌────────────────────────────────────────────────────────────┐
+  │  1. start_stream(stream_id, endpoint)                      │
+  │     - Create StreamingMetrics                              │
+  │     - Add to active dict                                   │
+  │     - Increment streaming counter                          │
+  │                                                            │
+  │  2. track_stream_first_token(stream_id)                    │
+  │     - Record first_token_time                              │
+  │     - Calculate TTFT                                       │
+  │                                                            │
+  │  3. track_stream_token(stream_id)                          │
+  │     - Increment token_count                                │
+  │     - Update last_token_time                               │
+  │                                                            │
+  │  4. complete_stream(stream_id, endpoint)                   │
+  │     - Mark completed = True                                │
+  │     - Calculate total_duration                             │
+  │     - Move to _completed_streams deque                     │
+  │     - Remove from active dict                              │
+  │                                                            │
+  │  5. fail_stream(stream_id, endpoint, error_message)        │
+  │     - Mark failed = True                                   │
+  │     - Store error_message                                  │
+  │     - Calculate total_duration                             │
+  │     - Move to _failed_streams deque                        │
+  │     - Remove from active dict                              │
+  │     - Track error in metrics                               │
+  └────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                    WEBSOCKET STREAMING (REALTIME API)
+================================================================================
+
+Endpoint: WS /v1/realtime
+
+Different from SSE:
+  - Bidirectional communication
+  - Binary audio support
+  - Event-driven protocol
+  - State management required
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  REALTIME WEBSOCKET FLOW                                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  1. CLIENT CONNECTS                                                     │
+│     WS /v1/realtime?model=gpt-4o-realtime-preview                      │
+│                                                                         │
+│  2. SERVER SENDS session.created                                        │
+│     {                                                                   │
+│       "type": "session.created",                                        │
+│       "session": {                                                      │
+│         "id": "sess_abc123",                                           │
+│         "model": "gpt-4o-realtime-preview",                            │
+│         "modalities": ["text", "audio"],                               │
+│         "voice": "alloy",                                              │
+│         ...                                                            │
+│       }                                                                 │
+│     }                                                                   │
+│                                                                         │
+│  3. CLIENT SENDS input_audio_buffer.append                              │
+│     {                                                                   │
+│       "type": "input_audio_buffer.append",                             │
+│       "audio": "<base64-encoded-audio>"                                │
+│     }                                                                   │
+│                                                                         │
+│  4. SERVER SENDS input_audio_buffer.speech_started                      │
+│     (Voice Activity Detection)                                          │
+│                                                                         │
+│  5. CLIENT SENDS input_audio_buffer.commit                              │
+│     { "type": "input_audio_buffer.commit" }                            │
+│                                                                         │
+│  6. SERVER SENDS conversation.item.created                              │
+│     (User message added to conversation)                                │
+│                                                                         │
+│  7. CLIENT SENDS response.create                                        │
+│     { "type": "response.create" }                                       │
+│                                                                         │
+│  8. SERVER STREAMS RESPONSE                                             │
+│     - response.created                                                  │
+│     - response.output_item.added                                        │
+│     - response.content_part.added                                       │
+│     - response.audio.delta (multiple)                                   │
+│     - response.audio.done                                               │
+│     - response.content_part.done                                        │
+│     - response.output_item.done                                         │
+│     - response.done                                                     │
+│                                                                         │
+│  9. CONTINUE CONVERSATION                                               │
+│     Loop back to step 3                                                 │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+Realtime Session Handler:
+  ┌──────────────────────────────────────────────────────┐
+  │  RealtimeSessionHandler                              │
+  ├──────────────────────────────────────────────────────┤
+  │  - session: RealtimeSession                          │
+  │  - conversation_items: List[ConversationItem]        │
+  │  - input_audio_buffer: bytes                         │
+  │  - current_response: Response | None                 │
+  │                                                      │
+  │  Methods:                                            │
+  │    update_session(config)                            │
+  │    append_audio_buffer(audio)                        │
+  │    commit_audio_buffer()                             │
+  │    clear_audio_buffer()                              │
+  │    create_conversation_item(item)                    │
+  │    delete_conversation_item(item_id)                 │
+  │    create_response(config) -> AsyncGenerator         │
+  │    cancel_response()                                 │
+  └──────────────────────────────────────────────────────┘
+
+
+================================================================================
+                    STREAMING PERFORMANCE OPTIMIZATION
+================================================================================
+
+1. Pre-Generation Strategy:
+   - Generate complete response FIRST
+   - Then stream token-by-token
+   - Allows predictable timing
+   - Enables accurate token counting
+
+2. Token Chunking:
+   - Regex-based tokenization
+   - Split on word boundaries and punctuation
+   - Realistic token-like chunks
+   - Pattern: r'\w+|[^\w\s]'
+
+3. Realistic Delays:
+   - Random delay per token: 0.05-0.2s
+   - Configurable via FAKEAI_TOKEN_DELAY
+   - Mimics real LLM inference
+   - Uses asyncio.sleep (non-blocking)
+
+4. Async Generators:
+   - Efficient memory usage
+   - Backpressure handling
+   - Client controls pacing
+   - No buffering required
+
+5. Metrics Tracking:
+   - Minimal overhead (< 1ms)
+   - Thread-safe operations
+   - Non-blocking updates
+   - Deferred aggregation
+
+
+================================================================================
+                    STREAMING ERROR HANDLING
+================================================================================
+
+Error Scenarios:
+
+1. Client Disconnects Mid-Stream:
+   - Generator raises GeneratorExit
+   - Mark stream as failed
+   - Clean up resources
+   - Track in metrics
+
+2. Service Error During Generation:
+   - Catch exception in generator
+   - Yield error chunk
+   - Mark stream as failed
+   - Track error metrics
+
+3. Rate Limit Hit Mid-Stream:
+   - Rare (checked before streaming starts)
+   - If happens, yield error chunk
+   - Close stream gracefully
+
+4. Timeout:
+   - Stream duration limit (configurable)
+   - Yield timeout error chunk
+   - Mark stream as failed
+
+
+Error Chunk Format:
+  ```json
+  {
+    "id": "chatcmpl-abc123",
+    "choices": [{
+      "index": 0,
+      "delta": {},
+      "finish_reason": "error"
+    }],
+    "error": {
+      "message": "Error message",
+      "type": "server_error",
+      "code": "internal_error"
+    }
+  }
+  ```
+
+
+================================================================================
+                    STREAMING FORMATS SUMMARY
+================================================================================
+
+┌──────────────┬────────────────────┬─────────────────────────────────────┐
+│ Format       │ Content-Type       │ Use Case                            │
+├──────────────┼────────────────────┼─────────────────────────────────────┤
+│ SSE          │ text/event-stream  │ Chat completions, completions       │
+│ WebSocket    │ application/json   │ Realtime API (bidirectional)        │
+│ JSONL        │ application/jsonl  │ Batch output files                  │
+│ Plain Text   │ text/plain         │ Fine-tuning events (legacy)         │
+└──────────────┴────────────────────┴─────────────────────────────────────┘
+
+
+================================================================================
+                    STREAMING CLIENT EXAMPLE
+================================================================================
+
+Python (openai library):
+  ```python
+  import openai
+
+  client = openai.OpenAI(
+      api_key="test",
+      base_url="http://localhost:8000"
+  )
+
+  stream = client.chat.completions.create(
+      model="gpt-4o",
+      messages=[{"role": "user", "content": "Hello!"}],
+      stream=True
+  )
+
+  for chunk in stream:
+      if chunk.choices[0].delta.content:
+          print(chunk.choices[0].delta.content, end="")
+  ```
+
+JavaScript (EventSource):
+  ```javascript
+  const response = await fetch("http://localhost:8000/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer test",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: [{role: "user", content: "Hello!"}],
+      stream: true
+    })
+  });
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const text = decoder.decode(value);
+    const lines = text.split("\n\n");
+
+    for (const line of lines) {
+      if (line.startsWith("data: ") && line !== "data: [DONE]") {
+        const json = JSON.parse(line.slice(6));
+        const content = json.choices[0]?.delta?.content;
+        if (content) {
+          console.log(content);
+        }
+      }
+    }
+  }
+  ```
+
+
+================================================================================

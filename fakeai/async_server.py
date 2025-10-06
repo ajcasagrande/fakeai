@@ -9,11 +9,13 @@ Uses:
 - Connection pooling
 - Async middleware
 """
+
 import asyncio
 import sys
 
 try:
     import uvloop
+
     HAS_UVLOOP = True
 except ImportError:
     HAS_UVLOOP = False
@@ -72,8 +74,8 @@ async def run_server_with_uvloop(
         loop="uvloop" if uvloop_enabled else "asyncio",
         # Performance optimizations
         limit_concurrency=2000,  # Max concurrent connections
-        limit_max_requests=0,     # No limit on requests per worker
-        timeout_keep_alive=5,     # Keep-alive timeout
+        limit_max_requests=0,  # No limit on requests per worker
+        timeout_keep_alive=5,  # Keep-alive timeout
         # HTTP optimizations
         h11_max_incomplete_event_size=16 * 1024,  # 16KB max incomplete events
     )
@@ -83,6 +85,7 @@ async def run_server_with_uvloop(
 
 
 # Async helper functions for FakeAI
+
 
 async def async_sleep_with_variance(base_delay: float, variance: float = 0.0):
     """
@@ -117,8 +120,7 @@ async def async_gather_with_timeout(tasks, timeout: float = 10.0):
     """
     try:
         results = await asyncio.wait_for(
-            asyncio.gather(*tasks, return_exceptions=True),
-            timeout=timeout
+            asyncio.gather(*tasks, return_exceptions=True), timeout=timeout
         )
         return results
     except asyncio.TimeoutError:
@@ -211,8 +213,7 @@ class AsyncCache:
 
         async with self._lock:
             expired_keys = [
-                k for k, (_, exp) in self._cache.items()
-                if current_time >= exp
+                k for k, (_, exp) in self._cache.items() if current_time >= exp
             ]
 
             for key in expired_keys:
@@ -220,6 +221,7 @@ class AsyncCache:
 
     async def start_cleanup_task(self, interval: float = 60.0):
         """Start background cleanup task."""
+
         async def cleanup_loop():
             while True:
                 await asyncio.sleep(interval)
@@ -252,10 +254,9 @@ async def async_batch_processor(items: list, process_func, batch_size: int = 10)
     results = []
 
     for i in range(0, len(items), batch_size):
-        batch = items[i:i + batch_size]
+        batch = items[i : i + batch_size]
         batch_results = await asyncio.gather(
-            *[process_func(item) for item in batch],
-            return_exceptions=True
+            *[process_func(item) for item in batch], return_exceptions=True
         )
         results.extend(batch_results)
 
@@ -274,6 +275,7 @@ def get_event_loop_type():
 
 
 # Performance comparison utility
+
 
 async def benchmark_event_loop(iterations: int = 10000):
     """

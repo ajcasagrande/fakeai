@@ -4,6 +4,7 @@ KV Cache Reuse Simulator with AI-Dynamo Smart Routing.
 This module simulates NVIDIA AI-Dynamo's KV cache reuse and smart routing capabilities,
 including radix tree prefix matching, overlap scoring, and multi-worker load balancing.
 """
+
 import hashlib
 import threading
 import time
@@ -63,9 +64,7 @@ class RadixTree:
             node.last_access = time.time()
             return blocks_inserted
 
-    def find_longest_prefix(
-        self, tokens: list[int]
-    ) -> tuple[int, list[str], set[str]]:
+    def find_longest_prefix(self, tokens: list[int]) -> tuple[int, list[str], set[str]]:
         """
         Find longest matching prefix.
 
@@ -188,9 +187,7 @@ class SmartRouter:
         with self._lock:
             for worker_id, worker in self.workers.items():
                 # Calculate routing cost
-                cache_overlap = (
-                    matched_tokens if worker_id in candidate_workers else 0
-                )
+                cache_overlap = matched_tokens if worker_id in candidate_workers else 0
 
                 cost = self._calculate_cost(
                     tokens=tokens,
@@ -243,7 +240,9 @@ class SmartRouter:
         """Mark request as completed and update cache."""
         with self._lock:
             self.workers[worker_id].active_requests -= 1
-            self.workers[worker_id].total_tokens_processed += len(tokens) + output_tokens
+            self.workers[worker_id].total_tokens_processed += (
+                len(tokens) + output_tokens
+            )
 
         # Update radix tree with this prefix
         self.radix_tree.insert(tokens, worker_id)
@@ -292,6 +291,7 @@ class KVCacheMetrics:
         self.cached_tokens_reused = 0
         self.prefix_lengths = []
         self.hit_rates_by_endpoint = defaultdict(lambda: {"hits": 0, "misses": 0})
+        self.speedup_records = []
         self._lock = threading.Lock()
 
     def record_cache_lookup(
@@ -321,7 +321,31 @@ class KVCacheMetrics:
         with self._lock:
             if self.total_tokens_processed == 0:
                 return 0.0
-            return (self.cached_tokens_reused / self.total_tokens_processed * 100)
+            return self.cached_tokens_reused / self.total_tokens_processed * 100
+
+    def record_speedup(
+        self,
+        endpoint: str,
+        baseline_ttft: float,
+        actual_ttft: float,
+        cache_hit_ratio: float,
+    ):
+        """Record TTFT speedup from cache hit."""
+        with self._lock:
+            self.speedup_records.append(
+                {
+                    "endpoint": endpoint,
+                    "baseline_ttft": baseline_ttft,
+                    "actual_ttft": actual_ttft,
+                    "cache_hit_ratio": cache_hit_ratio,
+                    "speedup_ratio": (
+                        baseline_ttft / actual_ttft if actual_ttft > 0 else 1.0
+                    ),
+                }
+            )
+            # Keep only the last 1000 records
+            if len(self.speedup_records) > 1000:
+                self.speedup_records = self.speedup_records[-1000:]
 
     def get_stats(self) -> dict[str, Any]:
         """Get comprehensive cache statistics."""
@@ -332,15 +356,50 @@ class KVCacheMetrics:
                 else 0
             )
 
+            # Calculate rates directly to avoid deadlock from calling other locked methods
+            total = self.cache_hits + self.cache_misses
+            cache_hit_rate = (self.cache_hits / total * 100) if total > 0 else 0.0
+
+            token_reuse_rate = (
+                (self.cached_tokens_reused / self.total_tokens_processed * 100)
+                if self.total_tokens_processed > 0
+                else 0.0
+            )
+
+            # Calculate speedup statistics
+            speedup_stats = {}
+            if self.speedup_records:
+                avg_baseline = sum(
+                    r["baseline_ttft"] for r in self.speedup_records
+                ) / len(self.speedup_records)
+                avg_actual = sum(r["actual_ttft"] for r in self.speedup_records) / len(
+                    self.speedup_records
+                )
+                avg_speedup = sum(
+                    r["speedup_ratio"] for r in self.speedup_records
+                ) / len(self.speedup_records)
+                avg_cache_ratio = sum(
+                    r["cache_hit_ratio"] for r in self.speedup_records
+                ) / len(self.speedup_records)
+
+                speedup_stats = {
+                    "avg_baseline_ttft_ms": round(avg_baseline * 1000, 2),
+                    "avg_actual_ttft_ms": round(avg_actual * 1000, 2),
+                    "avg_speedup_ratio": round(avg_speedup, 2),
+                    "avg_cache_hit_ratio": round(avg_cache_ratio * 100, 2),
+                    "total_speedup_records": len(self.speedup_records),
+                }
+
             return {
-                "cache_hit_rate": round(self.get_cache_hit_rate(), 2),
-                "token_reuse_rate": round(self.get_token_reuse_rate(), 2),
+                "cache_hit_rate": round(cache_hit_rate, 2),
+                "token_reuse_rate": round(token_reuse_rate, 2),
                 "total_cache_hits": self.cache_hits,
                 "total_cache_misses": self.cache_misses,
                 "total_tokens_processed": self.total_tokens_processed,
                 "cached_tokens_reused": self.cached_tokens_reused,
-                "avg_prefix_length": round(avg_prefix, 2),
-                "by_endpoint": dict(self.hit_rates_by_endpoint),
+                "average_prefix_length": round(avg_prefix, 2),
+                "endpoint_stats": dict(self.hit_rates_by_endpoint),
+                "speedup_stats": speedup_stats,
             }
 
 

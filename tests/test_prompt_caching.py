@@ -4,8 +4,10 @@ Tests for prompt caching functionality.
 Tests the hash-based prompt caching system that caches entire prompt contexts
 for reuse across requests.
 """
-import pytest
+
 import time
+
+import pytest
 
 from fakeai.config import AppConfig
 from fakeai.fakeai_service import FakeAIService
@@ -92,11 +94,12 @@ class TestPromptCacheMiss:
     """Test cache miss scenarios."""
 
     @pytest.mark.asyncio
-    async def test_first_request_is_cache_miss(self, service_with_caching, long_prompt_messages):
+    async def test_first_request_is_cache_miss(
+        self, service_with_caching, long_prompt_messages
+    ):
         """First request with new prompt should be a cache miss."""
         request = ChatCompletionRequest(
-            model="openai/gpt-oss-120b",
-            messages=long_prompt_messages
+            model="openai/gpt-oss-120b", messages=long_prompt_messages
         )
 
         response = await service_with_caching.create_chat_completion(request)
@@ -105,11 +108,12 @@ class TestPromptCacheMiss:
         assert response.usage.prompt_tokens_details.cached_tokens == 0
 
     @pytest.mark.asyncio
-    async def test_below_minimum_tokens_no_caching(self, service_with_caching, short_prompt_messages):
+    async def test_below_minimum_tokens_no_caching(
+        self, service_with_caching, short_prompt_messages
+    ):
         """Prompts below minimum token threshold should not be cached."""
         request = ChatCompletionRequest(
-            model="openai/gpt-oss-120b",
-            messages=short_prompt_messages
+            model="openai/gpt-oss-120b", messages=short_prompt_messages
         )
 
         # Make two identical requests
@@ -121,11 +125,12 @@ class TestPromptCacheMiss:
         assert response2.usage.prompt_tokens_details.cached_tokens == 0
 
     @pytest.mark.asyncio
-    async def test_caching_disabled_no_cache(self, service_without_caching, long_prompt_messages):
+    async def test_caching_disabled_no_cache(
+        self, service_without_caching, long_prompt_messages
+    ):
         """When caching is disabled, no tokens should be cached."""
         request = ChatCompletionRequest(
-            model="openai/gpt-oss-120b",
-            messages=long_prompt_messages
+            model="openai/gpt-oss-120b", messages=long_prompt_messages
         )
 
         # Make two identical requests
@@ -143,11 +148,12 @@ class TestPromptCacheHit:
     """Test cache hit scenarios."""
 
     @pytest.mark.asyncio
-    async def test_second_request_is_cache_hit(self, service_with_caching, long_prompt_messages):
+    async def test_second_request_is_cache_hit(
+        self, service_with_caching, long_prompt_messages
+    ):
         """Second identical request should hit the cache."""
         request = ChatCompletionRequest(
-            model="openai/gpt-oss-120b",
-            messages=long_prompt_messages
+            model="openai/gpt-oss-120b", messages=long_prompt_messages
         )
 
         # First request (cache miss for prompt cache)
@@ -169,11 +175,12 @@ class TestPromptCacheHit:
         assert prompt_hash in service_with_caching._prompt_cache
 
     @pytest.mark.asyncio
-    async def test_cache_hit_consistent_across_calls(self, service_with_caching, long_prompt_messages):
+    async def test_cache_hit_consistent_across_calls(
+        self, service_with_caching, long_prompt_messages
+    ):
         """Cache hits should be consistent across multiple requests."""
         request = ChatCompletionRequest(
-            model="openai/gpt-oss-120b",
-            messages=long_prompt_messages
+            model="openai/gpt-oss-120b", messages=long_prompt_messages
         )
 
         # First request (cache miss)
@@ -191,7 +198,9 @@ class TestPromptCacheHit:
         assert cached_tokens > 0
 
     @pytest.mark.asyncio
-    async def test_different_prompts_different_cache_entries(self, service_with_caching):
+    async def test_different_prompts_different_cache_entries(
+        self, service_with_caching
+    ):
         """Different prompts should create different cache entries."""
         messages1 = [
             Message(role=Role.USER, content=" ".join(["First prompt text."] * 150))
@@ -200,8 +209,12 @@ class TestPromptCacheHit:
             Message(role=Role.USER, content=" ".join(["Second prompt text."] * 150))
         ]
 
-        request1 = ChatCompletionRequest(model="openai/gpt-oss-120b", messages=messages1)
-        request2 = ChatCompletionRequest(model="openai/gpt-oss-120b", messages=messages2)
+        request1 = ChatCompletionRequest(
+            model="openai/gpt-oss-120b", messages=messages1
+        )
+        request2 = ChatCompletionRequest(
+            model="openai/gpt-oss-120b", messages=messages2
+        )
 
         # Make requests in pattern: 1, 2, 1, 2
         resp1a = await service_with_caching.create_chat_completion(request1)
@@ -226,9 +239,7 @@ class TestCacheTTL:
     @pytest.mark.asyncio
     async def test_cache_expires_after_ttl(self, service_short_ttl):
         """Cache entries should expire after TTL."""
-        messages = [
-            Message(role=Role.USER, content=" ".join(["Test prompt."] * 20))
-        ]
+        messages = [Message(role=Role.USER, content=" ".join(["Test prompt."] * 20))]
         request = ChatCompletionRequest(model="openai/gpt-oss-120b", messages=messages)
 
         # First request (cache miss)
@@ -264,7 +275,9 @@ class TestCacheGranularity:
             messages = [
                 Message(role=Role.USER, content=" ".join(["Test word."] * word_count))
             ]
-            request = ChatCompletionRequest(model="openai/gpt-oss-120b", messages=messages)
+            request = ChatCompletionRequest(
+                model="openai/gpt-oss-120b", messages=messages
+            )
 
             # First request (cache miss)
             await service_with_caching.create_chat_completion(request)
@@ -278,7 +291,9 @@ class TestCacheGranularity:
                 cached_token_count, _ = service_with_caching._prompt_cache[prompt_hash]
                 prompt_cache_contribution = (cached_token_count // 128) * 128
                 # Prompt cache contribution should be 128-aligned
-                assert prompt_cache_contribution % 128 == 0, f"Prompt cache {prompt_cache_contribution} not 128-aligned"
+                assert (
+                    prompt_cache_contribution % 128 == 0
+                ), f"Prompt cache {prompt_cache_contribution} not 128-aligned"
 
 
 @pytest.mark.unit
@@ -287,11 +302,12 @@ class TestCacheWithKVCache:
     """Test interaction between prompt cache and KV cache."""
 
     @pytest.mark.asyncio
-    async def test_both_caches_can_contribute(self, service_with_caching, long_prompt_messages):
+    async def test_both_caches_can_contribute(
+        self, service_with_caching, long_prompt_messages
+    ):
         """Both prompt cache and KV cache can contribute cached tokens."""
         request = ChatCompletionRequest(
-            model="openai/gpt-oss-120b",
-            messages=long_prompt_messages
+            model="openai/gpt-oss-120b", messages=long_prompt_messages
         )
 
         # First request
@@ -305,7 +321,9 @@ class TestCacheWithKVCache:
         cached1 = response1.usage.prompt_tokens_details.cached_tokens
         cached2 = response2.usage.prompt_tokens_details.cached_tokens
 
-        assert cached2 >= cached1, "Second request should have at least as many cached tokens"
+        assert (
+            cached2 >= cached1
+        ), "Second request should have at least as many cached tokens"
 
         # At minimum, prompt cache should contribute (KV cache may or may not)
         assert cached2 > 0, "Second request should have cached tokens from prompt cache"
@@ -317,7 +335,9 @@ class TestStreamingWithCache:
     """Test prompt caching with streaming responses."""
 
     @pytest.mark.asyncio
-    async def test_streaming_includes_cached_tokens(self, service_with_caching, long_prompt_messages):
+    async def test_streaming_includes_cached_tokens(
+        self, service_with_caching, long_prompt_messages
+    ):
         """Streaming responses should include cached token info when usage requested."""
         from fakeai.models import StreamOptions
 
@@ -352,7 +372,9 @@ class TestStreamingWithCache:
         assert cached2 > 0
 
     @pytest.mark.asyncio
-    async def test_streaming_without_usage_still_caches(self, service_with_caching, long_prompt_messages):
+    async def test_streaming_without_usage_still_caches(
+        self, service_with_caching, long_prompt_messages
+    ):
         """Prompt caching should work even when usage is not included in stream."""
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",

@@ -11,14 +11,14 @@ import pytest
 from openai import OpenAI
 
 from fakeai import (
+    AppConfig,
     FakeAIClient,
-    temporary_server,
     assert_response_valid,
-    assert_tokens_in_range,
     assert_streaming_valid,
+    assert_tokens_in_range,
     collect_stream_content,
     measure_stream_timing,
-    AppConfig,
+    temporary_server,
 )
 from fakeai.client import fakeai_client, fakeai_client_with_auth, fakeai_running_server
 
@@ -287,7 +287,11 @@ class TestAdvancedFeatures:
 
     def test_multiple_models(self, fakeai_client):
         """Test requests with different models."""
-        models = ["meta-llama/Llama-3.1-8B-Instruct", "openai/gpt-oss-120b", "openai/gpt-oss-120b"]
+        models = [
+            "meta-llama/Llama-3.1-8B-Instruct",
+            "openai/gpt-oss-120b",
+            "openai/gpt-oss-120b",
+        ]
 
         for model_name in models:
             response = fakeai_client.chat("Hello!", model=model_name)
@@ -302,7 +306,11 @@ class TestAdvancedFeatures:
 
     def test_different_embedding_models(self, fakeai_client):
         """Test different embedding models."""
-        models = ["sentence-transformers/all-mpnet-base-v2", "nomic-ai/nomic-embed-text-v1.5", "BAAI/bge-m3"]
+        models = [
+            "sentence-transformers/all-mpnet-base-v2",
+            "nomic-ai/nomic-embed-text-v1.5",
+            "BAAI/bge-m3",
+        ]
 
         for model in models:
             response = fakeai_client.embed("Test text", model=model)
@@ -318,6 +326,7 @@ class TestPerformance:
 
         with FakeAIClient(config=config, auto_start=True) as client:
             import time
+
             start = time.time()
             response = client.chat("Hello!")
             elapsed = time.time() - start

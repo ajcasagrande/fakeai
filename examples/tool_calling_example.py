@@ -5,14 +5,14 @@ This script shows how to use the tool calling decision engine
 to simulate tool usage in chat completions.
 """
 
-import sys
 import os
+import sys
 
 # Add parent directory to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from fakeai.models import Message, Role, Tool
-from fakeai.tool_calling import ToolDecisionEngine, ToolCallGenerator
+from fakeai.tool_calling import ToolCallGenerator, ToolDecisionEngine
 
 
 def main():
@@ -36,17 +36,17 @@ def main():
                 "properties": {
                     "location": {
                         "type": "string",
-                        "description": "City and state, e.g. San Francisco, CA"
+                        "description": "City and state, e.g. San Francisco, CA",
                     },
                     "unit": {
                         "type": "string",
                         "enum": ["celsius", "fahrenheit"],
-                        "description": "Temperature unit"
-                    }
+                        "description": "Temperature unit",
+                    },
                 },
-                "required": ["location"]
-            }
-        }
+                "required": ["location"],
+            },
+        },
     )
 
     search_tool = Tool(
@@ -57,18 +57,15 @@ def main():
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "The search query"
-                    },
+                    "query": {"type": "string", "description": "The search query"},
                     "limit": {
                         "type": "integer",
-                        "description": "Maximum number of results"
-                    }
+                        "description": "Maximum number of results",
+                    },
                 },
-                "required": ["query"]
-            }
-        }
+                "required": ["query"],
+            },
+        },
     )
 
     calculator_tool = Tool(
@@ -81,12 +78,12 @@ def main():
                 "properties": {
                     "expression": {
                         "type": "string",
-                        "description": "Mathematical expression to evaluate"
+                        "description": "Mathematical expression to evaluate",
                     }
                 },
-                "required": ["expression"]
-            }
-        }
+                "required": ["expression"],
+            },
+        },
     )
 
     tools = [weather_tool, search_tool, calculator_tool]
@@ -97,14 +94,13 @@ def main():
     print("=" * 70)
 
     messages1 = [
-        Message(role=Role.USER, content="What's the weather like in San Francisco today?")
+        Message(
+            role=Role.USER, content="What's the weather like in San Francisco today?"
+        )
     ]
 
     should_call, selected_tools = decision_engine.should_call_tools(
-        messages=messages1,
-        tools=tools,
-        tool_choice="auto",
-        parallel_tool_calls=False
+        messages=messages1, tools=tools, tool_choice="auto", parallel_tool_calls=False
     )
 
     print(f"\nUser Message: {messages1[0].content}")
@@ -125,15 +121,13 @@ def main():
     print("Example 2: Required Mode - Must Call Tool")
     print("=" * 70)
 
-    messages2 = [
-        Message(role=Role.USER, content="Hello, how are you?")
-    ]
+    messages2 = [Message(role=Role.USER, content="Hello, how are you?")]
 
     should_call, selected_tools = decision_engine.should_call_tools(
         messages=messages2,
         tools=tools,
         tool_choice="required",
-        parallel_tool_calls=False
+        parallel_tool_calls=False,
     )
 
     print(f"\nUser Message: {messages2[0].content}")
@@ -158,7 +152,7 @@ def main():
     messages3 = [
         Message(
             role=Role.USER,
-            content="Search for weather forecasts and calculate the average temperature"
+            content="Search for weather forecasts and calculate the average temperature",
         )
     ]
 
@@ -166,7 +160,7 @@ def main():
         messages=messages3,
         tools=tools,
         tool_choice="required",
-        parallel_tool_calls=True
+        parallel_tool_calls=True,
     )
 
     print(f"\nUser Message: {messages3[0].content}")
@@ -199,28 +193,19 @@ def main():
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "recipient": {
-                        "type": "string",
-                        "description": "Email address"
-                    },
-                    "subject": {
-                        "type": "string",
-                        "description": "Email subject"
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "Max message length"
-                    }
+                    "recipient": {"type": "string", "description": "Email address"},
+                    "subject": {"type": "string", "description": "Email subject"},
+                    "limit": {"type": "integer", "description": "Max message length"},
                 },
-                "required": ["recipient"]
-            }
-        }
+                "required": ["recipient"],
+            },
+        },
     )
 
     messages4 = [
         Message(
             role=Role.USER,
-            content="Send an email to john.doe@example.com about the meeting with a limit of 500 words"
+            content="Send an email to john.doe@example.com about the meeting with a limit of 500 words",
         )
     ]
 
@@ -234,6 +219,7 @@ def main():
     print(f"  Arguments: {tool_calls[0].function.arguments}")
     print(f"\n  Extracted Values:")
     import json
+
     args = json.loads(tool_calls[0].function.arguments)
     print(f"    - Recipient (email): {args.get('recipient')}")
     print(f"    - Limit (number): {args.get('limit')}")
@@ -243,15 +229,10 @@ def main():
     print("Example 5: None Mode - Never Call Tools")
     print("=" * 70)
 
-    messages5 = [
-        Message(role=Role.USER, content="What's the weather in Tokyo?")
-    ]
+    messages5 = [Message(role=Role.USER, content="What's the weather in Tokyo?")]
 
     should_call, selected_tools = decision_engine.should_call_tools(
-        messages=messages5,
-        tools=tools,
-        tool_choice="none",
-        parallel_tool_calls=False
+        messages=messages5, tools=tools, tool_choice="none", parallel_tool_calls=False
     )
 
     print(f"\nUser Message: {messages5[0].content}")

@@ -34,17 +34,21 @@ def parse_latency_spec(spec: str) -> tuple[float, float]:
         "50:15" → (50.0, 15.0)  # 50ms with 15% variance
         "10:0" → (10.0, 0.0)  # Exactly 10ms, no jitter
     """
-    if ':' in spec:
+    if ":" in spec:
         # Format: "value:variance"
-        parts = spec.split(':')
+        parts = spec.split(":")
         if len(parts) != 2:
-            raise ValueError(f"Invalid latency spec '{spec}'. Use format: 'value:variance' or 'value'")
+            raise ValueError(
+                f"Invalid latency spec '{spec}'. Use format: 'value:variance' or 'value'"
+            )
 
         try:
             value = float(parts[0])
             variance = float(parts[1])
         except ValueError:
-            raise ValueError(f"Invalid latency spec '{spec}'. Both value and variance must be numbers")
+            raise ValueError(
+                f"Invalid latency spec '{spec}'. Both value and variance must be numbers"
+            )
 
         if value < 0:
             raise ValueError(f"Latency value must be >= 0, got {value}")
@@ -57,7 +61,9 @@ def parse_latency_spec(spec: str) -> tuple[float, float]:
         try:
             value = float(spec)
         except ValueError:
-            raise ValueError(f"Invalid latency value '{spec}'. Must be a number or 'value:variance'")
+            raise ValueError(
+                f"Invalid latency value '{spec}'. Must be a number or 'value:variance'"
+            )
 
         if value < 0:
             raise ValueError(f"Latency value must be >= 0, got {value}")
@@ -88,14 +94,17 @@ def parse_api_keys(api_key_sources: list[str]) -> list[str]:
         if path.exists() and path.is_file():
             # Parse file
             try:
-                with open(path, 'r') as f:
+                with open(path, "r") as f:
                     for line in f:
                         line = line.strip()
                         # Skip blank lines and comments
-                        if line and not line.startswith('#'):
+                        if line and not line.startswith("#"):
                             all_keys.append(line)
             except Exception as e:
-                print(f"Warning: Failed to read API key file '{source}': {e}", file=sys.stderr)
+                print(
+                    f"Warning: Failed to read API key file '{source}': {e}",
+                    file=sys.stderr,
+                )
         else:
             # Treat as direct API key
             all_keys.append(source)
@@ -129,37 +138,49 @@ def load_config_file(config_path: str | None) -> dict:
         return {}
 
     try:
-        with open(path, 'r') as f:
-            if path.suffix in ['.yaml', '.yml']:
+        with open(path, "r") as f:
+            if path.suffix in [".yaml", ".yml"]:
                 try:
                     import yaml
+
                     return yaml.safe_load(f) or {}
                 except ImportError:
-                    print("Warning: PyYAML not installed. Install with: pip install pyyaml", file=sys.stderr)
+                    print(
+                        "Warning: PyYAML not installed. Install with: pip install pyyaml",
+                        file=sys.stderr,
+                    )
                     return {}
-            elif path.suffix == '.json':
+            elif path.suffix == ".json":
                 return json.load(f)
             else:
-                print(f"Warning: Unsupported config file format: {path.suffix}", file=sys.stderr)
+                print(
+                    f"Warning: Unsupported config file format: {path.suffix}",
+                    file=sys.stderr,
+                )
                 return {}
     except Exception as e:
-        print(f"Warning: Failed to load config file '{config_path}': {e}", file=sys.stderr)
+        print(
+            f"Warning: Failed to load config file '{config_path}': {e}", file=sys.stderr
+        )
         return {}
+
 
 # Create the main Cyclopts app
 app = cyclopts.App(
-    name="fakeai-server",
+    name="fakeai",
     help="FakeAI - OpenAI Compatible API Server for Testing and Development",
     version="0.0.5",
 )
 
 
-@app.default
-def serve(
+@app.command
+def server(
     *,
     config_file: Annotated[
         str | None,
-        Field(description="Path to config file (YAML or JSON). Auto-detects fakeai.yaml, fakeai.yml, or fakeai.json if not specified."),
+        Field(
+            description="Path to config file (YAML or JSON). Auto-detects fakeai.yaml, fakeai.yml, or fakeai.json if not specified."
+        ),
     ] = None,
     host: Annotated[
         str | None,
@@ -171,7 +192,9 @@ def serve(
     ] = None,
     http2: Annotated[
         bool,
-        Field(description="Enable HTTP/2 support using Hypercorn (requires SSL in production)"),
+        Field(
+            description="Enable HTTP/2 support using Hypercorn (requires SSL in production)"
+        ),
     ] = False,
     ssl_certfile: Annotated[
         str | None,
@@ -199,11 +222,15 @@ def serve(
     ] = None,
     api_key: Annotated[
         list[str],
-        Field(description="API key or path to file with keys (one per line). Can be specified multiple times. If not specified, authentication is disabled."),
+        Field(
+            description="API key or path to file with keys (one per line). Can be specified multiple times. If not specified, authentication is disabled."
+        ),
     ] = [],
     enable_rate_limiting: Annotated[
         bool | None,
-        Field(description="Enable rate limiting (also controlled via --rate-limit-enabled)"),
+        Field(
+            description="Enable rate limiting (also controlled via --rate-limit-enabled)"
+        ),
     ] = None,
     rate_limit_enabled: Annotated[
         bool | None,
@@ -211,7 +238,9 @@ def serve(
     ] = None,
     rate_limit_tier: Annotated[
         str | None,
-        Field(description="Rate limit tier: free, tier-1, tier-2, tier-3, tier-4, tier-5 (default: tier-1)"),
+        Field(
+            description="Rate limit tier: free, tier-1, tier-2, tier-3, tier-4, tier-5 (default: tier-1)"
+        ),
     ] = None,
     rate_limit_rpm: Annotated[
         int | None,
@@ -224,7 +253,9 @@ def serve(
     # KV Cache settings
     enable_kv_cache: Annotated[
         bool | None,
-        Field(description="Enable KV cache simulation (also controlled via --kv-cache-enabled)"),
+        Field(
+            description="Enable KV cache simulation (also controlled via --kv-cache-enabled)"
+        ),
     ] = None,
     kv_cache_enabled: Annotated[
         bool | None,
@@ -236,15 +267,25 @@ def serve(
     ] = None,
     kv_cache_workers: Annotated[
         int | None,
-        Field(description="Number of parallel workers for cache processing (also --kv-cache-num-workers)", ge=1, le=64),
+        Field(
+            description="Number of parallel workers for cache processing (also --kv-cache-num-workers)",
+            ge=1,
+            le=64,
+        ),
     ] = None,
     kv_cache_num_workers: Annotated[
         int | None,
-        Field(description="Number of parallel workers for cache processing", ge=1, le=64),
+        Field(
+            description="Number of parallel workers for cache processing", ge=1, le=64
+        ),
     ] = None,
     kv_overlap_weight: Annotated[
         float | None,
-        Field(description="Weight for overlap scoring in KV cache (0.0-2.0)", ge=0.0, le=2.0),
+        Field(
+            description="Weight for overlap scoring in KV cache (0.0-2.0)",
+            ge=0.0,
+            le=2.0,
+        ),
     ] = None,
     # Safety settings
     enable_moderation: Annotated[
@@ -261,7 +302,9 @@ def serve(
     ] = None,
     enable_safety: Annotated[
         bool | None,
-        Field(description="Enable safety refusal mechanism (also --enable-safety-features)"),
+        Field(
+            description="Enable safety refusal mechanism (also --enable-safety-features)"
+        ),
     ] = None,
     enable_safety_features: Annotated[
         bool | None,
@@ -274,7 +317,9 @@ def serve(
     # Security settings (master flag)
     enable_security: Annotated[
         bool | None,
-        Field(description="Master flag to enable ALL security features (overrides individual flags)"),
+        Field(
+            description="Master flag to enable ALL security features (overrides individual flags)"
+        ),
     ] = None,
     security: Annotated[
         bool | None,
@@ -303,7 +348,9 @@ def serve(
     ] = None,
     cors_allowed_origins: Annotated[
         str | None,
-        Field(description="CORS allowed origins (JSON array, e.g. '[\"http://localhost:3000\"]')"),
+        Field(
+            description="CORS allowed origins (JSON array, e.g. '[\"http://localhost:3000\"]')"
+        ),
     ] = None,
     # Audio settings
     enable_audio: Annotated[
@@ -312,7 +359,9 @@ def serve(
     ] = None,
     default_voice: Annotated[
         str | None,
-        Field(description="Default voice for audio output (alloy, echo, fable, onyx, nova, shimmer, etc.)"),
+        Field(
+            description="Default voice for audio output (alloy, echo, fable, onyx, nova, shimmer, etc.)"
+        ),
     ] = None,
     default_audio_format: Annotated[
         str | None,
@@ -330,11 +379,15 @@ def serve(
     # Latency simulation settings
     ttft: Annotated[
         str | None,
-        Field(description="Time to first token: 'ms' or 'ms:variance%'. Example: '20' (20ms±10%), '30:5' (30ms±5%), '10:0' (exactly 10ms)"),
+        Field(
+            description="Time to first token: 'ms' or 'ms:variance%'. Example: '20' (20ms±10%), '30:5' (30ms±5%), '10:0' (exactly 10ms)"
+        ),
     ] = None,
     itl: Annotated[
         str | None,
-        Field(description="Inter-token latency: 'ms' or 'ms:variance%'. Example: '5' (5ms±10%), '10:15' (10ms±15%), '3:0' (exactly 3ms)"),
+        Field(
+            description="Inter-token latency: 'ms' or 'ms:variance%'. Example: '5' (5ms±10%), '10:15' (10ms±15%), '3:0' (exactly 3ms)"
+        ),
     ] = None,
 ) -> None:
     """
@@ -351,34 +404,34 @@ def serve(
 
     Examples:
         # Start with default settings (no authentication)
-        $ fakeai-server
+        $ fakeai server
 
         # Start with config file
-        $ fakeai-server --config-file myconfig.yaml
+        $ fakeai server --config-file myconfig.yaml
 
         # Start on a different host and port
-        $ fakeai-server --host 0.0.0.0 --port 9000
+        $ fakeai server --host 0.0.0.0 --port 9000
 
         # Enable authentication with direct API keys
-        $ fakeai-server --api-key sk-test-key1 --api-key sk-test-key2
+        $ fakeai server --api-key sk-test-key1 --api-key sk-test-key2
 
         # Load API keys from a file
-        $ fakeai-server --api-key /path/to/keys.txt
+        $ fakeai server --api-key /path/to/keys.txt
 
         # Enable rate limiting with tier
-        $ fakeai-server --enable-rate-limiting --rate-limit-tier tier-3
+        $ fakeai server --enable-rate-limiting --rate-limit-tier tier-3
 
         # Custom rate limits
-        $ fakeai-server --enable-rate-limiting --rate-limit-rpm 1000 --rate-limit-tpm 50000
+        $ fakeai server --enable-rate-limiting --rate-limit-rpm 1000 --rate-limit-tpm 50000
 
         # Configure KV cache
-        $ fakeai-server --enable-kv-cache --kv-cache-workers 8
+        $ fakeai server --enable-kv-cache --kv-cache-workers 8
 
         # Disable safety features
-        $ fakeai-server --no-enable-safety --no-enable-moderation
+        $ fakeai server --no-enable-safety --no-enable-moderation
 
         # Customize response timing
-        $ fakeai-server --response-delay 1.0 --max-variance 0.5
+        $ fakeai server --response-delay 1.0 --max-variance 0.5
     """
     # Load config file (if specified or auto-detected)
     file_config = load_config_file(config_file)
@@ -404,7 +457,9 @@ def serve(
     set_if_not_none("max_variance", max_variance)
 
     # Handle rate limiting (support both parameter names)
-    rate_limit_flag = enable_rate_limiting if enable_rate_limiting is not None else rate_limit_enabled
+    rate_limit_flag = (
+        enable_rate_limiting if enable_rate_limiting is not None else rate_limit_enabled
+    )
     set_if_not_none("rate_limit_enabled", rate_limit_flag)
     set_if_not_none("rate_limit_tier", rate_limit_tier)
     set_if_not_none("rate_limit_rpm", rate_limit_rpm)
@@ -448,7 +503,10 @@ def serve(
             cors_list = json.loads(cors_allowed_origins)
             config_dict["cors_allowed_origins"] = cors_list
         except json.JSONDecodeError:
-            print(f"Warning: Invalid JSON for cors_allowed_origins, ignoring: {cors_allowed_origins}", file=sys.stderr)
+            print(
+                f"Warning: Invalid JSON for cors_allowed_origins, ignoring: {cors_allowed_origins}",
+                file=sys.stderr,
+            )
 
     # Performance settings
     set_if_not_none("enable_context_validation", enable_context_validation)
@@ -516,7 +574,11 @@ def serve(
         print(f"  - Security features: ENABLED (all enabled via master flag)")
     else:
         print(f"  - Security features: DISABLED (testing mode)")
-        if config.enable_input_validation or config.enable_injection_detection or config.enable_abuse_detection:
+        if (
+            config.enable_input_validation
+            or config.enable_injection_detection
+            or config.enable_abuse_detection
+        ):
             print(f"    - Input validation: {config.enable_input_validation}")
             print(f"    - Injection detection: {config.enable_injection_detection}")
             print(f"    - Abuse detection: {config.enable_abuse_detection}")
@@ -529,9 +591,10 @@ def serve(
     if http2:
         # Use Hypercorn for HTTP/2 support
         try:
-            from hypercorn.config import Config as HypercornConfig
-            from hypercorn.asyncio import serve
             import asyncio
+
+            from hypercorn.asyncio import serve
+            from hypercorn.config import Config as HypercornConfig
 
             h_config = HypercornConfig()
             h_config.bind = [f"{config.host}:{config.port}"]
@@ -590,58 +653,76 @@ def status(
 
     Examples:
         # Check local server status
-        $ fakeai-server status
+        $ fakeai status
 
         # Check remote server status
-        $ fakeai-server status --host 192.168.1.100 --port 9000
+        $ fakeai status --host 192.168.1.100 --port 9000
     """
-    import requests
+    import asyncio
 
-    base_url = f"http://{host}:{port}"
+    import aiohttp
 
-    try:
-        # Check health endpoint
-        response = requests.get(f"{base_url}/health", timeout=5)
-        response.raise_for_status()
-        health_data = response.json()
+    async def check_status():
+        base_url = f"http://{host}:{port}"
 
-        print("=" * 70)
-        print("FakeAI Server Status")
-        print("=" * 70)
-        print(f"Server URL: {base_url}")
-        print(f"Status: RUNNING ✓")
-        print(f"Timestamp: {health_data.get('timestamp', 'N/A')}")
+        try:
+            # Check health endpoint
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{base_url}/health", timeout=aiohttp.ClientTimeout(total=5)
+                ) as response:
+                    response.raise_for_status()
+                    health_data = await response.json()
 
-        if "status" in health_data:
-            status_text = health_data["status"].upper()
-            if health_data["status"] == "healthy":
-                print(f"Health: {status_text} ✓")
-            elif health_data["status"] == "degraded":
-                print(f"Health: {status_text} ⚠")
-            else:
-                print(f"Health: {status_text} ✗")
+                    print("=" * 70)
+                    print("FakeAI Server Status")
+                    print("=" * 70)
+                    print(f"Server URL: {base_url}")
+                    print(f"Status: RUNNING ✓")
+                    print(f"Timestamp: {health_data.get('timestamp', 'N/A')}")
 
-        if "metrics_summary" in health_data:
-            metrics = health_data["metrics_summary"]
-            print(f"\nMetrics Summary:")
-            print(f"  - Requests/sec: {metrics.get('total_requests_per_second', 0):.2f}")
-            print(f"  - Errors/sec: {metrics.get('total_errors_per_second', 0):.2f}")
-            print(f"  - Error rate: {metrics.get('error_rate_percentage', 0):.2f}%")
-            print(f"  - Avg latency: {metrics.get('average_latency_seconds', 0)*1000:.2f}ms")
-            print(f"  - Active streams: {metrics.get('active_streams', 0)}")
+                    if "status" in health_data:
+                        status_text = health_data["status"].upper()
+                        if health_data["status"] == "healthy":
+                            print(f"Health: {status_text} ✓")
+                        elif health_data["status"] == "degraded":
+                            print(f"Health: {status_text} ⚠")
+                        else:
+                            print(f"Health: {status_text} ✗")
 
-        print("=" * 70)
+                    if "metrics_summary" in health_data:
+                        metrics = health_data["metrics_summary"]
+                        print(f"\nMetrics Summary:")
+                        print(
+                            f"  - Requests/sec: {metrics.get('total_requests_per_second', 0):.2f}"
+                        )
+                        print(
+                            f"  - Errors/sec: {metrics.get('total_errors_per_second', 0):.2f}"
+                        )
+                        print(
+                            f"  - Error rate: {metrics.get('error_rate_percentage', 0):.2f}%"
+                        )
+                        print(
+                            f"  - Avg latency: {metrics.get('average_latency_seconds', 0)*1000:.2f}ms"
+                        )
+                        print(f"  - Active streams: {metrics.get('active_streams', 0)}")
 
-    except requests.exceptions.ConnectionError:
-        print(f"ERROR: Cannot connect to FakeAI server at {base_url}", file=sys.stderr)
-        print(f"       Make sure the server is running.", file=sys.stderr)
-        sys.exit(1)
-    except requests.exceptions.Timeout:
-        print(f"ERROR: Connection to {base_url} timed out", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"ERROR: {e}", file=sys.stderr)
-        sys.exit(1)
+                    print("=" * 70)
+
+        except aiohttp.ClientConnectorError:
+            print(
+                f"ERROR: Cannot connect to FakeAI server at {base_url}", file=sys.stderr
+            )
+            print(f"       Make sure the server is running.", file=sys.stderr)
+            sys.exit(1)
+        except asyncio.TimeoutError:
+            print(f"ERROR: Connection to {base_url} timed out", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    asyncio.run(check_status())
 
 
 @app.command
@@ -672,106 +753,146 @@ def metrics(
 
     Examples:
         # Display metrics in pretty format
-        $ fakeai-server metrics
+        $ fakeai metrics
 
         # Display metrics in JSON format
-        $ fakeai-server metrics --format json
+        $ fakeai metrics --format json
 
         # Export metrics in Prometheus format
-        $ fakeai-server metrics --format prometheus > metrics.prom
+        $ fakeai metrics --format prometheus > metrics.prom
 
         # Export metrics in CSV format
-        $ fakeai-server metrics --format csv > metrics.csv
+        $ fakeai metrics --format csv > metrics.csv
 
         # Continuously watch metrics
-        $ fakeai-server metrics --watch
+        $ fakeai metrics --watch
     """
-    import requests
+    import asyncio
     import time as time_module
+
+    import aiohttp
 
     base_url = f"http://{host}:{port}"
 
-    def fetch_and_display():
+    async def fetch_and_display():
         try:
-            response = requests.get(f"{base_url}/metrics", timeout=5)
-            response.raise_for_status()
-            metrics_data = response.json()
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{base_url}/metrics", timeout=aiohttp.ClientTimeout(total=5)
+                ) as response:
+                    response.raise_for_status()
+                    metrics_data = await response.json()
 
-            if format == "json":
-                print(json.dumps(metrics_data, indent=2))
-            elif format == "prometheus":
-                # Fetch Prometheus format
-                prom_response = requests.get(f"{base_url}/metrics?format=prometheus", timeout=5)
-                if prom_response.status_code == 200:
-                    print(prom_response.text)
-                else:
-                    print("ERROR: Prometheus format not supported by this server version", file=sys.stderr)
-                    sys.exit(1)
-            elif format == "csv":
-                # Fetch CSV format
-                csv_response = requests.get(f"{base_url}/metrics?format=csv", timeout=5)
-                if csv_response.status_code == 200:
-                    print(csv_response.text)
-                else:
-                    print("ERROR: CSV format not supported by this server version", file=sys.stderr)
-                    sys.exit(1)
-            else:  # pretty format
-                print("=" * 70)
-                print("FakeAI Server Metrics")
-                print("=" * 70)
+                    if format == "json":
+                        print(json.dumps(metrics_data, indent=2))
+                    elif format == "prometheus":
+                        # Fetch Prometheus format
+                        async with session.get(
+                            f"{base_url}/metrics?format=prometheus",
+                            timeout=aiohttp.ClientTimeout(total=5),
+                        ) as prom_response:
+                            if prom_response.status == 200:
+                                print(await prom_response.text())
+                            else:
+                                print(
+                                    "ERROR: Prometheus format not supported by this server version",
+                                    file=sys.stderr,
+                                )
+                                sys.exit(1)
+                    elif format == "csv":
+                        # Fetch CSV format
+                        async with session.get(
+                            f"{base_url}/metrics?format=csv",
+                            timeout=aiohttp.ClientTimeout(total=5),
+                        ) as csv_response:
+                            if csv_response.status == 200:
+                                print(await csv_response.text())
+                            else:
+                                print(
+                                    "ERROR: CSV format not supported by this server version",
+                                    file=sys.stderr,
+                                )
+                                sys.exit(1)
+                    else:  # pretty format
+                        print("=" * 70)
+                        print("FakeAI Server Metrics")
+                        print("=" * 70)
 
-                # Requests
-                if "requests" in metrics_data and metrics_data["requests"]:
-                    print("\nRequests per second:")
-                    for endpoint, stats in metrics_data["requests"].items():
-                        if stats["rate"] > 0:
-                            print(f"  {endpoint}: {stats['rate']:.2f}")
+                        # Requests
+                        if "requests" in metrics_data and metrics_data["requests"]:
+                            print("\nRequests per second:")
+                            for endpoint, stats in metrics_data["requests"].items():
+                                if stats["rate"] > 0:
+                                    print(f"  {endpoint}: {stats['rate']:.2f}")
 
-                # Responses
-                if "responses" in metrics_data and metrics_data["responses"]:
-                    print("\nResponses per second (with latency):")
-                    for endpoint, stats in metrics_data["responses"].items():
-                        if stats["rate"] > 0:
-                            print(f"  {endpoint}: {stats['rate']:.2f} (avg: {stats['avg']*1000:.2f}ms, p99: {stats['p99']*1000:.2f}ms)")
+                        # Responses
+                        if "responses" in metrics_data and metrics_data["responses"]:
+                            print("\nResponses per second (with latency):")
+                            for endpoint, stats in metrics_data["responses"].items():
+                                if stats["rate"] > 0:
+                                    print(
+                                        f"  {endpoint}: {stats['rate']:.2f} (avg: {stats['avg']*1000:.2f}ms, p99: {stats['p99']*1000:.2f}ms)"
+                                    )
 
-                # Tokens
-                if "tokens" in metrics_data and metrics_data["tokens"]:
-                    print("\nTokens per second:")
-                    for endpoint, stats in metrics_data["tokens"].items():
-                        if stats["rate"] > 0:
-                            print(f"  {endpoint}: {stats['rate']:.2f}")
+                        # Tokens
+                        if "tokens" in metrics_data and metrics_data["tokens"]:
+                            print("\nTokens per second:")
+                            for endpoint, stats in metrics_data["tokens"].items():
+                                if stats["rate"] > 0:
+                                    print(f"  {endpoint}: {stats['rate']:.2f}")
 
-                # Errors
-                if "errors" in metrics_data and metrics_data["errors"]:
-                    has_errors = any(stats["rate"] > 0 for stats in metrics_data["errors"].values())
-                    if has_errors:
-                        print("\nErrors per second:")
-                        for endpoint, stats in metrics_data["errors"].items():
-                            if stats["rate"] > 0:
-                                print(f"  {endpoint}: {stats['rate']:.2f}")
+                        # Errors
+                        if "errors" in metrics_data and metrics_data["errors"]:
+                            has_errors = any(
+                                stats["rate"] > 0
+                                for stats in metrics_data["errors"].values()
+                            )
+                            if has_errors:
+                                print("\nErrors per second:")
+                                for endpoint, stats in metrics_data["errors"].items():
+                                    if stats["rate"] > 0:
+                                        print(f"  {endpoint}: {stats['rate']:.2f}")
 
-                # Streaming stats
-                if "streaming_stats" in metrics_data:
-                    stream_stats = metrics_data["streaming_stats"]
-                    if stream_stats.get("active_streams", 0) > 0 or stream_stats.get("completed_streams", 0) > 0:
-                        print("\nStreaming Statistics:")
-                        print(f"  Active streams: {stream_stats.get('active_streams', 0)}")
-                        print(f"  Completed streams: {stream_stats.get('completed_streams', 0)}")
-                        print(f"  Failed streams: {stream_stats.get('failed_streams', 0)}")
+                        # Streaming stats
+                        if "streaming_stats" in metrics_data:
+                            stream_stats = metrics_data["streaming_stats"]
+                            if (
+                                stream_stats.get("active_streams", 0) > 0
+                                or stream_stats.get("completed_streams", 0) > 0
+                            ):
+                                print("\nStreaming Statistics:")
+                                print(
+                                    f"  Active streams: {stream_stats.get('active_streams', 0)}"
+                                )
+                                print(
+                                    f"  Completed streams: {stream_stats.get('completed_streams', 0)}"
+                                )
+                                print(
+                                    f"  Failed streams: {stream_stats.get('failed_streams', 0)}"
+                                )
 
-                        if stream_stats.get("ttft"):
-                            ttft = stream_stats["ttft"]
-                            print(f"  TTFT: avg={ttft['avg']*1000:.2f}ms, p50={ttft['p50']*1000:.2f}ms, p99={ttft['p99']*1000:.2f}ms")
+                                if stream_stats.get("ttft"):
+                                    ttft = stream_stats["ttft"]
+                                    print(
+                                        f"  TTFT: avg={ttft['avg']*1000:.2f}ms, p50={ttft['p50']*1000:.2f}ms, p99={ttft['p99']*1000:.2f}ms"
+                                    )
 
-                        if stream_stats.get("tokens_per_second"):
-                            tps = stream_stats["tokens_per_second"]
-                            print(f"  Tokens/sec: avg={tps['avg']:.2f}, p50={tps['p50']:.2f}, p99={tps['p99']:.2f}")
+                                if stream_stats.get("tokens_per_second"):
+                                    tps = stream_stats["tokens_per_second"]
+                                    print(
+                                        f"  Tokens/sec: avg={tps['avg']:.2f}, p50={tps['p50']:.2f}, p99={tps['p99']:.2f}"
+                                    )
 
-                print("=" * 70)
+                        print("=" * 70)
 
-        except requests.exceptions.ConnectionError:
-            print(f"ERROR: Cannot connect to FakeAI server at {base_url}", file=sys.stderr)
+        except aiohttp.ClientConnectorError:
+            print(
+                f"ERROR: Cannot connect to FakeAI server at {base_url}", file=sys.stderr
+            )
             print(f"       Make sure the server is running.", file=sys.stderr)
+            sys.exit(1)
+        except asyncio.TimeoutError:
+            print(f"ERROR: Connection to {base_url} timed out", file=sys.stderr)
             sys.exit(1)
         except Exception as e:
             print(f"ERROR: {e}", file=sys.stderr)
@@ -782,13 +903,13 @@ def metrics(
             while True:
                 # Clear screen (cross-platform)
                 print("\033[2J\033[H", end="")
-                fetch_and_display()
+                asyncio.run(fetch_and_display())
                 print("\n(Press Ctrl+C to stop)")
                 time_module.sleep(5)
         except KeyboardInterrupt:
             print("\n\nStopped watching metrics")
     else:
-        fetch_and_display()
+        asyncio.run(fetch_and_display())
 
 
 @app.command(name="cache-stats")
@@ -811,66 +932,86 @@ def cache_stats(
 
     Examples:
         # Display cache stats
-        $ fakeai-server cache-stats
+        $ fakeai cache-stats
 
         # Display cache stats from remote server
-        $ fakeai-server cache-stats --host 192.168.1.100 --port 9000
+        $ fakeai cache-stats --host 192.168.1.100 --port 9000
     """
-    import requests
+    import asyncio
 
-    base_url = f"http://{host}:{port}"
+    import aiohttp
 
-    try:
-        # Check if cache stats endpoint exists
-        response = requests.get(f"{base_url}/cache-stats", timeout=5)
-        response.raise_for_status()
-        cache_data = response.json()
+    async def fetch_cache_stats():
+        base_url = f"http://{host}:{port}"
 
-        print("=" * 70)
-        print("FakeAI KV Cache Statistics")
-        print("=" * 70)
+        try:
+            # Check if cache stats endpoint exists
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{base_url}/cache-stats", timeout=aiohttp.ClientTimeout(total=5)
+                ) as response:
+                    response.raise_for_status()
+                    cache_data = await response.json()
 
-        if "enabled" in cache_data and not cache_data["enabled"]:
-            print("\nKV Cache: DISABLED")
-            print("\nTo enable KV cache, start the server with:")
-            print("  $ fakeai-server --enable-kv-cache")
-            print("=" * 70)
-            return
+                    print("=" * 70)
+                    print("FakeAI KV Cache Statistics")
+                    print("=" * 70)
 
-        print(f"\nCache Configuration:")
-        print(f"  - Enabled: {cache_data.get('enabled', False)}")
-        print(f"  - Block size: {cache_data.get('block_size', 'N/A')} tokens")
-        print(f"  - Workers: {cache_data.get('num_workers', 'N/A')}")
-        print(f"  - Overlap weight: {cache_data.get('overlap_weight', 'N/A')}")
+                    if "enabled" in cache_data and not cache_data["enabled"]:
+                        print("\nKV Cache: DISABLED")
+                        print("\nTo enable KV cache, start the server with:")
+                        print("  $ fakeai server --enable-kv-cache")
+                        print("=" * 70)
+                        return
 
-        if "stats" in cache_data:
-            stats = cache_data["stats"]
-            print(f"\nCache Performance:")
-            print(f"  - Total requests: {stats.get('total_requests', 0)}")
-            print(f"  - Cache hits: {stats.get('cache_hits', 0)}")
-            print(f"  - Cache misses: {stats.get('cache_misses', 0)}")
-            hit_rate = stats.get('hit_rate', 0) * 100
-            print(f"  - Hit rate: {hit_rate:.2f}%")
-            print(f"  - Cached blocks: {stats.get('cached_blocks', 0)}")
-            print(f"  - Tokens saved: {stats.get('tokens_saved', 0)}")
-            print(f"  - Avg speedup: {stats.get('avg_speedup', 0):.2f}x")
+                    print(f"\nCache Configuration:")
+                    print(f"  - Enabled: {cache_data.get('enabled', False)}")
+                    print(
+                        f"  - Block size: {cache_data.get('block_size', 'N/A')} tokens"
+                    )
+                    print(f"  - Workers: {cache_data.get('num_workers', 'N/A')}")
+                    print(
+                        f"  - Overlap weight: {cache_data.get('overlap_weight', 'N/A')}"
+                    )
 
-        print("=" * 70)
+                    if "stats" in cache_data:
+                        stats = cache_data["stats"]
+                        print(f"\nCache Performance:")
+                        print(f"  - Total requests: {stats.get('total_requests', 0)}")
+                        print(f"  - Cache hits: {stats.get('cache_hits', 0)}")
+                        print(f"  - Cache misses: {stats.get('cache_misses', 0)}")
+                        hit_rate = stats.get("hit_rate", 0) * 100
+                        print(f"  - Hit rate: {hit_rate:.2f}%")
+                        print(f"  - Cached blocks: {stats.get('cached_blocks', 0)}")
+                        print(f"  - Tokens saved: {stats.get('tokens_saved', 0)}")
+                        print(f"  - Avg speedup: {stats.get('avg_speedup', 0):.2f}x")
 
-    except requests.exceptions.ConnectionError:
-        print(f"ERROR: Cannot connect to FakeAI server at {base_url}", file=sys.stderr)
-        print(f"       Make sure the server is running.", file=sys.stderr)
-        sys.exit(1)
-    except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 404:
-            print("ERROR: Cache stats endpoint not found.", file=sys.stderr)
-            print("       This feature may not be available in your server version.", file=sys.stderr)
-        else:
+                    print("=" * 70)
+
+        except aiohttp.ClientConnectorError:
+            print(
+                f"ERROR: Cannot connect to FakeAI server at {base_url}", file=sys.stderr
+            )
+            print(f"       Make sure the server is running.", file=sys.stderr)
+            sys.exit(1)
+        except asyncio.TimeoutError:
+            print(f"ERROR: Connection to {base_url} timed out", file=sys.stderr)
+            sys.exit(1)
+        except aiohttp.ClientResponseError as e:
+            if e.status == 404:
+                print("ERROR: Cache stats endpoint not found.", file=sys.stderr)
+                print(
+                    "       This feature may not be available in your server version.",
+                    file=sys.stderr,
+                )
+            else:
+                print(f"ERROR: HTTP {e.status}", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
             print(f"ERROR: {e}", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"ERROR: {e}", file=sys.stderr)
-        sys.exit(1)
+            sys.exit(1)
+
+    asyncio.run(fetch_cache_stats())
 
 
 @app.command
@@ -906,12 +1047,14 @@ def interactive(
 
     Examples:
         # Start interactive mode
-        $ fakeai-server interactive
+        $ fakeai interactive
 
         # Connect to remote server with API key
-        $ fakeai-server interactive --host 192.168.1.100 --api-key sk-test-key
+        $ fakeai interactive --host 192.168.1.100 --api-key sk-test-key
     """
-    import requests
+    import asyncio
+
+    import aiohttp
 
     base_url = f"http://{host}:{port}"
     current_model = "openai/gpt-oss-120b"
@@ -919,13 +1062,21 @@ def interactive(
     conversation_history = []
 
     # Test connection
-    try:
-        response = requests.get(f"{base_url}/health", timeout=5)
-        response.raise_for_status()
-    except Exception as e:
-        print(f"ERROR: Cannot connect to FakeAI server at {base_url}", file=sys.stderr)
-        print(f"       {e}", file=sys.stderr)
-        sys.exit(1)
+    async def test_connection():
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{base_url}/health", timeout=aiohttp.ClientTimeout(total=5)
+                ) as response:
+                    response.raise_for_status()
+        except Exception as e:
+            print(
+                f"ERROR: Cannot connect to FakeAI server at {base_url}", file=sys.stderr
+            )
+            print(f"       {e}", file=sys.stderr)
+            sys.exit(1)
+
+    asyncio.run(test_connection())
 
     print("=" * 70)
     print("FakeAI Interactive REPL")
@@ -948,6 +1099,128 @@ def interactive(
         print("  <message>          - Send a chat completion request")
         print()
 
+    async def handle_models_command():
+        try:
+            headers = {}
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{base_url}/v1/models",
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=5),
+                ) as response:
+                    response.raise_for_status()
+                    models_data = await response.json()
+                    print("\nAvailable models:")
+                    for model in models_data.get("data", []):
+                        print(f"  - {model['id']}")
+                    print()
+        except Exception as e:
+            print(f"ERROR: {e}")
+
+    async def handle_metrics_command():
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{base_url}/metrics", timeout=aiohttp.ClientTimeout(total=5)
+                ) as response:
+                    response.raise_for_status()
+                    metrics_data = await response.json()
+                    print(json.dumps(metrics_data, indent=2))
+        except Exception as e:
+            print(f"ERROR: {e}")
+
+    async def handle_chat_completion(user_input):
+        nonlocal conversation_history
+
+        conversation_history.append({"role": "user", "content": user_input})
+
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        request_data = {
+            "model": current_model,
+            "messages": conversation_history,
+            "stream": streaming,
+        }
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                if streaming:
+                    # Handle streaming response
+                    async with session.post(
+                        f"{base_url}/v1/chat/completions",
+                        headers=headers,
+                        json=request_data,
+                        timeout=aiohttp.ClientTimeout(total=30),
+                    ) as response:
+                        response.raise_for_status()
+
+                        print("\nAssistant: ", end="", flush=True)
+                        full_content = ""
+                        async for line in response.content:
+                            if line:
+                                line_str = line.decode("utf-8").strip()
+                                if line_str.startswith("data: "):
+                                    data_str = line_str[6:]
+                                    if data_str.strip() == "[DONE]":
+                                        break
+                                    try:
+                                        chunk_data = json.loads(data_str)
+                                        if chunk_data["choices"][0]["delta"].get(
+                                            "content"
+                                        ):
+                                            content = chunk_data["choices"][0]["delta"][
+                                                "content"
+                                            ]
+                                            print(content, end="", flush=True)
+                                            full_content += content
+                                    except json.JSONDecodeError:
+                                        pass
+                        print("\n")
+
+                        # Add assistant response to history
+                        conversation_history.append(
+                            {"role": "assistant", "content": full_content}
+                        )
+
+                else:
+                    # Handle non-streaming response
+                    async with session.post(
+                        f"{base_url}/v1/chat/completions",
+                        headers=headers,
+                        json=request_data,
+                        timeout=aiohttp.ClientTimeout(total=30),
+                    ) as response:
+                        response.raise_for_status()
+                        result = await response.json()
+
+                        assistant_message = result["choices"][0]["message"]["content"]
+                        print(f"\nAssistant: {assistant_message}\n")
+
+                        # Add assistant response to history
+                        conversation_history.append(
+                            {"role": "assistant", "content": assistant_message}
+                        )
+
+        except aiohttp.ClientResponseError as e:
+            print(f"\nERROR: HTTP {e.status}")
+            try:
+                error_data = json.loads(e.message)
+                print(f"       {error_data.get('error', {}).get('message', str(e))}")
+            except:
+                print(f"       {e}")
+            print()
+            # Remove the failed user message from history
+            conversation_history.pop()
+
+        except Exception as e:
+            print(f"\nERROR: {e}\n")
+            # Remove the failed user message from history
+            conversation_history.pop()
+
     while True:
         try:
             user_input = input(f"[{current_model}]> ").strip()
@@ -968,28 +1241,10 @@ def interactive(
                     show_help()
 
                 elif cmd == "models":
-                    try:
-                        headers = {}
-                        if api_key:
-                            headers["Authorization"] = f"Bearer {api_key}"
-                        response = requests.get(f"{base_url}/v1/models", headers=headers, timeout=5)
-                        response.raise_for_status()
-                        models_data = response.json()
-                        print("\nAvailable models:")
-                        for model in models_data.get("data", []):
-                            print(f"  - {model['id']}")
-                        print()
-                    except Exception as e:
-                        print(f"ERROR: {e}")
+                    asyncio.run(handle_models_command())
 
                 elif cmd == "metrics":
-                    try:
-                        response = requests.get(f"{base_url}/metrics", timeout=5)
-                        response.raise_for_status()
-                        metrics_data = response.json()
-                        print(json.dumps(metrics_data, indent=2))
-                    except Exception as e:
-                        print(f"ERROR: {e}")
+                    asyncio.run(handle_metrics_command())
 
                 elif cmd == "clear":
                     conversation_history = []
@@ -1030,84 +1285,7 @@ def interactive(
                 continue
 
             # Send chat completion request
-            conversation_history.append({"role": "user", "content": user_input})
-
-            headers = {"Content-Type": "application/json"}
-            if api_key:
-                headers["Authorization"] = f"Bearer {api_key}"
-
-            request_data = {
-                "model": current_model,
-                "messages": conversation_history,
-                "stream": streaming,
-            }
-
-            try:
-                if streaming:
-                    # Handle streaming response
-                    response = requests.post(
-                        f"{base_url}/v1/chat/completions",
-                        headers=headers,
-                        json=request_data,
-                        stream=True,
-                        timeout=30,
-                    )
-                    response.raise_for_status()
-
-                    print("\nAssistant: ", end="", flush=True)
-                    full_content = ""
-                    for line in response.iter_lines():
-                        if line:
-                            line_str = line.decode("utf-8")
-                            if line_str.startswith("data: "):
-                                data_str = line_str[6:]
-                                if data_str.strip() == "[DONE]":
-                                    break
-                                try:
-                                    chunk_data = json.loads(data_str)
-                                    if chunk_data["choices"][0]["delta"].get("content"):
-                                        content = chunk_data["choices"][0]["delta"]["content"]
-                                        print(content, end="", flush=True)
-                                        full_content += content
-                                except json.JSONDecodeError:
-                                    pass
-                    print("\n")
-
-                    # Add assistant response to history
-                    conversation_history.append({"role": "assistant", "content": full_content})
-
-                else:
-                    # Handle non-streaming response
-                    response = requests.post(
-                        f"{base_url}/v1/chat/completions",
-                        headers=headers,
-                        json=request_data,
-                        timeout=30,
-                    )
-                    response.raise_for_status()
-                    result = response.json()
-
-                    assistant_message = result["choices"][0]["message"]["content"]
-                    print(f"\nAssistant: {assistant_message}\n")
-
-                    # Add assistant response to history
-                    conversation_history.append({"role": "assistant", "content": assistant_message})
-
-            except requests.exceptions.HTTPError as e:
-                print(f"\nERROR: HTTP {e.response.status_code}")
-                try:
-                    error_data = e.response.json()
-                    print(f"       {error_data.get('error', {}).get('message', str(e))}")
-                except:
-                    print(f"       {e}")
-                print()
-                # Remove the failed user message from history
-                conversation_history.pop()
-
-            except Exception as e:
-                print(f"\nERROR: {e}\n")
-                # Remove the failed user message from history
-                conversation_history.pop()
+            asyncio.run(handle_chat_completion(user_input))
 
         except KeyboardInterrupt:
             print("\n\nGoodbye!")

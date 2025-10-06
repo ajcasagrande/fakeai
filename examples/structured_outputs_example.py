@@ -8,52 +8,46 @@ including strict schema validation and automatic data generation.
 #  SPDX-License-Identifier: Apache-2.0
 
 import json
-from openai import OpenAI
 
+from openai import OpenAI
 
 # Define a strict JSON schema
 USER_PROFILE_SCHEMA = {
     "type": "object",
     "properties": {
-        "name": {
-            "type": "string",
-            "description": "The user's full name"
-        },
+        "name": {"type": "string", "description": "The user's full name"},
         "age": {
             "type": "integer",
             "description": "The user's age in years",
             "minimum": 0,
-            "maximum": 150
+            "maximum": 150,
         },
         "email": {
             "type": "string",
             "format": "email",
-            "description": "The user's email address"
+            "description": "The user's email address",
         },
         "occupation": {
             "type": "string",
-            "description": "The user's job title or occupation"
+            "description": "The user's job title or occupation",
         },
         "interests": {
             "type": "array",
             "items": {"type": "string"},
             "description": "List of user's interests",
             "minItems": 1,
-            "maxItems": 5
-        }
+            "maxItems": 5,
+        },
     },
     "required": ["name", "age", "email", "occupation", "interests"],
-    "additionalProperties": False
+    "additionalProperties": False,
 }
 
 # Nested schema example
 ORGANIZATION_SCHEMA = {
     "type": "object",
     "properties": {
-        "name": {
-            "type": "string",
-            "description": "Organization name"
-        },
+        "name": {"type": "string", "description": "Organization name"},
         "employees": {
             "type": "array",
             "items": {
@@ -63,23 +57,23 @@ ORGANIZATION_SCHEMA = {
                     "name": {"type": "string"},
                     "role": {
                         "type": "string",
-                        "enum": ["engineer", "manager", "designer", "analyst"]
-                    }
+                        "enum": ["engineer", "manager", "designer", "analyst"],
+                    },
                 },
                 "required": ["id", "name", "role"],
-                "additionalProperties": False
+                "additionalProperties": False,
             },
             "minItems": 1,
-            "maxItems": 3
+            "maxItems": 3,
         },
         "founded": {
             "type": "string",
             "format": "date",
-            "description": "Date organization was founded"
-        }
+            "description": "Date organization was founded",
+        },
     },
     "required": ["name", "employees", "founded"],
-    "additionalProperties": False
+    "additionalProperties": False,
 }
 
 
@@ -97,7 +91,10 @@ def example_user_profile():
     response = client.chat.completions.create(
         model="openai/gpt-oss-120b",
         messages=[
-            {"role": "user", "content": "Generate a user profile for a software engineer"}
+            {
+                "role": "user",
+                "content": "Generate a user profile for a software engineer",
+            }
         ],
         response_format={
             "type": "json_schema",
@@ -105,8 +102,8 @@ def example_user_profile():
                 "name": "user_profile",
                 "description": "A user profile with personal information",
                 "schema": USER_PROFILE_SCHEMA,
-                "strict": True
-            }
+                "strict": True,
+            },
         },
         parallel_tool_calls=False,  # Required for strict mode
     )
@@ -152,8 +149,8 @@ def example_organization():
                 "name": "organization",
                 "description": "Organization structure with employees",
                 "schema": ORGANIZATION_SCHEMA,
-                "strict": True
-            }
+                "strict": True,
+            },
         },
         parallel_tool_calls=False,
     )
@@ -165,7 +162,7 @@ def example_organization():
     print(json.dumps(data, indent=2))
 
     print("\nEmployee Details:")
-    for i, employee in enumerate(data['employees'], 1):
+    for i, employee in enumerate(data["employees"], 1):
         print(f"  {i}. {employee['name']} (ID: {employee['id']}) - {employee['role']}")
 
     return data
@@ -184,17 +181,17 @@ def example_enum_constraints():
             "status": {
                 "type": "string",
                 "enum": ["todo", "in_progress", "review", "done"],
-                "description": "Current task status"
+                "description": "Current task status",
             },
             "priority": {
                 "type": "integer",
                 "enum": [1, 2, 3, 4, 5],
-                "description": "Priority level (1=lowest, 5=highest)"
+                "description": "Priority level (1=lowest, 5=highest)",
             },
-            "assignee": {"type": "string"}
+            "assignee": {"type": "string"},
         },
         "required": ["title", "status", "priority", "assignee"],
-        "additionalProperties": False
+        "additionalProperties": False,
     }
 
     client = OpenAI(
@@ -207,11 +204,7 @@ def example_enum_constraints():
         messages=[{"role": "user", "content": "Create a task"}],
         response_format={
             "type": "json_schema",
-            "json_schema": {
-                "name": "task",
-                "schema": task_schema,
-                "strict": True
-            }
+            "json_schema": {"name": "task", "schema": task_schema, "strict": True},
         },
         parallel_tool_calls=False,
     )
@@ -222,8 +215,8 @@ def example_enum_constraints():
     print(json.dumps(data, indent=2))
 
     print("\nValidation:")
-    assert data['status'] in ["todo", "in_progress", "review", "done"]
-    assert data['priority'] in [1, 2, 3, 4, 5]
+    assert data["status"] in ["todo", "in_progress", "review", "done"]
+    assert data["priority"] in [1, 2, 3, 4, 5]
     print("  ✓ Status is valid enum value")
     print("  ✓ Priority is valid enum value")
 
@@ -239,11 +232,8 @@ def example_error_handling():
     # Invalid schema (missing additionalProperties: false)
     invalid_schema = {
         "type": "object",
-        "properties": {
-            "name": {"type": "string"},
-            "age": {"type": "integer"}
-        },
-        "required": ["name", "age"]
+        "properties": {"name": {"type": "string"}, "age": {"type": "integer"}},
+        "required": ["name", "age"],
         # Missing: "additionalProperties": False
     }
 
@@ -263,8 +253,8 @@ def example_error_handling():
                 "json_schema": {
                     "name": "invalid",
                     "schema": invalid_schema,
-                    "strict": True
-                }
+                    "strict": True,
+                },
             },
             parallel_tool_calls=False,
         )
@@ -284,8 +274,8 @@ def example_error_handling():
                 "json_schema": {
                     "name": "test",
                     "schema": USER_PROFILE_SCHEMA,
-                    "strict": True
-                }
+                    "strict": True,
+                },
             },
             parallel_tool_calls=True,  # Invalid with strict=True
         )

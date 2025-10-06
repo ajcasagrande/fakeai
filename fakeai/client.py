@@ -4,18 +4,19 @@ FakeAI Client SDK and Testing Utilities.
 This module provides a convenient wrapper around the OpenAI client for testing,
 along with utilities for starting/stopping the server and validating responses.
 """
+
 #  SPDX-License-Identifier: Apache-2.0
 
 import contextlib
 import subprocess
-import time
 import threading
+import time
 from typing import Any, Generator
 
 import pytest
 from openai import OpenAI
-from openai.types.chat import ChatCompletion
 from openai.types import CreateEmbeddingResponse
+from openai.types.chat import ChatCompletion
 
 try:
     from openai.types.moderation import ModerationCreateResponse
@@ -116,6 +117,7 @@ class FakeAIClient:
             sys.executable,
             "-m",
             "fakeai.cli",
+            "server",  # Add server subcommand
             "--host",
             self.host,
             "--port",
@@ -142,11 +144,16 @@ class FakeAIClient:
         while time.time() - start_time < timeout:
             try:
                 # Try to connect to health endpoint
+                import json
                 import urllib.request
+
                 url = f"http://{self.host}:{self.port}/health"
                 with urllib.request.urlopen(url, timeout=1.0) as response:
                     if response.status == 200:
-                        return
+                        # Check if server reports ready
+                        data = json.loads(response.read().decode("utf-8"))
+                        if data.get("ready", True):  # Default true for backward compat
+                            return
             except Exception:
                 pass
             time.sleep(0.1)
@@ -229,7 +236,11 @@ class FakeAIClient:
             **kwargs,
         )
 
-    def embed(self, text: str | list[str], model: str = "sentence-transformers/all-mpnet-base-v2") -> CreateEmbeddingResponse:
+    def embed(
+        self,
+        text: str | list[str],
+        model: str = "sentence-transformers/all-mpnet-base-v2",
+    ) -> CreateEmbeddingResponse:
         """
         Create embeddings for text.
 
@@ -268,6 +279,7 @@ class FakeAIClient:
 
 # Testing Utilities
 
+
 def assert_response_valid(response: ChatCompletion) -> None:
     """
     Validate that a chat completion response has valid schema.
@@ -279,7 +291,9 @@ def assert_response_valid(response: ChatCompletion) -> None:
         AssertionError: If response is invalid
     """
     assert response.id is not None, "Response ID is missing"
-    assert response.id.startswith("chatcmpl-"), f"Invalid response ID format: {response.id}"
+    assert response.id.startswith(
+        "chatcmpl-"
+    ), f"Invalid response ID format: {response.id}"
     assert response.model is not None, "Model is missing"
     assert response.created > 0, "Invalid created timestamp"
     assert len(response.choices) > 0, "No choices in response"
@@ -296,8 +310,8 @@ def assert_response_valid(response: ChatCompletion) -> None:
         assert response.usage.completion_tokens >= 0, "Invalid completion tokens"
         assert response.usage.total_tokens >= 0, "Invalid total tokens"
         assert (
-            response.usage.total_tokens ==
-            response.usage.prompt_tokens + response.usage.completion_tokens
+            response.usage.total_tokens
+            == response.usage.prompt_tokens + response.usage.completion_tokens
         ), "Total tokens doesn't match sum"
 
 
@@ -321,21 +335,21 @@ def assert_tokens_in_range(
     Raises:
         AssertionError: If token counts are out of range
     """
-    assert usage.prompt_tokens >= min_prompt, (
-        f"Prompt tokens {usage.prompt_tokens} < minimum {min_prompt}"
-    )
+    assert (
+        usage.prompt_tokens >= min_prompt
+    ), f"Prompt tokens {usage.prompt_tokens} < minimum {min_prompt}"
     if max_prompt is not None:
-        assert usage.prompt_tokens <= max_prompt, (
-            f"Prompt tokens {usage.prompt_tokens} > maximum {max_prompt}"
-        )
+        assert (
+            usage.prompt_tokens <= max_prompt
+        ), f"Prompt tokens {usage.prompt_tokens} > maximum {max_prompt}"
 
-    assert usage.completion_tokens >= min_completion, (
-        f"Completion tokens {usage.completion_tokens} < minimum {min_completion}"
-    )
+    assert (
+        usage.completion_tokens >= min_completion
+    ), f"Completion tokens {usage.completion_tokens} < minimum {min_completion}"
     if max_completion is not None:
-        assert usage.completion_tokens <= max_completion, (
-            f"Completion tokens {usage.completion_tokens} > maximum {max_completion}"
-        )
+        assert (
+            usage.completion_tokens <= max_completion
+        ), f"Completion tokens {usage.completion_tokens} > maximum {max_completion}"
 
 
 def assert_cache_hit(response: ChatCompletion) -> None:
@@ -384,11 +398,18 @@ def assert_moderation_flagged(
     if category:
         # Check specific category
         categories = first_result.categories
-        category_dict = categories.model_dump() if hasattr(categories, "model_dump") else dict(categories)
-        assert category_dict.get(category, False), f"Category '{category}' was not flagged"
+        category_dict = (
+            categories.model_dump()
+            if hasattr(categories, "model_dump")
+            else dict(categories)
+        )
+        assert category_dict.get(
+            category, False
+        ), f"Category '{category}' was not flagged"
 
 
 # Context Manager for Temporary Server
+
 
 @contextlib.contextmanager
 def temporary_server(
@@ -436,6 +457,7 @@ def temporary_server(
 
 
 # Pytest Fixtures
+
 
 @pytest.fixture
 def fakeai_client() -> Generator[FakeAIClient, None, None]:
@@ -541,6 +563,7 @@ def fakeai_running_server() -> Generator[dict[str, Any], None, None]:
 
 # Advanced Testing Utilities
 
+
 def collect_stream_content(stream) -> str:
     """
     Collect all content from a streaming response.
@@ -590,7 +613,9 @@ def measure_stream_timing(stream) -> dict[str, float]:
     # Calculate inter-token latency
     avg_itl = 0.0
     if len(chunk_times) > 1:
-        latencies = [chunk_times[i] - chunk_times[i-1] for i in range(1, len(chunk_times))]
+        latencies = [
+            chunk_times[i] - chunk_times[i - 1] for i in range(1, len(chunk_times))
+        ]
         avg_itl = sum(latencies) / len(latencies)
 
     return {

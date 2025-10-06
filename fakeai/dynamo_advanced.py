@@ -9,6 +9,7 @@ Implements complete Dynamo architecture including:
 - Prefill queue management
 - Dynamic endpoint registration
 """
+
 import asyncio
 import threading
 import time
@@ -18,30 +19,33 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable
 
-
 # ============================================================================
 # KVBM - KV Block Manager
 # ============================================================================
 
+
 class MemoryTier(Enum):
     """KVBM memory tiers (G1-G4)."""
-    G1_GPU_HBM = "gpu_hbm"          # Device GPU memory
-    G2_CPU_DRAM = "cpu_dram"        # Host CPU memory
-    G3_LOCAL_SSD = "local_ssd"      # Local SSD storage
-    G4_REMOTE_STORAGE = "remote"    # Remote object store
+
+    G1_GPU_HBM = "gpu_hbm"  # Device GPU memory
+    G2_CPU_DRAM = "cpu_dram"  # Host CPU memory
+    G3_LOCAL_SSD = "local_ssd"  # Local SSD storage
+    G4_REMOTE_STORAGE = "remote"  # Remote object store
 
 
 class BlockState(Enum):
     """KV block lifecycle states."""
-    RESET = "reset"            # Uninitialized
-    PARTIAL = "partial"        # Being filled
-    COMPLETE = "complete"      # Filled but not visible
+
+    RESET = "reset"  # Uninitialized
+    PARTIAL = "partial"  # Being filled
+    COMPLETE = "complete"  # Filled but not visible
     REGISTERED = "registered"  # Finalized and visible for reuse
 
 
 @dataclass
 class KVBlock:
     """KV cache block."""
+
     block_id: str
     tokens: list[int] = field(default_factory=list)
     state: BlockState = BlockState.RESET
@@ -111,7 +115,11 @@ class KVBlockPool:
                 "capacity": self.capacity,
                 "active_blocks": len(self.active_pool),
                 "inactive_blocks": len(self.inactive_pool),
-                "utilization_pct": (len(self.active_pool) / self.capacity * 100) if self.capacity > 0 else 0,
+                "utilization_pct": (
+                    (len(self.active_pool) / self.capacity * 100)
+                    if self.capacity > 0
+                    else 0
+                ),
             }
 
 
@@ -135,7 +143,9 @@ class KVBlockManager:
             MemoryTier.G1_GPU_HBM: KVBlockPool(MemoryTier.G1_GPU_HBM, g1_capacity),
             MemoryTier.G2_CPU_DRAM: KVBlockPool(MemoryTier.G2_CPU_DRAM, g2_capacity),
             MemoryTier.G3_LOCAL_SSD: KVBlockPool(MemoryTier.G3_LOCAL_SSD, g3_capacity),
-            MemoryTier.G4_REMOTE_STORAGE: KVBlockPool(MemoryTier.G4_REMOTE_STORAGE, g4_capacity),
+            MemoryTier.G4_REMOTE_STORAGE: KVBlockPool(
+                MemoryTier.G4_REMOTE_STORAGE, g4_capacity
+            ),
         }
 
         # Block registry (all blocks across tiers)
@@ -147,7 +157,9 @@ class KVBlockManager:
 
         self._lock = threading.Lock()
 
-    def allocate(self, tier: MemoryTier = MemoryTier.G1_GPU_HBM, size_tokens: int = 16) -> KVBlock | None:
+    def allocate(
+        self, tier: MemoryTier = MemoryTier.G1_GPU_HBM, size_tokens: int = 16
+    ) -> KVBlock | None:
         """Allocate block in specified tier."""
         block = self.pools[tier].allocate_block(size_tokens)
         if block:
@@ -192,7 +204,9 @@ class KVBlockManager:
             target_pool.active_pool[block_id] = block
 
             # Track transfer
-            self.transfers_between_tiers[f"{current_tier.value}->{target_tier.value}"] += 1
+            self.transfers_between_tiers[
+                f"{current_tier.value}->{target_tier.value}"
+            ] += 1
 
             return True
 
@@ -216,7 +230,9 @@ class KVBlockManager:
     def get_stats(self) -> dict[str, Any]:
         """Get KVBM statistics."""
         return {
-            "pools": {tier.value: pool.get_stats() for tier, pool in self.pools.items()},
+            "pools": {
+                tier.value: pool.get_stats() for tier, pool in self.pools.items()
+            },
             "total_blocks": len(self.block_registry),
             "evictions_by_tier": dict(self.evictions_by_tier),
             "transfers": dict(self.transfers_between_tiers),
@@ -227,18 +243,21 @@ class KVBlockManager:
 # SLA-Based Planner
 # ============================================================================
 
+
 class LoadPredictor(Enum):
     """Load prediction strategies."""
-    CONSTANT = "constant"      # Assumes current load stays constant
-    ARIMA = "arima"           # Time-series trend analysis
-    PROPHET = "prophet"       # Seasonal patterns
+
+    CONSTANT = "constant"  # Assumes current load stays constant
+    ARIMA = "arima"  # Time-series trend analysis
+    PROPHET = "prophet"  # Seasonal patterns
 
 
 @dataclass
 class SLATarget:
     """Service Level Agreement targets."""
-    ttft_ms: float = 500.0     # Time to first token target (ms)
-    itl_ms: float = 50.0       # Inter-token latency target (ms)
+
+    ttft_ms: float = 500.0  # Time to first token target (ms)
+    itl_ms: float = 50.0  # Inter-token latency target (ms)
     throughput_rps: float = 10.0  # Requests per second target
     p95_ttft_ms: float | None = None  # p95 TTFT target
     p99_ttft_ms: float | None = None  # p99 TTFT target
@@ -247,6 +266,7 @@ class SLATarget:
 @dataclass
 class WorkerAllocation:
     """Worker allocation plan."""
+
     prefill_workers: int = 1
     decode_workers: int = 1
     gpus_per_worker: int = 1
@@ -311,7 +331,9 @@ class SLABasedPlanner:
             # Simplified ARIMA: linear trend + average
             if len(self.request_rate_history) < 3:
                 # Use constant predictor logic as fallback
-                recent_rates = [rate for _, rate in list(self.request_rate_history)[-10:]]
+                recent_rates = [
+                    rate for _, rate in list(self.request_rate_history)[-10:]
+                ]
                 return sum(recent_rates) / len(recent_rates) if recent_rates else 0.0
 
             rates = [rate for _, rate in self.request_rate_history]
@@ -378,8 +400,10 @@ class SLABasedPlanner:
         # Check if current allocation differs
         current = self.current_allocation
 
-        if (required.prefill_workers != current.prefill_workers or
-            required.decode_workers != current.decode_workers):
+        if (
+            required.prefill_workers != current.prefill_workers
+            or required.decode_workers != current.decode_workers
+        ):
             return True, required
 
         return False, current
@@ -423,9 +447,11 @@ class SLABasedPlanner:
 # Disaggregated Router
 # ============================================================================
 
+
 @dataclass
 class DisaggregationDecision:
     """Decision whether to disaggregate prefill/decode."""
+
     use_remote_prefill: bool
     reason: str
     prefill_worker_id: str | None = None
@@ -503,7 +529,9 @@ class DisaggregatedRouter:
                 "local_prefill_count": self.local_prefill_count,
                 "remote_prefill_count": self.remote_prefill_count,
                 "total_decisions": total,
-                "remote_prefill_ratio": self.remote_prefill_count / total if total > 0 else 0.0,
+                "remote_prefill_ratio": (
+                    self.remote_prefill_count / total if total > 0 else 0.0
+                ),
                 "queue_full_rejections": self.queue_full_rejections,
                 "config": {
                     "prefill_length_threshold": self.prefill_length_threshold,
@@ -516,9 +544,11 @@ class DisaggregatedRouter:
 # Prefill Queue
 # ============================================================================
 
+
 @dataclass
 class PrefillQueueItem:
     """Item in prefill queue."""
+
     request_id: str
     input_tokens: list[int]
     kv_blocks: list[str]
@@ -598,11 +628,19 @@ class PrefillQueue:
                 "current_depth": current_depth,
                 "max_depth": self.max_depth_observed,
                 "capacity": self.max_capacity,
-                "utilization_pct": (current_depth / self.max_capacity * 100) if self.max_capacity > 0 else 0,
+                "utilization_pct": (
+                    (current_depth / self.max_capacity * 100)
+                    if self.max_capacity > 0
+                    else 0
+                ),
                 "total_enqueued": self.total_enqueued,
                 "total_dequeued": self.total_dequeued,
                 "total_rejected": self.total_rejected,
-                "rejection_rate": self.total_rejected / self.total_enqueued if self.total_enqueued > 0 else 0.0,
+                "rejection_rate": (
+                    self.total_rejected / self.total_enqueued
+                    if self.total_enqueued > 0
+                    else 0.0
+                ),
                 "avg_wait_time_ms": avg_wait_time * 1000,
             }
 
@@ -611,9 +649,11 @@ class PrefillQueue:
 # Dynamic Endpoint Registry
 # ============================================================================
 
+
 @dataclass
 class EndpointInfo:
     """Registered endpoint information."""
+
     endpoint_id: str
     url: str
     model: str
@@ -707,13 +747,17 @@ class DynamicEndpointRegistry:
 
             # Update running average latency
             n = endpoint.request_count
-            endpoint.avg_latency_ms = ((endpoint.avg_latency_ms * (n - 1)) + latency_ms) / n
+            endpoint.avg_latency_ms = (
+                (endpoint.avg_latency_ms * (n - 1)) + latency_ms
+            ) / n
 
     def get_endpoints_for_model(self, model: str) -> list[EndpointInfo]:
         """Get all endpoints serving a specific model."""
         with self._lock:
             endpoint_ids = self.endpoints_by_model.get(model, [])
-            return [self.endpoints[eid] for eid in endpoint_ids if eid in self.endpoints]
+            return [
+                self.endpoints[eid] for eid in endpoint_ids if eid in self.endpoints
+            ]
 
     def get_healthy_endpoints(self, model: str | None = None) -> list[EndpointInfo]:
         """Get all healthy endpoints, optionally filtered by model."""
@@ -731,7 +775,9 @@ class DynamicEndpointRegistry:
             total = len(self.endpoints)
             healthy = sum(1 for e in self.endpoints.values() if e.status == "healthy")
             degraded = sum(1 for e in self.endpoints.values() if e.status == "degraded")
-            unhealthy = sum(1 for e in self.endpoints.values() if e.status == "unhealthy")
+            unhealthy = sum(
+                1 for e in self.endpoints.values() if e.status == "unhealthy"
+            )
 
             return {
                 "total_endpoints": total,
@@ -751,7 +797,11 @@ class DynamicEndpointRegistry:
                         "status": e.status,
                         "requests": e.request_count,
                         "errors": e.error_count,
-                        "error_rate": e.error_count / e.request_count if e.request_count > 0 else 0.0,
+                        "error_rate": (
+                            e.error_count / e.request_count
+                            if e.request_count > 0
+                            else 0.0
+                        ),
                         "avg_latency_ms": e.avg_latency_ms,
                     }
                     for e in self.endpoints.values()
@@ -762,6 +812,7 @@ class DynamicEndpointRegistry:
 # ============================================================================
 # Complete Dynamo System
 # ============================================================================
+
 
 class DynamoSystem:
     """
@@ -782,10 +833,10 @@ class DynamoSystem:
     ):
         # Initialize KVBM
         self.kvbm = KVBlockManager(
-            g1_capacity=1000,   # GPU: 1000 blocks
-            g2_capacity=5000,   # CPU: 5000 blocks
+            g1_capacity=1000,  # GPU: 1000 blocks
+            g2_capacity=5000,  # CPU: 5000 blocks
             g3_capacity=20000,  # SSD: 20000 blocks
-            g4_capacity=100000, # Remote: 100000 blocks
+            g4_capacity=100000,  # Remote: 100000 blocks
         )
 
         # Initialize SLA planner

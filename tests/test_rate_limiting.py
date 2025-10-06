@@ -4,6 +4,7 @@ Tests for rate limiting functionality.
 This module tests the token bucket algorithm implementation and
 rate limiting enforcement across the FakeAI API.
 """
+
 #  SPDX-License-Identifier: Apache-2.0
 
 import asyncio
@@ -13,7 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from fakeai.app import app, config, rate_limiter
-from fakeai.rate_limiter import RateLimitBucket, RateLimiter, RATE_LIMIT_TIERS
+from fakeai.rate_limiter import RATE_LIMIT_TIERS, RateLimitBucket, RateLimiter
 
 
 class TestRateLimitBucket:
@@ -340,8 +341,7 @@ class TestRateLimitingIntegration:
         try:
             client = TestClient(app)
             response = client.get(
-                "/v1/models",
-                headers={"Authorization": "Bearer test-key-123"}
+                "/v1/models", headers={"Authorization": "Bearer test-key-123"}
             )
 
             assert response.status_code == 200
@@ -368,28 +368,27 @@ class TestRateLimitingIntegration:
         config.rate_limit_enabled = True
         config.require_api_key = True
         config.api_keys = ["test-key-123"]
-        rate_limiter.configure(tier="free", rpm_override=2)  # Only 2 requests per minute
+        rate_limiter.configure(
+            tier="free", rpm_override=2
+        )  # Only 2 requests per minute
 
         try:
             client = TestClient(app)
 
             # First 2 requests should succeed
             response1 = client.get(
-                "/v1/models",
-                headers={"Authorization": "Bearer test-key-123"}
+                "/v1/models", headers={"Authorization": "Bearer test-key-123"}
             )
             assert response1.status_code == 200
 
             response2 = client.get(
-                "/v1/models",
-                headers={"Authorization": "Bearer test-key-123"}
+                "/v1/models", headers={"Authorization": "Bearer test-key-123"}
             )
             assert response2.status_code == 200
 
             # Third request should be rate limited
             response3 = client.get(
-                "/v1/models",
-                headers={"Authorization": "Bearer test-key-123"}
+                "/v1/models", headers={"Authorization": "Bearer test-key-123"}
             )
             assert response3.status_code == 429
 
@@ -428,8 +427,8 @@ class TestRateLimitingIntegration:
                 headers={"Authorization": "Bearer test-key-123"},
                 json={
                     "model": "openai/gpt-oss-120b",
-                    "messages": [{"role": "user", "content": "Hello" * 100}]
-                }
+                    "messages": [{"role": "user", "content": "Hello" * 100}],
+                },
             )
             assert response1.status_code == 200
 
@@ -439,8 +438,8 @@ class TestRateLimitingIntegration:
                 headers={"Authorization": "Bearer test-key-123"},
                 json={
                     "model": "openai/gpt-oss-120b",
-                    "messages": [{"role": "user", "content": "Hello" * 100}]
-                }
+                    "messages": [{"role": "user", "content": "Hello" * 100}],
+                },
             )
 
             # Should eventually get rate limited

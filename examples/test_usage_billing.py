@@ -10,6 +10,7 @@ This script shows how to:
 
 import asyncio
 import time
+
 from openai import OpenAI
 
 
@@ -34,9 +35,7 @@ async def main():
     for i in range(3):
         response = client.chat.completions.create(
             model="openai/gpt-oss-120b",
-            messages=[
-                {"role": "user", "content": f"This is test message {i+1}"}
-            ],
+            messages=[{"role": "user", "content": f"This is test message {i+1}"}],
             # Include metadata for tracking
             extra_body={
                 "metadata": {"project_id": "proj-demo"},

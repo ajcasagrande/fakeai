@@ -2,15 +2,16 @@
 """Quick validation script for Realtime WebSocket API."""
 
 import json
+
+from fakeai.config import AppConfig
+from fakeai.fakeai_service import FakeAIService, RealtimeSessionHandler
 from fakeai.models import (
-    RealtimeSession,
     RealtimeEvent,
     RealtimeEventType,
+    RealtimeSession,
     RealtimeSessionConfig,
 )
-from fakeai.fakeai_service import RealtimeSessionHandler
-from fakeai.config import AppConfig
-from fakeai.fakeai_service import FakeAIService
+
 
 def test_models():
     """Test that all models can be instantiated."""
@@ -61,10 +62,12 @@ def test_session_handler():
     print(f"  ✓ Session created event: {event.type}")
 
     # Test session update
-    update_event = handler.update_session({
-        "instructions": "Test instructions",
-        "temperature": 0.9,
-    })
+    update_event = handler.update_session(
+        {
+            "instructions": "Test instructions",
+            "temperature": 0.9,
+        }
+    )
     print(f"  ✓ Session update: {update_event.type}")
     print(f"    Instructions: {handler.session.instructions}")
     print(f"    Temperature: {handler.session.temperature}")
@@ -88,11 +91,13 @@ def test_session_handler():
     print(f"  ✓ Audio clear: {clear_event.type}")
 
     # Test conversation item creation
-    item_event = handler.create_conversation_item({
-        "type": "message",
-        "role": "user",
-        "content": [{"type": "input_text", "text": "Hello!"}],
-    })
+    item_event = handler.create_conversation_item(
+        {
+            "type": "message",
+            "role": "user",
+            "content": [{"type": "input_text", "text": "Hello!"}],
+        }
+    )
     print(f"  ✓ Conversation item created: {item_event.type}")
     print(f"    Total items: {len(handler.conversation_items)}")
 
@@ -110,11 +115,13 @@ async def test_streaming_response():
     handler = RealtimeSessionHandler("openai/gpt-oss-120b", config, service)
 
     # Add a conversation item
-    handler.create_conversation_item({
-        "type": "message",
-        "role": "user",
-        "content": [{"type": "input_text", "text": "Hello!"}],
-    })
+    handler.create_conversation_item(
+        {
+            "type": "message",
+            "role": "user",
+            "content": [{"type": "input_text", "text": "Hello!"}],
+        }
+    )
 
     # Generate response
     events = []
@@ -125,7 +132,9 @@ async def test_streaming_response():
 
     print(f"  ✓ Generated {len(events)} events")
     event_types = [e.type for e in events]
-    print(f"  ✓ Event types: {', '.join(str(et).split('.')[-1] for et in event_types[:5])}...")
+    print(
+        f"  ✓ Event types: {', '.join(str(et).split('.')[-1] for et in event_types[:5])}..."
+    )
 
     print("✓ Streaming response test passed!\n")
 
@@ -151,6 +160,7 @@ def main():
     except Exception as e:
         print(f"\n✗ Validation failed: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

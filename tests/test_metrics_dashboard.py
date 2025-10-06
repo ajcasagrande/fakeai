@@ -13,8 +13,10 @@ This module tests the comprehensive monitoring and metrics system including:
 
 import csv
 import io
-import pytest
 import time
+
+import pytest
+
 from fakeai.metrics import MetricsTracker, MetricType
 
 

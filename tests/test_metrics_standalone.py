@@ -8,12 +8,12 @@ Tests metrics functionality without importing the full app.
 
 import csv
 import io
-import time
-import sys
 import os
+import sys
+import time
 
 # Add parent directory to path for direct imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Import only the metrics module
 from fakeai.metrics import MetricsTracker
@@ -37,8 +37,12 @@ def test_prometheus_export():
     assert isinstance(prometheus_output, str), "Prometheus output should be string"
     assert "# HELP" in prometheus_output, "Should have HELP comments"
     assert "# TYPE" in prometheus_output, "Should have TYPE comments"
-    assert "fakeai_requests_per_second" in prometheus_output, "Should have request metrics"
-    assert "fakeai_responses_per_second" in prometheus_output, "Should have response metrics"
+    assert (
+        "fakeai_requests_per_second" in prometheus_output
+    ), "Should have request metrics"
+    assert (
+        "fakeai_responses_per_second" in prometheus_output
+    ), "Should have response metrics"
     assert "fakeai_tokens_per_second" in prometheus_output, "Should have token metrics"
 
     print("✓ Prometheus export test passed")
@@ -105,7 +109,9 @@ def test_detailed_health():
 
     # Should be healthy with no errors
     assert health["status"] == "healthy", "Status should be healthy"
-    assert health["metrics_summary"]["error_rate_percentage"] == 0, "Error rate should be 0"
+    assert (
+        health["metrics_summary"]["error_rate_percentage"] == 0
+    ), "Error rate should be 0"
 
     print("✓ Detailed health check test passed")
 
@@ -191,7 +197,9 @@ def test_prometheus_labels():
     prometheus_output = tracker.get_prometheus_metrics()
 
     # Verify labels are present
-    assert 'endpoint="/v1/embeddings"' in prometheus_output, "Should have endpoint labels"
+    assert (
+        'endpoint="/v1/embeddings"' in prometheus_output
+    ), "Should have endpoint labels"
 
     print("✓ Prometheus labels test passed")
 
@@ -250,9 +258,9 @@ def test_error_tracking():
 
 def run_all_tests():
     """Run all standalone tests."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Running FakeAI Metrics Standalone Tests")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     tests = [
         test_prometheus_export,
@@ -279,9 +287,9 @@ def run_all_tests():
             print(f"✗ Test error: {e}")
             failed += 1
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print(f"Results: {passed} passed, {failed} failed")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     return failed == 0
 

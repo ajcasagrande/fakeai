@@ -14,6 +14,7 @@ which dramatically reduces latency for repeated prompt prefixes.
 """
 import asyncio
 import time
+
 from openai import AsyncOpenAI
 
 # Base URL for FakeAI server (start with: python run_server.py)
@@ -46,7 +47,7 @@ Always explain your reasoning step by step."""
         model="openai/gpt-oss-120b",
         messages=[
             {"role": "system", "content": system_message},
-            {"role": "user", "content": "What is Python?"}
+            {"role": "user", "content": "What is Python?"},
         ],
     )
     latency1 = (time.time() - start) * 1000
@@ -66,7 +67,7 @@ Always explain your reasoning step by step."""
         model="openai/gpt-oss-120b",
         messages=[
             {"role": "system", "content": system_message},
-            {"role": "user", "content": "What is JavaScript?"}
+            {"role": "user", "content": "What is JavaScript?"},
         ],
     )
     latency2 = (time.time() - start) * 1000
@@ -99,7 +100,7 @@ async def demonstrate_conversation_cache():
     # Build a conversation with growing context
     messages = [
         {"role": "system", "content": "You are a helpful coding assistant."},
-        {"role": "user", "content": "Write a Python function to calculate factorial."}
+        {"role": "user", "content": "Write a Python function to calculate factorial."},
     ]
 
     print("Turn 1: Initial question")
@@ -115,16 +116,14 @@ async def demonstrate_conversation_cache():
     print()
 
     # Add assistant response to conversation
-    messages.append({
-        "role": "assistant",
-        "content": response.choices[0].message.content
-    })
+    messages.append(
+        {"role": "assistant", "content": response.choices[0].message.content}
+    )
 
     # Turn 2 - entire conversation prefix should be cached
-    messages.append({
-        "role": "user",
-        "content": "Now add error handling to that function."
-    })
+    messages.append(
+        {"role": "user", "content": "Now add error handling to that function."}
+    )
 
     print("Turn 2: Follow-up question (entire prefix cached)")
     print("-" * 80)
@@ -136,18 +135,16 @@ async def demonstrate_conversation_cache():
 
     print(f"Prompt tokens: {response.usage.prompt_tokens}")
     print(f"Cached tokens: {response.usage.prompt_tokens_details.cached_tokens}")
-    print(f"Cache hit rate: {(response.usage.prompt_tokens_details.cached_tokens / response.usage.prompt_tokens * 100):.1f}%")
+    print(
+        f"Cache hit rate: {(response.usage.prompt_tokens_details.cached_tokens / response.usage.prompt_tokens * 100):.1f}%"
+    )
     print()
 
     # Turn 3
-    messages.append({
-        "role": "assistant",
-        "content": response.choices[0].message.content
-    })
-    messages.append({
-        "role": "user",
-        "content": "Can you add type hints?"
-    })
+    messages.append(
+        {"role": "assistant", "content": response.choices[0].message.content}
+    )
+    messages.append({"role": "user", "content": "Can you add type hints?"})
 
     print("Turn 3: Another follow-up (even more cached)")
     print("-" * 80)
@@ -159,7 +156,9 @@ async def demonstrate_conversation_cache():
 
     print(f"Prompt tokens: {response.usage.prompt_tokens}")
     print(f"Cached tokens: {response.usage.prompt_tokens_details.cached_tokens}")
-    print(f"Cache hit rate: {(response.usage.prompt_tokens_details.cached_tokens / response.usage.prompt_tokens * 100):.1f}%")
+    print(
+        f"Cache hit rate: {(response.usage.prompt_tokens_details.cached_tokens / response.usage.prompt_tokens * 100):.1f}%"
+    )
     print()
 
 
@@ -184,7 +183,10 @@ async def demonstrate_cache_metrics():
     for i in range(10):
         messages = [
             {"role": "system", "content": common_prefix},
-            {"role": "user", "content": f"Question {i+1}: Tell me about neural networks."}
+            {
+                "role": "user",
+                "content": f"Question {i+1}: Tell me about neural networks.",
+            },
         ]
 
         response = await client.chat.completions.create(
@@ -192,11 +194,20 @@ async def demonstrate_cache_metrics():
             messages=messages,
         )
 
-        cached_pct = (response.usage.prompt_tokens_details.cached_tokens /
-                     response.usage.prompt_tokens * 100) if response.usage.prompt_tokens > 0 else 0
+        cached_pct = (
+            (
+                response.usage.prompt_tokens_details.cached_tokens
+                / response.usage.prompt_tokens
+                * 100
+            )
+            if response.usage.prompt_tokens > 0
+            else 0
+        )
 
-        print(f"Request {i+1}: {response.usage.prompt_tokens} tokens, "
-              f"{response.usage.prompt_tokens_details.cached_tokens} cached ({cached_pct:.1f}%)")
+        print(
+            f"Request {i+1}: {response.usage.prompt_tokens} tokens, "
+            f"{response.usage.prompt_tokens_details.cached_tokens} cached ({cached_pct:.1f}%)"
+        )
 
     print()
     print("Check http://localhost:8000/metrics for detailed cache statistics!")
@@ -228,14 +239,16 @@ async def demonstrate_cache_comparison():
             model="openai/gpt-oss-120b",
             messages=[
                 {"role": "system", "content": cached_prefix},
-                {"role": "user", "content": f"Question {i+1}"}
+                {"role": "user", "content": f"Question {i+1}"},
             ],
         )
         latency = (time.time() - start) * 1000
         cached_latencies.append(latency)
 
-        print(f"Request {i+1}: {latency:.2f}ms, "
-              f"cached: {response.usage.prompt_tokens_details.cached_tokens} tokens")
+        print(
+            f"Request {i+1}: {latency:.2f}ms, "
+            f"cached: {response.usage.prompt_tokens_details.cached_tokens} tokens"
+        )
 
     print()
 
@@ -251,21 +264,25 @@ async def demonstrate_cache_comparison():
             model="openai/gpt-oss-120b",
             messages=[
                 {"role": "system", "content": f"You are assistant number {i+1}."},
-                {"role": "user", "content": f"Question {i+1}"}
+                {"role": "user", "content": f"Question {i+1}"},
             ],
         )
         latency = (time.time() - start) * 1000
         uncached_latencies.append(latency)
 
-        print(f"Request {i+1}: {latency:.2f}ms, "
-              f"cached: {response.usage.prompt_tokens_details.cached_tokens} tokens")
+        print(
+            f"Request {i+1}: {latency:.2f}ms, "
+            f"cached: {response.usage.prompt_tokens_details.cached_tokens} tokens"
+        )
 
     print()
 
     # Calculate statistics
     avg_cached = sum(cached_latencies) / len(cached_latencies)
     avg_uncached = sum(uncached_latencies) / len(uncached_latencies)
-    improvement = ((avg_uncached - avg_cached) / avg_uncached * 100) if avg_uncached > 0 else 0
+    improvement = (
+        ((avg_uncached - avg_cached) / avg_uncached * 100) if avg_uncached > 0 else 0
+    )
 
     print("RESULTS:")
     print(f"Average latency WITH cache:    {avg_cached:.2f}ms")
@@ -299,7 +316,7 @@ async def demonstrate_streaming_with_cache():
         model="openai/gpt-oss-120b",
         messages=[
             {"role": "system", "content": system_msg},
-            {"role": "user", "content": "Count to 5"}
+            {"role": "user", "content": "Count to 5"},
         ],
         stream=True,
     )
@@ -329,7 +346,7 @@ async def demonstrate_streaming_with_cache():
         model="openai/gpt-oss-120b",
         messages=[
             {"role": "system", "content": system_msg},
-            {"role": "user", "content": "Count to 10"}
+            {"role": "user", "content": "Count to 10"},
         ],
         stream=True,
     )
@@ -348,7 +365,9 @@ async def demonstrate_streaming_with_cache():
     print(f"Chunks received: {chunk_count}")
     print()
 
-    ttft_improvement = ((total_time1 - total_time2) / total_time1 * 100) if total_time1 > 0 else 0
+    ttft_improvement = (
+        ((total_time1 - total_time2) / total_time1 * 100) if total_time1 > 0 else 0
+    )
     print(f"TTFT improvement from cache: {ttft_improvement:.1f}%")
     print()
 

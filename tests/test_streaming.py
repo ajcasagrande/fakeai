@@ -3,6 +3,7 @@ Streaming behavior tests.
 
 Tests streaming responses - chunk structure, content delivery, completion.
 """
+
 import pytest
 
 from fakeai.models import ChatCompletionRequest, CompletionRequest, Message, Role
@@ -71,9 +72,7 @@ class TestChatCompletionStreaming:
             chunks.append(chunk)
 
         # Count chunks with content
-        content_chunks = [
-            c for c in chunks if c.choices[0].delta.content is not None
-        ]
+        content_chunks = [c for c in chunks if c.choices[0].delta.content is not None]
 
         assert len(content_chunks) > 0
 
@@ -138,7 +137,9 @@ class TestCompletionStreaming:
     async def test_completion_streaming_yields_chunks(self, service_no_auth):
         """Text completion streaming should yield multiple chunks."""
         request = CompletionRequest(
-            model="meta-llama/Llama-3.1-8B-Instruct", prompt="Once upon a time", stream=True
+            model="meta-llama/Llama-3.1-8B-Instruct",
+            prompt="Once upon a time",
+            stream=True,
         )
 
         chunks = []
@@ -163,7 +164,10 @@ class TestCompletionStreaming:
         """When echo=True, prompt should be included in stream."""
         prompt_text = "Echo this prompt"
         request = CompletionRequest(
-            model="meta-llama/Llama-3.1-8B-Instruct", prompt=prompt_text, echo=True, stream=True
+            model="meta-llama/Llama-3.1-8B-Instruct",
+            prompt=prompt_text,
+            echo=True,
+            stream=True,
         )
 
         assembled = ""
@@ -201,6 +205,7 @@ class TestStreamingEndpoint:
     def test_stream_contains_data_prefixed_lines(self, client_no_auth):
         """Stream should contain 'data: ' prefixed JSON lines."""
         import os
+
         os.environ["FAKEAI_REQUIRE_API_KEY"] = "false"
 
         response = client_no_auth.post(
@@ -227,6 +232,7 @@ class TestStreamingEndpoint:
     def test_stream_ends_with_done_marker(self, client_no_auth):
         """Stream should end with 'data: [DONE]' marker."""
         import os
+
         os.environ["FAKEAI_REQUIRE_API_KEY"] = "false"
 
         response = client_no_auth.post(

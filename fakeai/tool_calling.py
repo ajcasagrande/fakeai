@@ -4,6 +4,7 @@ Tool Calling Decision Engine for FakeAI
 This module provides intelligent tool calling decisions and argument generation
 for simulating realistic tool usage patterns in chat completions.
 """
+
 #  SPDX-License-Identifier: Apache-2.0
 
 import json
@@ -63,12 +64,46 @@ class ToolDecisionEngine:
 
     # Keywords that suggest tool usage for common tool types
     TOOL_KEYWORDS = {
-        "weather": ["weather", "temperature", "forecast", "rain", "sunny", "climate", "cold", "hot"],
+        "weather": [
+            "weather",
+            "temperature",
+            "forecast",
+            "rain",
+            "sunny",
+            "climate",
+            "cold",
+            "hot",
+        ],
         "search": ["search", "find", "look up", "query", "google", "information about"],
-        "calculator": ["calculate", "compute", "math", "sum", "multiply", "divide", "add", "subtract"],
-        "database": ["query", "database", "select", "insert", "update", "delete", "table", "record"],
+        "calculator": [
+            "calculate",
+            "compute",
+            "math",
+            "sum",
+            "multiply",
+            "divide",
+            "add",
+            "subtract",
+        ],
+        "database": [
+            "query",
+            "database",
+            "select",
+            "insert",
+            "update",
+            "delete",
+            "table",
+            "record",
+        ],
         "email": ["email", "send", "message", "mail", "recipient", "compose"],
-        "calendar": ["calendar", "schedule", "appointment", "meeting", "book", "reserve"],
+        "calendar": [
+            "calendar",
+            "schedule",
+            "appointment",
+            "meeting",
+            "book",
+            "reserve",
+        ],
         "file": ["file", "read", "write", "save", "load", "document", "upload"],
         "api": ["api", "request", "endpoint", "http", "get", "post", "fetch"],
     }
@@ -107,7 +142,9 @@ class ToolDecisionEngine:
         # Handle tool_choice = "required"
         if tool_choice == "required":
             # Must call at least one tool - select most relevant
-            selected_tools = self._select_relevant_tools(messages, tools, parallel_tool_calls)
+            selected_tools = self._select_relevant_tools(
+                messages, tools, parallel_tool_calls
+            )
             if not selected_tools:
                 # Fallback to first tool if no relevance match
                 selected_tools = [tools[0]]
@@ -125,7 +162,9 @@ class ToolDecisionEngine:
 
         # Handle tool_choice = "auto" or None (default is auto)
         # Decide based on context and keywords
-        selected_tools = self._select_relevant_tools(messages, tools, parallel_tool_calls)
+        selected_tools = self._select_relevant_tools(
+            messages, tools, parallel_tool_calls
+        )
 
         if selected_tools:
             # Randomly decide to call tools (70% chance if keywords match)
@@ -217,13 +256,13 @@ class ToolDecisionEngine:
             score += 5.0
 
         # Check if tool name words appear
-        tool_name_words = re.findall(r'\w+', tool_name)
+        tool_name_words = re.findall(r"\w+", tool_name)
         for word in tool_name_words:
             if len(word) > 3 and word in message_text:
                 score += 2.0
 
         # Check description keywords
-        description_words = re.findall(r'\w+', tool_description)
+        description_words = re.findall(r"\w+", tool_description)
         for word in description_words:
             if len(word) > 4 and word in message_text:
                 score += 1.0
@@ -391,7 +430,9 @@ class ToolCallGenerator:
         if param_type == "string":
             return self._generate_string_value(param_name, param_description)
         elif param_type == "number" or param_type == "integer":
-            return self._generate_number_value(param_name, param_description, param_type)
+            return self._generate_number_value(
+                param_name, param_description, param_type
+            )
         elif param_type == "boolean":
             return random.choice([True, False])
         elif param_type == "array":
@@ -442,7 +483,7 @@ class ToolCallGenerator:
                     return city
 
             # Look for "in <location>" pattern
-            match = re.search(r'\bin\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', context)
+            match = re.search(r"\bin\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)", context)
             if match:
                 return match.group(1)
 
@@ -454,7 +495,7 @@ class ToolCallGenerator:
                 return match.group(1)
 
             # Return first sentence if it's a question
-            sentences = re.split(r'[.!?]', context)
+            sentences = re.split(r"[.!?]", context)
             if sentences and "?" in context:
                 for sentence in sentences:
                     if "?" in sentence:
@@ -463,14 +504,16 @@ class ToolCallGenerator:
         # Number extraction
         if param_type in ["number", "integer"]:
             # Look for numbers in context
-            numbers = re.findall(r'\b\d+(?:\.\d+)?\b', context)
+            numbers = re.findall(r"\b\d+(?:\.\d+)?\b", context)
             if numbers:
                 value = float(numbers[0]) if param_type == "number" else int(numbers[0])
                 return value
 
         # Email extraction
         if "email" in param_name.lower() or "recipient" in param_name.lower():
-            match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', context)
+            match = re.search(
+                r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", context
+            )
             if match:
                 return match.group(0)
 
@@ -478,9 +521,9 @@ class ToolCallGenerator:
         if "date" in param_name.lower() or "time" in param_name.lower():
             # Look for date patterns
             date_patterns = [
-                r'\b\d{4}-\d{2}-\d{2}\b',  # YYYY-MM-DD
-                r'\b\d{1,2}/\d{1,2}/\d{4}\b',  # MM/DD/YYYY
-                r'\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}\b',
+                r"\b\d{4}-\d{2}-\d{2}\b",  # YYYY-MM-DD
+                r"\b\d{1,2}/\d{1,2}/\d{4}\b",  # MM/DD/YYYY
+                r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}\b",
             ]
             for pattern in date_patterns:
                 match = re.search(pattern, context, re.IGNORECASE)

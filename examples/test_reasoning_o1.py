@@ -8,6 +8,7 @@ showing their internal thinking process before generating the final answer.
 GPT-OSS models are OpenAI's new open-source reasoning models (Apache 2.0, Aug 2025).
 """
 import asyncio
+
 from fakeai import AppConfig
 from fakeai.fakeai_service import FakeAIService
 from fakeai.models import ChatCompletionRequest, Message, Role
@@ -41,7 +42,9 @@ async def test_non_streaming():
     print(f"  Prompt tokens: {response.usage.prompt_tokens}")
     print(f"  Completion tokens: {response.usage.completion_tokens}")
     if response.usage.completion_tokens_details:
-        print(f"  Reasoning tokens: {response.usage.completion_tokens_details.reasoning_tokens}")
+        print(
+            f"  Reasoning tokens: {response.usage.completion_tokens_details.reasoning_tokens}"
+        )
     print()
 
 
@@ -142,10 +145,14 @@ async def main():
     print("  • reasoning_tokens in usage.completion_tokens_details")
     print("  • In streaming: reasoning tokens come first, then content")
     print()
-    print("O1 Models (deepseek-ai/DeepSeek-R1, deepseek-ai/DeepSeek-R1, deepseek-ai/DeepSeek-R1-Distill-Qwen-32B) - Legacy:")
+    print(
+        "O1 Models (deepseek-ai/DeepSeek-R1, deepseek-ai/DeepSeek-R1, deepseek-ai/DeepSeek-R1-Distill-Qwen-32B) - Legacy:"
+    )
     print("  • Same reasoning content features as gpt-oss")
     print()
-    print("Regular models (openai/gpt-oss-120b, meta-llama/Llama-3.1-8B-Instruct) do NOT include reasoning.")
+    print(
+        "Regular models (openai/gpt-oss-120b, meta-llama/Llama-3.1-8B-Instruct) do NOT include reasoning."
+    )
     print()
 
 

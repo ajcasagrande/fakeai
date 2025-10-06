@@ -9,31 +9,43 @@ import sys
 
 def test_help():
     """Test help command."""
-    print("Testing: fakeai-server --help")
-    result = subprocess.run(
-        ["fakeai-server", "--help"],
-        capture_output=True,
-        text=True
-    )
+    print("Testing: fakeai --help")
+    result = subprocess.run(["fakeai", "--help"], capture_output=True, text=True)
 
     assert "FakeAI - OpenAI Compatible API Server" in result.stdout
+    print("✓ Help command works\n")
+
+
+def test_server_help():
+    """Test server subcommand help."""
+    print("Testing: fakeai server --help")
+    result = subprocess.run(
+        ["fakeai", "server", "--help"], capture_output=True, text=True
+    )
+
+    assert "FakeAI" in result.stdout
     assert "--host" in result.stdout
     assert "--port" in result.stdout
     assert "--debug" in result.stdout
-    print("✓ Help command works\n")
+    print("✓ Server help command works\n")
 
 
 def test_version():
     """Test version command."""
-    print("Testing: fakeai-server --version")
-    result = subprocess.run(
-        ["fakeai-server", "--version"],
-        capture_output=True,
-        text=True
-    )
+    print("Testing: fakeai --version")
+    result = subprocess.run(["fakeai", "--version"], capture_output=True, text=True)
 
-    assert "0.0.4" in result.stdout
+    assert "0.0.5" in result.stdout
     print(f"✓ Version command works: {result.stdout.strip()}\n")
+
+
+def test_backward_compatibility():
+    """Test backward compatibility with old command."""
+    print("Testing: fakeai-server --help (backward compatibility)")
+    result = subprocess.run(["fakeai-server", "--help"], capture_output=True, text=True)
+
+    assert "FakeAI" in result.stdout
+    print("✓ Backward compatibility maintained\n")
 
 
 def test_argument_validation():
@@ -42,10 +54,10 @@ def test_argument_validation():
 
     # Test invalid port (too high)
     result = subprocess.run(
-        ["fakeai-server", "--port", "99999"],
+        ["fakeai", "server", "--port", "99999"],
         capture_output=True,
         text=True,
-        timeout=5
+        timeout=5,
     )
 
     # Should fail with validation error

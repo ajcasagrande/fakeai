@@ -4,6 +4,7 @@ API endpoint behavior tests.
 Tests the HTTP API behavior - status codes, response formats, error handling.
 Focuses on what the API DOES, not how it does it.
 """
+
 import pytest
 
 
@@ -111,7 +112,10 @@ class TestEmbeddingsEndpoint:
         """Valid embedding request should return 200 OK."""
         response = client_no_auth.post(
             "/v1/embeddings",
-            json={"model": "sentence-transformers/all-mpnet-base-v2", "input": "Test text"},
+            json={
+                "model": "sentence-transformers/all-mpnet-base-v2",
+                "input": "Test text",
+            },
         )
 
         assert response.status_code == 200
@@ -165,7 +169,11 @@ class TestResponsesAPIEndpoint:
         """Response should match Responses API format."""
         response = client_no_auth.post(
             "/v1/responses",
-            json={"model": "openai/gpt-oss-120b", "input": "Test", "max_output_tokens": 100},
+            json={
+                "model": "openai/gpt-oss-120b",
+                "input": "Test",
+                "max_output_tokens": 100,
+            },
         )
 
         data = response.json()
@@ -282,7 +290,11 @@ class TestHealthAndMetrics:
         data = response.json()
 
         assert "status" in data
-        assert data["status"] == "healthy"
+        assert data["status"] in [
+            "healthy",
+            "starting",
+        ]  # Can be starting during test setup
+        assert "ready" in data  # Should have readiness flag
 
     def test_metrics_returns_200(self, client_no_auth):
         """Metrics endpoint should return 200."""

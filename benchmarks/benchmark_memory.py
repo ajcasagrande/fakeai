@@ -239,7 +239,9 @@ class MemoryBenchmark:
         final_memory = snapshots[-1].rss_mb
         peak_memory = max(s.rss_mb for s in snapshots)
         memory_growth = final_memory - initial_memory
-        memory_growth_percent = (memory_growth / initial_memory * 100) if initial_memory > 0 else 0
+        memory_growth_percent = (
+            (memory_growth / initial_memory * 100) if initial_memory > 0 else 0
+        )
 
         avg_memory_per_request = (
             (memory_growth * 1024 / request_count) if request_count > 0 else 0
@@ -383,8 +385,12 @@ class MemoryBenchmark:
             final_memory_mb=final_memory,
             peak_memory_mb=peak_memory,
             memory_growth_mb=cache_overhead,
-            memory_growth_percent=(cache_overhead / initial_memory * 100) if initial_memory > 0 else 0,
-            avg_memory_per_request_kb=(cache_overhead * 1024 / request_count) if request_count > 0 else 0,
+            memory_growth_percent=(
+                (cache_overhead / initial_memory * 100) if initial_memory > 0 else 0
+            ),
+            avg_memory_per_request_kb=(
+                (cache_overhead * 1024 / request_count) if request_count > 0 else 0
+            ),
             leak_detected=False,
             leak_rate_mb_per_min=0.0,
             snapshots=snapshots,
@@ -405,7 +411,9 @@ class MemoryBenchmark:
         print(f"  Initial:             {result.initial_memory_mb:.2f} MB")
         print(f"  Final:               {result.final_memory_mb:.2f} MB")
         print(f"  Peak:                {result.peak_memory_mb:.2f} MB")
-        print(f"  Growth:              {result.memory_growth_mb:+.2f} MB ({result.memory_growth_percent:+.2f}%)")
+        print(
+            f"  Growth:              {result.memory_growth_mb:+.2f} MB ({result.memory_growth_percent:+.2f}%)"
+        )
         print(f"  Avg per Request:     {result.avg_memory_per_request_kb:.2f} KB")
         print(f"\nLeak Detection:")
         print(f"  Leak Detected:       {'YES' if result.leak_detected else 'NO'}")
@@ -418,8 +426,12 @@ class MemoryBenchmark:
 
         # Summary table
         report += "## Summary\n\n"
-        report += "| Test | Requests | Initial | Final | Growth | Leak? | Rate (MB/min) |\n"
-        report += "|------|----------|---------|-------|--------|-------|---------------|\n"
+        report += (
+            "| Test | Requests | Initial | Final | Growth | Leak? | Rate (MB/min) |\n"
+        )
+        report += (
+            "|------|----------|---------|-------|--------|-------|---------------|\n"
+        )
 
         for result in self.results:
             report += (
@@ -440,9 +452,15 @@ class MemoryBenchmark:
             report += f"- **Final Memory:** {result.final_memory_mb:.2f} MB\n"
             report += f"- **Peak Memory:** {result.peak_memory_mb:.2f} MB\n"
             report += f"- **Memory Growth:** {result.memory_growth_mb:+.2f} MB ({result.memory_growth_percent:+.2f}%)\n"
-            report += f"- **Avg per Request:** {result.avg_memory_per_request_kb:.2f} KB\n"
-            report += f"- **Leak Detected:** {'YES' if result.leak_detected else 'NO'}\n"
-            report += f"- **Growth Rate:** {result.leak_rate_mb_per_min:+.2f} MB/min\n\n"
+            report += (
+                f"- **Avg per Request:** {result.avg_memory_per_request_kb:.2f} KB\n"
+            )
+            report += (
+                f"- **Leak Detected:** {'YES' if result.leak_detected else 'NO'}\n"
+            )
+            report += (
+                f"- **Growth Rate:** {result.leak_rate_mb_per_min:+.2f} MB/min\n\n"
+            )
 
             # Memory timeline
             if result.snapshots:
@@ -473,13 +491,17 @@ class MemoryBenchmark:
             report += "All tests completed without detectable memory leaks.\n\n"
 
         # Memory efficiency
-        avg_per_request = sum(r.avg_memory_per_request_kb for r in self.results) / len(self.results)
+        avg_per_request = sum(r.avg_memory_per_request_kb for r in self.results) / len(
+            self.results
+        )
         report += f"**Average Memory per Request:** {avg_per_request:.2f} KB\n\n"
 
         return report
 
 
-async def run_all_benchmarks(base_url: str = "http://localhost:8000", api_key: str = "test"):
+async def run_all_benchmarks(
+    base_url: str = "http://localhost:8000", api_key: str = "test"
+):
     """Run all memory benchmarks."""
     if not PSUTIL_AVAILABLE:
         print("Error: psutil is required for memory benchmarking")

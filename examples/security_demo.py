@@ -14,10 +14,10 @@ import time
 from datetime import datetime, timedelta
 
 from fakeai.security import (
-    ApiKeyManager,
     AbuseDetector,
-    InputValidator,
+    ApiKeyManager,
     InjectionAttackDetected,
+    InputValidator,
     PayloadTooLarge,
     generate_api_key,
 )
@@ -252,9 +252,13 @@ def demo_abuse_detection():
     # Reset a record
     print("\n5. Resetting abuse record:")
     ip = ips[0]
-    print(f"   Before reset: violations = {detector.get_record(ip).get_total_violations()}")
+    print(
+        f"   Before reset: violations = {detector.get_record(ip).get_total_violations()}"
+    )
     detector.reset_record(ip)
-    print(f"   After reset: violations = {detector.get_record(ip).get_total_violations()}")
+    print(
+        f"   After reset: violations = {detector.get_record(ip).get_total_violations()}"
+    )
 
 
 def demo_security_scenarios():
@@ -349,6 +353,7 @@ def main():
     except Exception as e:
         print(f"\nError during demo: {e}")
         import traceback
+
         traceback.print_exc()
 
 

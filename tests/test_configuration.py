@@ -3,6 +3,7 @@ Configuration behavior tests.
 
 Tests configuration loading from environment variables and defaults.
 """
+
 import os
 
 import pytest
@@ -90,6 +91,7 @@ class TestConfigurationEnvironmentVariables:
     def test_loads_api_keys_from_env(self, monkeypatch):
         """Should load API keys from FAKEAI_API_KEYS (JSON array format)."""
         import json
+
         # Pydantic-settings expects JSON format for list types
         monkeypatch.setenv("FAKEAI_API_KEYS", json.dumps(["key1", "key2", "key3"]))
 
@@ -205,22 +207,30 @@ class TestKVCacheConfiguration:
 
     def test_kv_cache_num_workers_validation_minimum(self):
         """Should reject number of workers less than 1."""
-        with pytest.raises(ValueError, match="KV cache number of workers must be at least 1"):
+        with pytest.raises(
+            ValueError, match="KV cache number of workers must be at least 1"
+        ):
             AppConfig(kv_cache_num_workers=0)
 
     def test_kv_cache_num_workers_validation_maximum(self):
         """Should reject number of workers greater than 64."""
-        with pytest.raises(ValueError, match="KV cache number of workers cannot exceed 64"):
+        with pytest.raises(
+            ValueError, match="KV cache number of workers cannot exceed 64"
+        ):
             AppConfig(kv_cache_num_workers=65)
 
     def test_kv_overlap_weight_validation_minimum(self):
         """Should reject overlap weight less than 0.0."""
-        with pytest.raises(ValueError, match="KV overlap weight must be between 0.0 and 2.0"):
+        with pytest.raises(
+            ValueError, match="KV overlap weight must be between 0.0 and 2.0"
+        ):
             AppConfig(kv_overlap_weight=-0.1)
 
     def test_kv_overlap_weight_validation_maximum(self):
         """Should reject overlap weight greater than 2.0."""
-        with pytest.raises(ValueError, match="KV overlap weight must be between 0.0 and 2.0"):
+        with pytest.raises(
+            ValueError, match="KV overlap weight must be between 0.0 and 2.0"
+        ):
             AppConfig(kv_overlap_weight=2.1)
 
     def test_loads_kv_cache_settings_from_env(self, monkeypatch):
@@ -243,9 +253,9 @@ class TestSafetyConfiguration:
     """Test safety-related configuration options."""
 
     def test_default_enable_moderation(self):
-        """Content moderation should be enabled by default."""
+        """Content moderation should be disabled by default (for testing)."""
         config = AppConfig()
-        assert config.enable_moderation is True
+        assert config.enable_moderation is False
 
     def test_default_moderation_threshold(self):
         """Default moderation threshold should be 0.5."""
@@ -253,23 +263,27 @@ class TestSafetyConfiguration:
         assert config.moderation_threshold == 0.5
 
     def test_default_enable_refusals(self):
-        """Refusals should be enabled by default."""
+        """Refusals should be disabled by default (for testing)."""
         config = AppConfig()
-        assert config.enable_refusals is True
+        assert config.enable_refusals is False
 
     def test_default_enable_jailbreak_detection(self):
-        """Jailbreak detection should be enabled by default."""
+        """Jailbreak detection should be disabled by default (for testing)."""
         config = AppConfig()
-        assert config.enable_jailbreak_detection is True
+        assert config.enable_jailbreak_detection is False
 
     def test_moderation_threshold_validation_minimum(self):
         """Should reject moderation threshold less than 0.0."""
-        with pytest.raises(ValueError, match="Moderation threshold must be between 0.0 and 1.0"):
+        with pytest.raises(
+            ValueError, match="Moderation threshold must be between 0.0 and 1.0"
+        ):
             AppConfig(moderation_threshold=-0.1)
 
     def test_moderation_threshold_validation_maximum(self):
         """Should reject moderation threshold greater than 1.0."""
-        with pytest.raises(ValueError, match="Moderation threshold must be between 0.0 and 1.0"):
+        with pytest.raises(
+            ValueError, match="Moderation threshold must be between 0.0 and 1.0"
+        ):
             AppConfig(moderation_threshold=1.1)
 
     def test_moderation_threshold_boundary_values(self):
@@ -316,8 +330,19 @@ class TestAudioConfiguration:
 
     def test_default_voice_validation_valid_voices(self):
         """Should accept all valid voice options."""
-        valid_voices = ["alloy", "ash", "ballad", "coral", "echo", "fable",
-                       "onyx", "nova", "shimmer", "sage", "verse"]
+        valid_voices = [
+            "alloy",
+            "ash",
+            "ballad",
+            "coral",
+            "echo",
+            "fable",
+            "onyx",
+            "nova",
+            "shimmer",
+            "sage",
+            "verse",
+        ]
 
         for voice in valid_voices:
             config = AppConfig(default_voice=voice)

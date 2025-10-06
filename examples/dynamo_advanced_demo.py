@@ -11,12 +11,13 @@ Shows all Dynamo components working together:
 - Dynamic endpoint registration
 """
 import time
+
 from fakeai.dynamo_advanced import (
+    BlockState,
     DynamoSystem,
-    SLATarget,
     LoadPredictor,
     MemoryTier,
-    BlockState,
+    SLATarget,
 )
 
 
@@ -90,14 +91,22 @@ def main():
     print("\nTesting prefill/decode disaggregation decisions...")
 
     print("\n1. Short input (100 tokens):")
-    result1 = dynamo.process_request("req-short", input_length=100, model="openai/gpt-oss-120b")
-    print(f"   Decision: {'Remote Prefill' if result1['decision']['use_remote_prefill'] else 'Local Prefill'}")
+    result1 = dynamo.process_request(
+        "req-short", input_length=100, model="openai/gpt-oss-120b"
+    )
+    print(
+        f"   Decision: {'Remote Prefill' if result1['decision']['use_remote_prefill'] else 'Local Prefill'}"
+    )
     print(f"   Reason: {result1['decision']['reason']}")
     print(f"   KV blocks allocated: {result1['kv_blocks_allocated']}")
 
     print("\n2. Long input (2048 tokens):")
-    result2 = dynamo.process_request("req-long", input_length=2048, model="openai/gpt-oss-120b")
-    print(f"   Decision: {'Remote Prefill' if result2['decision']['use_remote_prefill'] else 'Local Prefill'}")
+    result2 = dynamo.process_request(
+        "req-long", input_length=2048, model="openai/gpt-oss-120b"
+    )
+    print(
+        f"   Decision: {'Remote Prefill' if result2['decision']['use_remote_prefill'] else 'Local Prefill'}"
+    )
     print(f"   Reason: {result2['decision']['reason']}")
     print(f"   KV blocks allocated: {result2['kv_blocks_allocated']}")
 
@@ -213,9 +222,15 @@ def main():
 
     print(f"\n   Endpoint Details:")
     for ep in endpoint_stats["endpoints"]:
-        status_symbol = "✓" if ep["status"] == "healthy" else ("⚠" if ep["status"] == "degraded" else "✗")
+        status_symbol = (
+            "✓"
+            if ep["status"] == "healthy"
+            else ("⚠" if ep["status"] == "degraded" else "✗")
+        )
         print(f"     {status_symbol} {ep['id']}: {ep['model']} ({ep['backend']})")
-        print(f"        Requests: {ep['requests']}, Errors: {ep['errors']}, Error Rate: {ep['error_rate']:.1%}")
+        print(
+            f"        Requests: {ep['requests']}, Errors: {ep['errors']}, Error Rate: {ep['error_rate']:.1%}"
+        )
         print(f"        Avg Latency: {ep['avg_latency_ms']:.1f}ms")
 
     # ========================================================================
@@ -238,8 +253,12 @@ def main():
 
     print(f"\nKVBM Summary:")
     print(f"   Total blocks in registry: {stats['kvbm']['total_blocks']}")
-    print(f"   GPU (G1) utilization: {stats['kvbm']['pools']['gpu_hbm']['utilization_pct']:.1f}%")
-    print(f"   CPU (G2) utilization: {stats['kvbm']['pools']['cpu_dram']['utilization_pct']:.1f}%")
+    print(
+        f"   GPU (G1) utilization: {stats['kvbm']['pools']['gpu_hbm']['utilization_pct']:.1f}%"
+    )
+    print(
+        f"   CPU (G2) utilization: {stats['kvbm']['pools']['cpu_dram']['utilization_pct']:.1f}%"
+    )
 
     print(f"\nRouter Summary:")
     print(f"   Local prefill decisions: {stats['router']['local_prefill_count']}")
@@ -256,7 +275,8 @@ def main():
     # ========================================================================
     print_section("Summary")
 
-    print("""
+    print(
+        """
 NVIDIA AI-Dynamo Advanced Features:
 
 ✓ KVBM (KV Block Manager)
@@ -290,7 +310,8 @@ NVIDIA AI-Dynamo Advanced Features:
   - Model-based endpoint discovery
 
 All components are production-ready and fully tested!
-    """)
+    """
+    )
 
     print("\n" + "=" * 70)
     print("  Demo Complete!")

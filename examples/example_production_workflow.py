@@ -19,11 +19,12 @@ for building production AI applications with FakeAI.
 """
 import asyncio
 import time
-from typing import Optional, AsyncIterator
 from dataclasses import dataclass
 from enum import Enum
-from openai import AsyncOpenAI, APIError
+from typing import AsyncIterator, Optional
+
 import httpx
+from openai import APIError, AsyncOpenAI
 
 # Base URL for FakeAI server
 BASE_URL = "http://localhost:8000"
@@ -31,6 +32,7 @@ BASE_URL = "http://localhost:8000"
 
 class MessageType(Enum):
     """Types of messages in the system."""
+
     USER = "user"
     ASSISTANT = "assistant"
     SYSTEM = "system"
@@ -40,6 +42,7 @@ class MessageType(Enum):
 @dataclass
 class RequestMetrics:
     """Metrics for a single request."""
+
     request_id: str
     moderation_time_ms: float
     cache_hit: bool
@@ -140,8 +143,7 @@ class ProductionChatService:
         moderation_time = 0.0
         if self.enable_moderation and messages:
             last_user_msg = next(
-                (m for m in reversed(messages) if m["role"] == "user"),
-                None
+                (m for m in reversed(messages) if m["role"] == "user"), None
             )
 
             if last_user_msg:
@@ -194,13 +196,17 @@ class ProductionChatService:
                             response_text += chunk.choices[0].delta.content
 
                         # Get usage from final chunk
-                        if hasattr(chunk, 'usage') and chunk.usage:
+                        if hasattr(chunk, "usage") and chunk.usage:
                             prompt_tokens = chunk.usage.prompt_tokens
                             completion_tokens = chunk.usage.completion_tokens
                             if chunk.usage.prompt_tokens_details:
-                                cached_tokens = chunk.usage.prompt_tokens_details.cached_tokens
+                                cached_tokens = (
+                                    chunk.usage.prompt_tokens_details.cached_tokens
+                                )
                             if chunk.usage.completion_tokens_details:
-                                reasoning_tokens = chunk.usage.completion_tokens_details.reasoning_tokens
+                                reasoning_tokens = (
+                                    chunk.usage.completion_tokens_details.reasoning_tokens
+                                )
 
                     llm_time = (time.time() - llm_start) * 1000
 
@@ -242,11 +248,15 @@ class ProductionChatService:
                     # Build metrics
                     cached_tokens = 0
                     if response.usage.prompt_tokens_details:
-                        cached_tokens = response.usage.prompt_tokens_details.cached_tokens
+                        cached_tokens = (
+                            response.usage.prompt_tokens_details.cached_tokens
+                        )
 
                     reasoning_tokens = 0
                     if response.usage.completion_tokens_details:
-                        reasoning_tokens = response.usage.completion_tokens_details.reasoning_tokens
+                        reasoning_tokens = (
+                            response.usage.completion_tokens_details.reasoning_tokens
+                        )
 
                     elapsed = (time.time() - total_start) * 1000
                     metrics = RequestMetrics(
@@ -271,7 +281,7 @@ class ProductionChatService:
 
                 if attempt < 2:
                     # Exponential backoff
-                    await asyncio.sleep(2 ** attempt)
+                    await asyncio.sleep(2**attempt)
                     continue
 
                 # All retries failed
@@ -320,10 +330,21 @@ class ProductionChatService:
             "successful": len(successful),
             "failed": len(failed),
             "success_rate": len(successful) / total_requests * 100,
-            "cache_hit_rate": len(cache_hits) / total_requests * 100 if total_requests > 0 else 0,
-            "avg_total_time_ms": sum(m.total_time_ms for m in successful) / len(successful) if successful else 0,
-            "avg_llm_time_ms": sum(m.llm_time_ms for m in successful) / len(successful) if successful else 0,
-            "avg_moderation_time_ms": sum(m.moderation_time_ms for m in self.metrics) / total_requests,
+            "cache_hit_rate": (
+                len(cache_hits) / total_requests * 100 if total_requests > 0 else 0
+            ),
+            "avg_total_time_ms": (
+                sum(m.total_time_ms for m in successful) / len(successful)
+                if successful
+                else 0
+            ),
+            "avg_llm_time_ms": (
+                sum(m.llm_time_ms for m in successful) / len(successful)
+                if successful
+                else 0
+            ),
+            "avg_moderation_time_ms": sum(m.moderation_time_ms for m in self.metrics)
+            / total_requests,
             "total_prompt_tokens": sum(m.prompt_tokens for m in successful),
             "total_completion_tokens": sum(m.completion_tokens for m in successful),
             "total_reasoning_tokens": sum(m.reasoning_tokens for m in successful),
@@ -345,7 +366,7 @@ async def demonstrate_basic_workflow():
 
     messages = [
         {"role": "system", "content": "You are a helpful AI assistant."},
-        {"role": "user", "content": "What is machine learning?"}
+        {"role": "user", "content": "What is machine learning?"},
     ]
 
     response, metrics = await service.chat_completion(messages)
@@ -373,18 +394,16 @@ async def demonstrate_moderation_protection():
     service = ProductionChatService(enable_moderation=True)
 
     test_cases = [
-        "How do I learn Python?",           # Safe
-        "I want to hurt someone",           # Unsafe
-        "What's the weather like?",         # Safe
+        "How do I learn Python?",  # Safe
+        "I want to hurt someone",  # Unsafe
+        "What's the weather like?",  # Safe
     ]
 
     for i, user_msg in enumerate(test_cases, 1):
         print(f"Test {i}: {user_msg}")
         print("-" * 80)
 
-        messages = [
-            {"role": "user", "content": user_msg}
-        ]
+        messages = [{"role": "user", "content": user_msg}]
 
         response, metrics = await service.chat_completion(messages)
 
@@ -421,14 +440,16 @@ async def demonstrate_cache_optimization():
     for i, question in enumerate(questions, 1):
         messages = [
             {"role": "system", "content": system_msg},
-            {"role": "user", "content": question}
+            {"role": "user", "content": question},
         ]
 
         response, metrics = await service.chat_completion(messages)
 
         cache_status = "HIT" if metrics.cache_hit else "MISS"
-        print(f"Request {i}: [{cache_status}] {metrics.cached_tokens} tokens cached, "
-              f"{metrics.llm_time_ms:.2f}ms")
+        print(
+            f"Request {i}: [{cache_status}] {metrics.cached_tokens} tokens cached, "
+            f"{metrics.llm_time_ms:.2f}ms"
+        )
 
     print()
 
@@ -446,7 +467,10 @@ async def demonstrate_reasoning_workflow():
     print()
 
     messages = [
-        {"role": "user", "content": "If I have $100 and spend 30% on groceries and 20% on gas, how much remains?"}
+        {
+            "role": "user",
+            "content": "If I have $100 and spend 30% on groceries and 20% on gas, how much remains?",
+        }
     ]
 
     response, metrics = await service.chat_completion(
@@ -458,7 +482,9 @@ async def demonstrate_reasoning_workflow():
     print()
     print("Metrics:")
     print(f"  Reasoning tokens:  {metrics.reasoning_tokens}")
-    print(f"  Content tokens:    {metrics.completion_tokens - metrics.reasoning_tokens}")
+    print(
+        f"  Content tokens:    {metrics.completion_tokens - metrics.reasoning_tokens}"
+    )
     print(f"  Total time:        {metrics.total_time_ms:.2f}ms")
     print()
 
@@ -475,9 +501,7 @@ async def demonstrate_streaming_workflow():
     print("Streaming response...")
     print("-" * 80)
 
-    messages = [
-        {"role": "user", "content": "Count from 1 to 5"}
-    ]
+    messages = [{"role": "user", "content": "Count from 1 to 5"}]
 
     response, metrics = await service.chat_completion(
         messages,
@@ -506,9 +530,7 @@ async def demonstrate_error_handling():
     print("(This will demonstrate retry logic)")
     print()
 
-    messages = [
-        {"role": "user", "content": "Hello"}
-    ]
+    messages = [{"role": "user", "content": "Hello"}]
 
     response, metrics = await service.chat_completion(messages)
 
@@ -548,17 +570,19 @@ async def demonstrate_comprehensive_workflow():
         print(f"User: {user_input}")
 
         # Build messages
-        messages = [system_msg] + conversation + [
-            {"role": "user", "content": user_input}
-        ]
+        messages = (
+            [system_msg] + conversation + [{"role": "user", "content": user_input}]
+        )
 
         # Get response
         response, metrics = await service.chat_completion(messages)
 
         print(f"Assistant: {response[:100]}...")
-        print(f"  Time: {metrics.llm_time_ms:.2f}ms | "
-              f"Cached: {metrics.cached_tokens} tokens | "
-              f"Cache hit: {metrics.cache_hit}")
+        print(
+            f"  Time: {metrics.llm_time_ms:.2f}ms | "
+            f"Cached: {metrics.cached_tokens} tokens | "
+            f"Cache hit: {metrics.cache_hit}"
+        )
         print()
 
         # Add to conversation
@@ -573,7 +597,9 @@ async def demonstrate_comprehensive_workflow():
     print(f"  Success rate:        {summary['success_rate']:.1f}%")
     print(f"  Cache hit rate:      {summary['cache_hit_rate']:.1f}%")
     print(f"  Avg response time:   {summary['avg_llm_time_ms']:.2f}ms")
-    print(f"  Total tokens:        {summary['total_prompt_tokens'] + summary['total_completion_tokens']}")
+    print(
+        f"  Total tokens:        {summary['total_prompt_tokens'] + summary['total_completion_tokens']}"
+    )
     print(f"  Cached tokens saved: {summary['total_cached_tokens']}")
     print()
 

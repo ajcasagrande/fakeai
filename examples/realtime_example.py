@@ -32,46 +32,58 @@ async def realtime_example():
 
         # Update session configuration
         print("\n--- Updating session configuration ---")
-        await websocket.send(json.dumps({
-            "type": "session.update",
-            "session": {
-                "modalities": ["text", "audio"],
-                "instructions": "You are a helpful AI assistant. Be concise and friendly.",
-                "voice": "alloy",
-                "temperature": 0.8,
-            }
-        }))
+        await websocket.send(
+            json.dumps(
+                {
+                    "type": "session.update",
+                    "session": {
+                        "modalities": ["text", "audio"],
+                        "instructions": "You are a helpful AI assistant. Be concise and friendly.",
+                        "voice": "alloy",
+                        "temperature": 0.8,
+                    },
+                }
+            )
+        )
 
         session_updated = json.loads(await websocket.recv())
         print(f"Received: {session_updated['type']}")
 
         # Example 1: Create a text conversation item
         print("\n--- Creating text conversation item ---")
-        await websocket.send(json.dumps({
-            "type": "conversation.item.create",
-            "item": {
-                "type": "message",
-                "role": "user",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": "Tell me a short joke about programming.",
-                    }
-                ],
-            },
-        }))
+        await websocket.send(
+            json.dumps(
+                {
+                    "type": "conversation.item.create",
+                    "item": {
+                        "type": "message",
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_text",
+                                "text": "Tell me a short joke about programming.",
+                            }
+                        ],
+                    },
+                }
+            )
+        )
 
         item_created = json.loads(await websocket.recv())
         print(f"Received: {item_created['type']}")
 
         # Create a text-only response
         print("\n--- Creating text response ---")
-        await websocket.send(json.dumps({
-            "type": "response.create",
-            "response": {
-                "modalities": ["text"],
-            },
-        }))
+        await websocket.send(
+            json.dumps(
+                {
+                    "type": "response.create",
+                    "response": {
+                        "modalities": ["text"],
+                    },
+                }
+            )
+        )
 
         # Receive streaming response
         full_text = ""
@@ -96,10 +108,14 @@ async def realtime_example():
 
         # Append audio chunks
         for i in range(5):
-            await websocket.send(json.dumps({
-                "type": "input_audio_buffer.append",
-                "audio": fake_audio + str(i),
-            }))
+            await websocket.send(
+                json.dumps(
+                    {
+                        "type": "input_audio_buffer.append",
+                        "audio": fake_audio + str(i),
+                    }
+                )
+            )
 
             # Check for speech detection
             try:
@@ -112,9 +128,13 @@ async def realtime_example():
 
         # Commit the audio buffer
         print("\n--- Committing audio buffer ---")
-        await websocket.send(json.dumps({
-            "type": "input_audio_buffer.commit",
-        }))
+        await websocket.send(
+            json.dumps(
+                {
+                    "type": "input_audio_buffer.commit",
+                }
+            )
+        )
 
         # Receive events
         events_received = 0
@@ -126,19 +146,25 @@ async def realtime_example():
 
             if event["type"] == "conversation.item.created":
                 print(f"Conversation item: {event['item']['type']}")
-                if event['item']['content']:
+                if event["item"]["content"]:
                     print(f"Content type: {event['item']['content'][0]['type']}")
-                    if event['item']['content'][0].get('transcript'):
-                        print(f"Transcript: {event['item']['content'][0]['transcript']}")
+                    if event["item"]["content"][0].get("transcript"):
+                        print(
+                            f"Transcript: {event['item']['content'][0]['transcript']}"
+                        )
 
         # Example 3: Create an audio response
         print("\n--- Creating audio response ---")
-        await websocket.send(json.dumps({
-            "type": "response.create",
-            "response": {
-                "modalities": ["audio"],
-            },
-        }))
+        await websocket.send(
+            json.dumps(
+                {
+                    "type": "response.create",
+                    "response": {
+                        "modalities": ["audio"],
+                    },
+                }
+            )
+        )
 
         # Receive streaming audio response
         audio_chunks = []

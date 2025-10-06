@@ -1,14 +1,15 @@
 """
 Tests for tool calling decision engine and argument generation.
 """
+
 #  SPDX-License-Identifier: Apache-2.0
 
 import pytest
 
 from fakeai.models import Message, Role, Tool, ToolChoice
 from fakeai.tool_calling import (
-    ToolDecisionEngine,
     ToolCallGenerator,
+    ToolDecisionEngine,
     extract_text_content,
 )
 
@@ -112,9 +113,7 @@ def sample_tools():
 def test_tool_decision_no_tools(tool_engine):
     """Test that no tools are called when none are provided."""
     messages = [Message(role=Role.USER, content="Hello, world!")]
-    should_call, tools = tool_engine.should_call_tools(
-        messages, None, "auto", True
-    )
+    should_call, tools = tool_engine.should_call_tools(messages, None, "auto", True)
     assert should_call is False
     assert tools == []
 
@@ -246,6 +245,7 @@ def test_generate_tool_calls(tool_generator, sample_tools):
     assert tool_calls[0].function.name == "get_weather"
     # Arguments should be valid JSON
     import json
+
     args = json.loads(tool_calls[0].function.arguments)
     assert "location" in args
 
@@ -283,9 +283,7 @@ def test_generate_arguments_query(tool_generator):
         "name": "search",
         "parameters": {
             "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Search query"}
-            },
+            "properties": {"query": {"type": "string", "description": "Search query"}},
             "required": ["query"],
         },
     }
@@ -320,7 +318,9 @@ def test_generate_string_values(tool_generator):
 def test_generate_number_values(tool_generator):
     """Test generating number values."""
     # Temperature
-    temp = tool_generator._generate_number_value("temperature", "temp in celsius", "number")
+    temp = tool_generator._generate_number_value(
+        "temperature", "temp in celsius", "number"
+    )
     assert isinstance(temp, (int, float))
     assert -50 <= temp <= 50
 
@@ -377,9 +377,7 @@ def test_generate_array_parameter(tool_generator):
         "items": {"type": "string"},
     }
 
-    value = tool_generator._generate_parameter_value(
-        "tags", param_schema, ""
-    )
+    value = tool_generator._generate_parameter_value("tags", param_schema, "")
 
     assert isinstance(value, list)
     assert len(value) >= 1
@@ -397,9 +395,7 @@ def test_generate_object_parameter(tool_generator):
         },
     }
 
-    value = tool_generator._generate_parameter_value(
-        "user", param_schema, ""
-    )
+    value = tool_generator._generate_parameter_value("user", param_schema, "")
 
     assert isinstance(value, dict)
     assert "name" in value
@@ -414,9 +410,7 @@ def test_generate_enum_parameter(tool_generator):
         "enum": ["option1", "option2", "option3"],
     }
 
-    value = tool_generator._generate_parameter_value(
-        "choice", param_schema, ""
-    )
+    value = tool_generator._generate_parameter_value("choice", param_schema, "")
 
     assert value in ["option1", "option2", "option3"]
 
@@ -510,4 +504,7 @@ def test_generate_realistic_search_call(tool_generator):
 
     # Should extract the query
     assert "query" in args
-    assert "machine learning" in args["query"].lower() or "algorithms" in args["query"].lower()
+    assert (
+        "machine learning" in args["query"].lower()
+        or "algorithms" in args["query"].lower()
+    )

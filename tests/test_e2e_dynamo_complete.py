@@ -14,28 +14,31 @@ Meticulous validation of:
 
 Each test validates actual behavior with precision, avoiding trivial checks.
 """
-import pytest
-import time
+
 import asyncio
+import time
 from collections import Counter
+
+import pytest
+
 from fakeai.dynamo_advanced import (
+    BlockState,
+    DisaggregatedRouter,
+    DynamicEndpointRegistry,
     DynamoSystem,
     KVBlockManager,
+    LoadPredictor,
+    MemoryTier,
+    PrefillQueue,
+    PrefillQueueItem,
     SLABasedPlanner,
     SLATarget,
-    LoadPredictor,
-    DisaggregatedRouter,
-    PrefillQueue,
-    DynamicEndpointRegistry,
-    MemoryTier,
-    BlockState,
-    PrefillQueueItem,
 )
-
 
 # ============================================================================
 # KVBM Memory Management End-to-End Tests
 # ============================================================================
+
 
 class TestKVBMMemoryManagement:
     """
@@ -127,7 +130,9 @@ class TestKVBMMemoryManagement:
         assert transferred_block.state == BlockState.REGISTERED, "State should persist"
         assert len(transferred_block.tokens) == 32, "Tokens should persist"
         assert transferred_block.access_count == 5, "Access count should persist"
-        assert transferred_block.owner_request_id == "req-test-123", "Owner should persist"
+        assert (
+            transferred_block.owner_request_id == "req-test-123"
+        ), "Owner should persist"
         assert transferred_block.tier == MemoryTier.G2_CPU_DRAM, "Tier should update"
 
     def test_kvbm_lru_eviction_correctness(self):
@@ -152,7 +157,7 @@ class TestKVBMMemoryManagement:
         blocks[1].last_accessed = now - 80
         blocks[2].last_accessed = now - 50
         blocks[3].last_accessed = now - 20
-        blocks[4].last_accessed = now - 5   # Newest
+        blocks[4].last_accessed = now - 5  # Newest
 
         # Evict 3 blocks
         for i in range(3):
@@ -181,7 +186,9 @@ class TestKVBMMemoryManagement:
 
         # Offload 3 GPU blocks to CPU
         for i in range(3):
-            success = kvbm.offload_to_tier(gpu_blocks[i].block_id, MemoryTier.G2_CPU_DRAM)
+            success = kvbm.offload_to_tier(
+                gpu_blocks[i].block_id, MemoryTier.G2_CPU_DRAM
+            )
             assert success is True
 
         # Verify distribution
@@ -216,6 +223,7 @@ class TestKVBMMemoryManagement:
 # SLA Planner Decision Accuracy Tests
 # ============================================================================
 
+
 class TestSLAPlannerAccuracy:
     """
     Test SLA planner makes correct scaling decisions.
@@ -237,14 +245,18 @@ class TestSLAPlannerAccuracy:
         base_load = 10
         for i in range(20):
             load = base_load + (1 if i % 2 == 0 else -1)  # 9, 11, 9, 11, ...
-            planner.record_request_metrics(ttft_ms=150.0, itl_ms=20.0, request_count=load)
+            planner.record_request_metrics(
+                ttft_ms=150.0, itl_ms=20.0, request_count=load
+            )
 
         # Predict multiple times (should be stable)
         predictions = [planner.predict_load() for _ in range(5)]
 
         # All predictions should be within 1 of base_load
         for pred in predictions:
-            assert abs(pred - base_load) <= 1.5, f"Prediction {pred} deviates too much from {base_load}"
+            assert (
+                abs(pred - base_load) <= 1.5
+            ), f"Prediction {pred} deviates too much from {base_load}"
 
         # Predictions should be consistent (same input → same output)
         assert max(predictions) - min(predictions) < 0.5, "Predictions should be stable"
@@ -260,7 +272,9 @@ class TestSLAPlannerAccuracy:
         # Record linearly increasing load (5, 7, 9, 11, ..., 33)
         for i in range(15):
             load = 5 + (i * 2)
-            planner.record_request_metrics(ttft_ms=150.0, itl_ms=20.0, request_count=load)
+            planner.record_request_metrics(
+                ttft_ms=150.0, itl_ms=20.0, request_count=load
+            )
 
         # Predict future load
         predicted = planner.predict_load()
@@ -269,8 +283,12 @@ class TestSLAPlannerAccuracy:
         recent_values = list(range(5, 35, 2))[-5:]  # Last 5: [25, 27, 29, 31, 33]
         recent_avg = sum(recent_values) / 5  # 29
 
-        assert predicted > recent_avg, f"ARIMA should predict {predicted} > recent avg {recent_avg}"
-        assert 30 <= predicted <= 40, f"Prediction {predicted} should project trend forward"
+        assert (
+            predicted > recent_avg
+        ), f"ARIMA should predict {predicted} > recent avg {recent_avg}"
+        assert (
+            30 <= predicted <= 40
+        ), f"Prediction {predicted} should project trend forward"
 
     def test_planner_scaling_decision_threshold(self):
         """
@@ -302,7 +320,9 @@ class TestSLAPlannerAccuracy:
 
         # Record high load (should trigger scale-up)
         for _ in range(10):
-            planner.record_request_metrics(ttft_ms=800.0, itl_ms=100.0, request_count=50)
+            planner.record_request_metrics(
+                ttft_ms=800.0, itl_ms=100.0, request_count=50
+            )
 
         should_scale_up, new_allocation_up = planner.should_scale()
 
@@ -335,8 +355,12 @@ class TestSLAPlannerAccuracy:
         # prefill_throughput ~= 1 / (ttft / 1000) = 1 / 0.2 = 5 req/s per GPU
         # With predicted load of 40: need 40 / 5 = 8 GPUs minimum
         # Actual allocation should be reasonable
-        assert allocation.prefill_workers >= 1, "Should allocate at least 1 prefill worker"
-        assert allocation.decode_workers >= 1, "Should allocate at least 1 decode worker"
+        assert (
+            allocation.prefill_workers >= 1
+        ), "Should allocate at least 1 prefill worker"
+        assert (
+            allocation.decode_workers >= 1
+        ), "Should allocate at least 1 decode worker"
 
         # Total capacity should meet demand
         total_capacity_estimate = allocation.prefill_workers + allocation.decode_workers
@@ -346,6 +370,7 @@ class TestSLAPlannerAccuracy:
 # ============================================================================
 # Disaggregated Router Decision Tests
 # ============================================================================
+
 
 class TestDisaggregationRouterDecisions:
     """
@@ -378,8 +403,12 @@ class TestDisaggregationRouterDecisions:
         decision_below = router.make_decision(input_length=511, current_queue_depth=5)
 
         # Verify boundary behavior
-        assert decision_below.use_remote_prefill is False, "Below threshold should be local"
-        assert decision_above.use_remote_prefill is True, "Above threshold should be remote (with queue space)"
+        assert (
+            decision_below.use_remote_prefill is False
+        ), "Below threshold should be local"
+        assert (
+            decision_above.use_remote_prefill is True
+        ), "Above threshold should be remote (with queue space)"
 
     def test_router_queue_capacity_override(self):
         """
@@ -396,13 +425,19 @@ class TestDisaggregationRouterDecisions:
         # Long input, but queue nearly full
         decision_full = router.make_decision(input_length=2048, current_queue_depth=12)
 
-        assert decision_full.use_remote_prefill is False, "Should fallback to local when queue full"
+        assert (
+            decision_full.use_remote_prefill is False
+        ), "Should fallback to local when queue full"
         assert "queue_full" in decision_full.reason
 
         # Same input, queue available
-        decision_available = router.make_decision(input_length=2048, current_queue_depth=3)
+        decision_available = router.make_decision(
+            input_length=2048, current_queue_depth=3
+        )
 
-        assert decision_available.use_remote_prefill is True, "Should use remote when queue available"
+        assert (
+            decision_available.use_remote_prefill is True
+        ), "Should use remote when queue available"
         assert "remote" in decision_available.reason
 
     def test_router_statistical_distribution(self):
@@ -431,7 +466,9 @@ class TestDisaggregationRouterDecisions:
         remote_ratio = remote_count / 1000
 
         # Should be approximately 40% (long inputs)
-        assert 0.35 <= remote_ratio <= 0.45, f"Remote ratio {remote_ratio:.2%} should be ~40%"
+        assert (
+            0.35 <= remote_ratio <= 0.45
+        ), f"Remote ratio {remote_ratio:.2%} should be ~40%"
 
         # Verify stats match
         stats = router.get_stats()
@@ -442,6 +479,7 @@ class TestDisaggregationRouterDecisions:
 # ============================================================================
 # Prefill Queue Behavior Tests
 # ============================================================================
+
 
 class TestPrefillQueueBehavior:
     """
@@ -551,7 +589,9 @@ class TestPrefillQueueBehavior:
 
         # Wait time should be ~100ms + enqueue time spread + test overhead
         # Allow wider range due to system timing variability
-        assert 0.09 <= actual_wait <= 0.25, f"Wait time {actual_wait:.3f}s should be ~0.1-0.2s"
+        assert (
+            0.09 <= actual_wait <= 0.25
+        ), f"Wait time {actual_wait:.3f}s should be ~0.1-0.2s"
 
         # Get stats (should show average wait time)
         stats = queue.get_stats()
@@ -563,6 +603,7 @@ class TestPrefillQueueBehavior:
 # ============================================================================
 # Multi-Component Interaction Tests
 # ============================================================================
+
 
 class TestMultiComponentInteraction:
     """
@@ -585,18 +626,26 @@ class TestMultiComponentInteraction:
         initial_depth = dynamo.prefill_queue.get_depth()
 
         # Process short request (should be local)
-        result_short = dynamo.process_request("req-short", input_length=100, model="openai/gpt-oss-120b")
+        result_short = dynamo.process_request(
+            "req-short", input_length=100, model="openai/gpt-oss-120b"
+        )
         depth_after_short = dynamo.prefill_queue.get_depth()
 
         assert result_short["decision"]["use_remote_prefill"] is False
-        assert depth_after_short == initial_depth, "Local prefill shouldn't affect queue"
+        assert (
+            depth_after_short == initial_depth
+        ), "Local prefill shouldn't affect queue"
 
         # Process long request (should be remote)
-        result_long = dynamo.process_request("req-long", input_length=1024, model="openai/gpt-oss-120b")
+        result_long = dynamo.process_request(
+            "req-long", input_length=1024, model="openai/gpt-oss-120b"
+        )
         depth_after_long = dynamo.prefill_queue.get_depth()
 
         assert result_long["decision"]["use_remote_prefill"] is True
-        assert depth_after_long == depth_after_short + 1, "Remote prefill should enqueue"
+        assert (
+            depth_after_long == depth_after_short + 1
+        ), "Remote prefill should enqueue"
 
     def test_sla_violation_triggers_scaling_recommendation(self):
         """
@@ -616,8 +665,8 @@ class TestMultiComponentInteraction:
         for i in range(20):
             dynamo.planner.record_request_metrics(
                 ttft_ms=500.0,  # 5x over target
-                itl_ms=50.0,    # 5x over target
-                request_count=60 + i  # Increasing load
+                itl_ms=50.0,  # 5x over target
+                request_count=60 + i,  # Increasing load
             )
 
         # Check scaling decision
@@ -625,8 +674,9 @@ class TestMultiComponentInteraction:
 
         # Should recommend scaling up
         assert should_scale is True, "Should recommend scaling for SLA violations"
-        assert (new_allocation.prefill_workers > 1 or
-                new_allocation.decode_workers > 1), "Should increase workers"
+        assert (
+            new_allocation.prefill_workers > 1 or new_allocation.decode_workers > 1
+        ), "Should increase workers"
 
     def test_endpoint_failure_affects_allocation(self):
         """
@@ -637,9 +687,15 @@ class TestMultiComponentInteraction:
         dynamo = DynamoSystem()
 
         # Register 3 endpoints for same model
-        ep1 = dynamo.endpoint_registry.register_endpoint("http://w1:8000", "openai/gpt-oss-120b", "vllm")
-        ep2 = dynamo.endpoint_registry.register_endpoint("http://w2:8000", "openai/gpt-oss-120b", "vllm")
-        ep3 = dynamo.endpoint_registry.register_endpoint("http://w3:8000", "openai/gpt-oss-120b", "vllm")
+        ep1 = dynamo.endpoint_registry.register_endpoint(
+            "http://w1:8000", "openai/gpt-oss-120b", "vllm"
+        )
+        ep2 = dynamo.endpoint_registry.register_endpoint(
+            "http://w2:8000", "openai/gpt-oss-120b", "vllm"
+        )
+        ep3 = dynamo.endpoint_registry.register_endpoint(
+            "http://w3:8000", "openai/gpt-oss-120b", "vllm"
+        )
 
         # All should be healthy initially
         healthy = dynamo.endpoint_registry.get_healthy_endpoints("openai/gpt-oss-120b")
@@ -647,13 +703,17 @@ class TestMultiComponentInteraction:
 
         # Simulate failures on ep2
         for _ in range(10):
-            dynamo.endpoint_registry.record_request(ep2, success=False, latency_ms=1000.0)
+            dynamo.endpoint_registry.record_request(
+                ep2, success=False, latency_ms=1000.0
+            )
 
         # Mark as unhealthy
         dynamo.endpoint_registry.update_health(ep2, "unhealthy")
 
         # Now only 2 healthy endpoints
-        healthy_after = dynamo.endpoint_registry.get_healthy_endpoints("openai/gpt-oss-120b")
+        healthy_after = dynamo.endpoint_registry.get_healthy_endpoints(
+            "openai/gpt-oss-120b"
+        )
         assert len(healthy_after) == 2
         assert all(e.endpoint_id != ep2 for e in healthy_after)
 
@@ -689,7 +749,9 @@ class TestMultiComponentInteraction:
 
         # Process multiple concurrent requests
         for i in range(10):
-            dynamo.process_request(f"req-concurrent-{i}", input_length=128, model="openai/gpt-oss-120b")
+            dynamo.process_request(
+                f"req-concurrent-{i}", input_length=128, model="openai/gpt-oss-120b"
+            )
 
         # Total blocks should increase
         final_stats = dynamo.kvbm.get_stats()
@@ -699,6 +761,7 @@ class TestMultiComponentInteraction:
 # ============================================================================
 # Performance and Load Tests
 # ============================================================================
+
 
 class TestPerformanceCharacteristics:
     """
@@ -725,7 +788,9 @@ class TestPerformanceCharacteristics:
             kvbm.allocate(MemoryTier.G1_GPU_HBM)
         allocation_time = (time.time() - start) / 100 * 1000  # ms per operation
 
-        assert allocation_time < 1.0, f"Allocation took {allocation_time:.2f}ms (should be <1ms)"
+        assert (
+            allocation_time < 1.0
+        ), f"Allocation took {allocation_time:.2f}ms (should be <1ms)"
 
         # Test state transition performance
         block = kvbm.allocate(MemoryTier.G1_GPU_HBM)
@@ -735,7 +800,9 @@ class TestPerformanceCharacteristics:
             kvbm.transition_state(block.block_id, BlockState.COMPLETE)
         transition_time = (time.time() - start) / 200 * 1000
 
-        assert transition_time < 0.1, f"State transition took {transition_time:.3f}ms (should be <0.1ms)"
+        assert (
+            transition_time < 0.1
+        ), f"State transition took {transition_time:.3f}ms (should be <0.1ms)"
 
     def test_router_decision_overhead_is_minimal(self):
         """
@@ -772,7 +839,9 @@ class TestPerformanceCharacteristics:
 
         # Process 100 requests
         for i in range(100):
-            result = dynamo.process_request(f"req-{i}", input_length=256 + i * 10, model="openai/gpt-oss-120b")
+            result = dynamo.process_request(
+                f"req-{i}", input_length=256 + i * 10, model="openai/gpt-oss-120b"
+            )
             assert "decision" in result
             assert "kv_blocks_allocated" in result
 
@@ -790,6 +859,7 @@ class TestPerformanceCharacteristics:
 # Failure Scenario and Recovery Tests
 # ============================================================================
 
+
 class TestFailureScenarios:
     """
     Test system behavior under failure conditions.
@@ -803,11 +873,17 @@ class TestFailureScenarios:
 
         Validates: System doesn't crash when resources exhausted.
         """
-        kvbm = KVBlockManager(g1_capacity=5, g2_capacity=5, g3_capacity=5, g4_capacity=5)
+        kvbm = KVBlockManager(
+            g1_capacity=5, g2_capacity=5, g3_capacity=5, g4_capacity=5
+        )
 
         # Fill all tiers
-        for tier in [MemoryTier.G1_GPU_HBM, MemoryTier.G2_CPU_DRAM,
-                     MemoryTier.G3_LOCAL_SSD, MemoryTier.G4_REMOTE_STORAGE]:
+        for tier in [
+            MemoryTier.G1_GPU_HBM,
+            MemoryTier.G2_CPU_DRAM,
+            MemoryTier.G3_LOCAL_SSD,
+            MemoryTier.G4_REMOTE_STORAGE,
+        ]:
             for _ in range(5):
                 block = kvbm.allocate(tier)
                 assert block is not None
@@ -906,6 +982,7 @@ class TestFailureScenarios:
 # Edge Cases and Boundary Tests
 # ============================================================================
 
+
 class TestEdgeCasesAndBoundaries:
     """
     Test edge cases and boundary conditions.
@@ -983,8 +1060,12 @@ class TestEdgeCasesAndBoundaries:
         registry = DynamicEndpointRegistry()
 
         # Register same URL twice
-        ep1 = registry.register_endpoint("http://worker:8000", "openai/gpt-oss-120b", "vllm")
-        ep2 = registry.register_endpoint("http://worker:8000", "openai/gpt-oss-120b", "vllm")
+        ep1 = registry.register_endpoint(
+            "http://worker:8000", "openai/gpt-oss-120b", "vllm"
+        )
+        ep2 = registry.register_endpoint(
+            "http://worker:8000", "openai/gpt-oss-120b", "vllm"
+        )
 
         # Should get different IDs
         assert ep1 != ep2, "Duplicate registrations should get unique IDs"
@@ -997,6 +1078,7 @@ class TestEdgeCasesAndBoundaries:
 # ============================================================================
 # Correctness Validation Tests
 # ============================================================================
+
 
 class TestCorrectnessValidation:
     """
@@ -1018,12 +1100,16 @@ class TestCorrectnessValidation:
         # Record exact values
         values = [5, 7, 9, 11, 13]
         for val in values:
-            planner_const.record_request_metrics(ttft_ms=150.0, itl_ms=20.0, request_count=val)
+            planner_const.record_request_metrics(
+                ttft_ms=150.0, itl_ms=20.0, request_count=val
+            )
 
         predicted = planner_const.predict_load()
         expected_avg = sum(values[-10:]) / len(values[-10:])  # Last 10 (all 5)
 
-        assert abs(predicted - expected_avg) < 0.5, f"Constant predictor: {predicted} should be ~{expected_avg}"
+        assert (
+            abs(predicted - expected_avg) < 0.5
+        ), f"Constant predictor: {predicted} should be ~{expected_avg}"
 
     def test_queue_fifo_property_preserved_mathematically(self):
         """
@@ -1067,6 +1153,7 @@ class TestCorrectnessValidation:
 # Integration with Existing FakeAI Features
 # ============================================================================
 
+
 class TestFakeAIIntegration:
     """
     Test Dynamo features integrate correctly with existing FakeAI features.
@@ -1090,12 +1177,13 @@ class TestFakeAIIntegration:
 
         # Create Dynamo system
         from fakeai.dynamo_advanced import DynamoSystem
+
         dynamo = DynamoSystem()
 
         # Make request through FakeAI
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[Message(role=Role.USER, content="Test integration")]
+            messages=[Message(role=Role.USER, content="Test integration")],
         )
 
         response = await service.create_chat_completion(request)
@@ -1122,7 +1210,14 @@ class TestFakeAIIntegration:
         stats = dynamo.get_comprehensive_stats()
 
         # Verify all required sections present
-        required_sections = ["system", "kvbm", "planner", "router", "prefill_queue", "endpoints"]
+        required_sections = [
+            "system",
+            "kvbm",
+            "planner",
+            "router",
+            "prefill_queue",
+            "endpoints",
+        ]
         for section in required_sections:
             assert section in stats, f"Missing required section: {section}"
 

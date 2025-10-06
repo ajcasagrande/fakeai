@@ -3,9 +3,14 @@ Utility function behavior tests.
 
 Tests utility functions for actual behavior and business logic.
 """
+
 import pytest
 
-from fakeai.utils import calculate_token_count, create_random_embedding, normalize_embedding
+from fakeai.utils import (
+    calculate_token_count,
+    create_random_embedding,
+    normalize_embedding,
+)
 
 
 @pytest.mark.unit

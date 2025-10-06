@@ -67,7 +67,9 @@ def main():
     print("4. Text completion example:")
     start_time = time.time()
     response = client.completions.create(
-        model="meta-llama/Llama-3.1-8B-Instruct", prompt="Once upon a time,", max_tokens=30
+        model="meta-llama/Llama-3.1-8B-Instruct",
+        prompt="Once upon a time,",
+        max_tokens=30,
     )
     elapsed = time.time() - start_time
     print(f"  Response (in {elapsed:.2f}s): {response.choices[0].text}")

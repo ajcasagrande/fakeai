@@ -13,6 +13,7 @@ Test Coverage:
 
 Total: 50+ comprehensive integration tests
 """
+
 #  SPDX-License-Identifier: Apache-2.0
 
 import asyncio
@@ -25,7 +26,8 @@ import pytest
 
 # Import OpenAI client for integration testing
 try:
-    from openai import OpenAI, AsyncOpenAI
+    from openai import AsyncOpenAI, OpenAI
+
     OPENAI_CLIENT_AVAILABLE = True
 except ImportError:
     OPENAI_CLIENT_AVAILABLE = False
@@ -36,23 +38,23 @@ from fakeai import AppConfig
 from fakeai.fakeai_service import FakeAIService
 from fakeai.models import (
     ChatCompletionRequest,
-    Message,
-    Role,
-    Tool,
-    ToolChoice,
-    StreamOptions,
-    PredictionContent,
-    TextContent,
+    EmbeddingRequest,
     ImageContent,
     ImageUrl,
+    Message,
     ModerationRequest,
-    EmbeddingRequest,
+    PredictionContent,
+    Role,
+    StreamOptions,
+    TextContent,
+    Tool,
+    ToolChoice,
 )
-
 
 # ============================================================================
 # Test Category 1: OpenAI Python Client Integration Tests
 # ============================================================================
+
 
 @pytest.mark.skipif(not OPENAI_CLIENT_AVAILABLE, reason="OpenAI client not installed")
 class TestOpenAIClientIntegration:
@@ -288,6 +290,7 @@ class TestOpenAIClientIntegration:
 # Test Category 2: Multi-Feature Combinations
 # ============================================================================
 
+
 class TestMultiFeatureCombinations:
     """Test combinations of multiple features together."""
 
@@ -317,9 +320,7 @@ class TestMultiFeatureCombinations:
 
         # Verify reasoning content in streaming
         reasoning_chunks = [
-            c
-            for c in chunks1
-            if c.choices[0].delta.reasoning_content is not None
+            c for c in chunks1 if c.choices[0].delta.reasoning_content is not None
         ]
         assert len(reasoning_chunks) > 0
 
@@ -357,7 +358,9 @@ class TestMultiFeatureCombinations:
 
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[Message(role=Role.USER, content="What is the capital of France?")],
+            messages=[
+                Message(role=Role.USER, content="What is the capital of France?")
+            ],
             prediction=PredictionContent(type="content", content=prediction),
             stream=True,
             stream_options=StreamOptions(include_usage=True),
@@ -480,6 +483,7 @@ class TestMultiFeatureCombinations:
 # Test Category 3: Realistic Workflows
 # ============================================================================
 
+
 class TestRealisticWorkflows:
     """Test realistic usage patterns and workflows."""
 
@@ -498,7 +502,9 @@ class TestRealisticWorkflows:
 
         # Turn 1
         conversation.append(Message(role=Role.USER, content="What is 5+3?"))
-        request1 = ChatCompletionRequest(model="openai/gpt-oss-120b", messages=conversation)
+        request1 = ChatCompletionRequest(
+            model="openai/gpt-oss-120b", messages=conversation
+        )
         response1 = await service.create_chat_completion(request1)
         conversation.append(response1.choices[0].message)
 
@@ -507,7 +513,9 @@ class TestRealisticWorkflows:
 
         # Turn 2 - should have cache hit on system message
         conversation.append(Message(role=Role.USER, content="What is 10-2?"))
-        request2 = ChatCompletionRequest(model="openai/gpt-oss-120b", messages=conversation)
+        request2 = ChatCompletionRequest(
+            model="openai/gpt-oss-120b", messages=conversation
+        )
         response2 = await service.create_chat_completion(request2)
         conversation.append(response2.choices[0].message)
 
@@ -516,7 +524,9 @@ class TestRealisticWorkflows:
 
         # Turn 3 - more cache hits
         conversation.append(Message(role=Role.USER, content="What is 7*6?"))
-        request3 = ChatCompletionRequest(model="openai/gpt-oss-120b", messages=conversation)
+        request3 = ChatCompletionRequest(
+            model="openai/gpt-oss-120b", messages=conversation
+        )
         response3 = await service.create_chat_completion(request3)
 
         cached3 = response3.usage.prompt_tokens_details.cached_tokens
@@ -563,10 +573,10 @@ class TestRealisticWorkflows:
         messages = []
 
         # Turn 1: Ask about weather
-        messages.append(
-            Message(role=Role.USER, content="What's the weather in NYC?")
+        messages.append(Message(role=Role.USER, content="What's the weather in NYC?"))
+        request1 = ChatCompletionRequest(
+            model="openai/gpt-oss-120b", messages=messages, tools=tools
         )
-        request1 = ChatCompletionRequest(model="openai/gpt-oss-120b", messages=messages, tools=tools)
         response1 = await service.create_chat_completion(request1)
         messages.append(response1.choices[0].message)
 
@@ -588,7 +598,9 @@ class TestRealisticWorkflows:
                 content="Great! Book a table at Italian Place for 7pm",
             )
         )
-        request2 = ChatCompletionRequest(model="openai/gpt-oss-120b", messages=messages, tools=tools)
+        request2 = ChatCompletionRequest(
+            model="openai/gpt-oss-120b", messages=messages, tools=tools
+        )
         response2 = await service.create_chat_completion(request2)
 
         assert response2.choices[0].message is not None
@@ -644,6 +656,7 @@ class TestRealisticWorkflows:
 # ============================================================================
 # Test Category 4: Error Scenarios
 # ============================================================================
+
 
 class TestErrorScenarios:
     """Test error handling and edge cases."""
@@ -783,6 +796,7 @@ class TestErrorScenarios:
 # Test Category 5: Performance Tests
 # ============================================================================
 
+
 class TestPerformance:
     """Test performance characteristics."""
 
@@ -916,6 +930,7 @@ class TestPerformance:
 # Test Category 6: Advanced Feature Tests
 # ============================================================================
 
+
 class TestAdvancedFeatures:
     """Test advanced and edge case features."""
 
@@ -942,7 +957,7 @@ class TestAdvancedFeatures:
         config = AppConfig(response_delay=0.0)
         service = FakeAIService(config)
 
-        from fakeai.models import JsonSchemaResponseFormat, JsonSchema
+        from fakeai.models import JsonSchema, JsonSchemaResponseFormat
 
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
@@ -959,9 +974,11 @@ class TestAdvancedFeatures:
                             "explanation": {"type": "string"},
                         },
                         "required": ["answer", "explanation"],
+                        "additionalProperties": False,  # Required for strict mode
                     },
                 ),
             ),
+            parallel_tool_calls=False,  # Required for strict mode
         )
 
         response = await service.create_chat_completion(request)
@@ -1066,6 +1083,7 @@ class TestAdvancedFeatures:
 # Test Category 7: Integration with Other APIs
 # ============================================================================
 
+
 class TestOtherAPIs:
     """Test integration with other API endpoints."""
 
@@ -1095,7 +1113,7 @@ class TestOtherAPIs:
         config = AppConfig(response_delay=0.0)
         service = FakeAIService(config)
 
-        from fakeai.models import RankingRequest, RankingQuery, RankingPassage
+        from fakeai.models import RankingPassage, RankingQuery, RankingRequest
 
         request = RankingRequest(
             model="nvidia/nv-rerankqa-mistral-4b-v3",
@@ -1127,9 +1145,7 @@ class TestOtherAPIs:
                 {"type": "text", "text": "Some text content"},
                 {
                     "type": "image_url",
-                    "image_url": {
-                        "url": "data:image/png;base64,iVBORw0KGgo"
-                    },
+                    "image_url": {"url": "data:image/png;base64,iVBORw0KGgo"},
                 },
             ],
             model="omni-moderation-latest",
@@ -1145,6 +1161,7 @@ class TestOtherAPIs:
 # Test Category 8: Edge Cases and Corner Cases
 # ============================================================================
 
+
 class TestEdgeCases:
     """Test edge cases and corner scenarios."""
 
@@ -1158,7 +1175,10 @@ class TestEdgeCases:
         messages = []
         for i in range(100):
             messages.append(
-                Message(role=Role.USER if i % 2 == 0 else Role.ASSISTANT, content=f"Message {i}")
+                Message(
+                    role=Role.USER if i % 2 == 0 else Role.ASSISTANT,
+                    content=f"Message {i}",
+                )
             )
 
         request = ChatCompletionRequest(model="openai/gpt-oss-120b", messages=messages)
@@ -1330,6 +1350,7 @@ class TestEdgeCases:
 # Test Category 9: Complex Integration Scenarios
 # ============================================================================
 
+
 class TestComplexIntegration:
     """Test complex integration scenarios."""
 
@@ -1428,6 +1449,7 @@ class TestComplexIntegration:
 # ============================================================================
 # Summary Test
 # ============================================================================
+
 
 def test_integration_test_count():
     """Verify we have 50+ integration tests."""

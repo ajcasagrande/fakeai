@@ -53,10 +53,12 @@ async def run_all_benchmarks(
 
     # Import benchmark modules
     try:
-        from benchmarks import benchmark_throughput
-        from benchmarks import benchmark_kv_cache
-        from benchmarks import benchmark_concurrent
-        from benchmarks import benchmark_memory
+        from benchmarks import (
+            benchmark_concurrent,
+            benchmark_kv_cache,
+            benchmark_memory,
+            benchmark_throughput,
+        )
     except ImportError as e:
         print(f"\nERROR: Failed to import benchmark modules: {e}")
         return False
@@ -272,9 +274,9 @@ def generate_summary_report(results: dict, server_info, quick: bool) -> str:
             )
             report += f"- **Average Hit Rate:** {avg_hit_rate:.2f}%\n"
 
-            avg_improvement = sum(r.latency_improvement for r in bench.cache_results) / len(
-                bench.cache_results
-            )
+            avg_improvement = sum(
+                r.latency_improvement for r in bench.cache_results
+            ) / len(bench.cache_results)
             report += f"- **Average Latency Improvement:** {avg_improvement:.2f}%\n"
 
             avg_reuse = sum(r.token_reuse_rate for r in bench.cache_results) / len(
@@ -306,12 +308,14 @@ def generate_summary_report(results: dict, server_info, quick: bool) -> str:
             leaks = [r for r in bench.results if r.leak_detected]
             report += f"- **Memory Leaks Detected:** {'Yes' if leaks else 'No'}\n"
 
-            avg_growth = sum(r.memory_growth_mb for r in bench.results) / len(bench.results)
-            report += f"- **Average Memory Growth:** {avg_growth:+.2f} MB\n"
-
-            avg_per_request = sum(r.avg_memory_per_request_kb for r in bench.results) / len(
+            avg_growth = sum(r.memory_growth_mb for r in bench.results) / len(
                 bench.results
             )
+            report += f"- **Average Memory Growth:** {avg_growth:+.2f} MB\n"
+
+            avg_per_request = sum(
+                r.avg_memory_per_request_kb for r in bench.results
+            ) / len(bench.results)
             report += f"- **Average Memory per Request:** {avg_per_request:.2f} KB\n\n"
 
     report += "## Detailed Reports\n\n"
@@ -329,7 +333,9 @@ def generate_summary_report(results: dict, server_info, quick: bool) -> str:
     if "throughput" in results:
         bench = results["throughput"]
         if hasattr(bench, "results") and bench.results:
-            avg_rps = sum(r.requests_per_second for r in bench.results) / len(bench.results)
+            avg_rps = sum(r.requests_per_second for r in bench.results) / len(
+                bench.results
+            )
             if avg_rps < 10:
                 recommendations.append(
                     "⚠️  Throughput is low. Consider optimizing response generation or reducing delays."

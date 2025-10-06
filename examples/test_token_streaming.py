@@ -6,6 +6,7 @@ This shows how streaming now returns token-sized chunks (words + punctuation)
 instead of character-by-character or arbitrary word groups.
 """
 import asyncio
+
 from fakeai import AppConfig
 from fakeai.fakeai_service import FakeAIService
 from fakeai.models import ChatCompletionRequest, Message, Role
@@ -19,7 +20,7 @@ async def main():
     request = ChatCompletionRequest(
         model="openai/gpt-oss-120b",
         messages=[Message(role=Role.USER, content="Say hello!")],
-        stream=True
+        stream=True,
     )
 
     print("Token-Based Streaming Demo")

@@ -119,7 +119,9 @@ class ConcurrentBenchmark:
             """Make request with concurrency limit."""
             async with semaphore:
                 async with httpx.AsyncClient() as client:
-                    latency, tokens, error = await self._make_request(client, request_id, payload)
+                    latency, tokens, error = await self._make_request(
+                        client, request_id, payload
+                    )
                     return latency, tokens, error
 
         start_time = time.perf_counter()
@@ -211,10 +213,12 @@ class ConcurrentBenchmark:
 
             # Stop if error rate exceeds 10%
             last_result = self.results[-1]
-            error_rate = (last_result.failed_requests / last_result.total_requests * 100)
+            error_rate = last_result.failed_requests / last_result.total_requests * 100
 
             if error_rate > 10:
-                print(f"\nStopping ramp-up: Error rate {error_rate:.2f}% exceeds threshold")
+                print(
+                    f"\nStopping ramp-up: Error rate {error_rate:.2f}% exceeds threshold"
+                )
                 break
 
             # Brief pause between tests
@@ -259,7 +263,9 @@ class ConcurrentBenchmark:
                 request_start = time.perf_counter()
 
                 # Make request
-                latency, tokens, error = await self._make_request(client, request_count, payload)
+                latency, tokens, error = await self._make_request(
+                    client, request_count, payload
+                )
                 latencies.append(latency)
                 tokens_list.append(tokens)
 
@@ -353,11 +359,19 @@ class ConcurrentBenchmark:
 
         # Summary table
         report += "## Summary\n\n"
-        report += "| Test | Requests | Concurrent | Success Rate | RPS | P50 | P90 | P99 |\n"
-        report += "|------|----------|------------|--------------|-----|-----|-----|-----|\n"
+        report += (
+            "| Test | Requests | Concurrent | Success Rate | RPS | P50 | P90 | P99 |\n"
+        )
+        report += (
+            "|------|----------|------------|--------------|-----|-----|-----|-----|\n"
+        )
 
         for result in self.results:
-            success_rate = (result.successful_requests / result.total_requests * 100) if result.total_requests > 0 else 0
+            success_rate = (
+                (result.successful_requests / result.total_requests * 100)
+                if result.total_requests > 0
+                else 0
+            )
             report += (
                 f"| {result.test_name} | {result.total_requests} | "
                 f"{result.concurrent_connections} | {success_rate:.1f}% | "
@@ -373,7 +387,11 @@ class ConcurrentBenchmark:
             report += f"- **Concurrent Connections:** {result.concurrent_connections}\n"
             report += f"- **Successful:** {result.successful_requests}\n"
             report += f"- **Failed:** {result.failed_requests}\n"
-            success_rate = (result.successful_requests / result.total_requests * 100) if result.total_requests > 0 else 0
+            success_rate = (
+                (result.successful_requests / result.total_requests * 100)
+                if result.total_requests > 0
+                else 0
+            )
             report += f"- **Success Rate:** {success_rate:.2f}%\n"
             report += f"- **Total Time:** {result.total_time:.2f}s\n"
             report += f"- **Requests/sec:** {result.requests_per_second:.2f}\n"
@@ -412,14 +430,20 @@ class ConcurrentBenchmark:
             first_failure = min(failed_results, key=lambda r: r.concurrent_connections)
             report += f"**First Performance Degradation:**\n\n"
             report += f"- Test: {first_failure.test_name}\n"
-            report += f"- Concurrent Connections: {first_failure.concurrent_connections}\n"
-            error_rate = (first_failure.failed_requests / first_failure.total_requests * 100)
+            report += (
+                f"- Concurrent Connections: {first_failure.concurrent_connections}\n"
+            )
+            error_rate = (
+                first_failure.failed_requests / first_failure.total_requests * 100
+            )
             report += f"- Error Rate: {error_rate:.2f}%\n\n"
 
         return report
 
 
-async def run_all_benchmarks(base_url: str = "http://localhost:8000", api_key: str = "test"):
+async def run_all_benchmarks(
+    base_url: str = "http://localhost:8000", api_key: str = "test"
+):
     """Run all concurrent connection benchmarks."""
     benchmark = ConcurrentBenchmark(base_url, api_key)
 

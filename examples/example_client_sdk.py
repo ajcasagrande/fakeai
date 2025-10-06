@@ -13,14 +13,14 @@ This script demonstrates all features of the FakeAI client SDK including:
 import time
 
 from fakeai import (
+    AppConfig,
     FakeAIClient,
-    temporary_server,
     assert_response_valid,
-    assert_tokens_in_range,
     assert_streaming_valid,
+    assert_tokens_in_range,
     collect_stream_content,
     measure_stream_timing,
-    AppConfig,
+    temporary_server,
 )
 
 
@@ -103,7 +103,9 @@ def example_streaming():
         print(f"  - Time to first token: {timing['time_to_first_token']*1000:.2f}ms")
         print(f"  - Total time: {timing['total_time']:.2f}s")
         print(f"  - Chunks received: {timing['chunks_count']}")
-        print(f"  - Avg inter-token latency: {timing['avg_inter_token_latency']*1000:.2f}ms")
+        print(
+            f"  - Avg inter-token latency: {timing['avg_inter_token_latency']*1000:.2f}ms"
+        )
 
         # Create another stream for validation
         stream2 = client.stream_chat("Hello!", model="openai/gpt-oss-120b")
@@ -358,6 +360,7 @@ def main():
         except Exception as e:
             print(f"✗ Example '{name}' failed: {e}\n")
             import traceback
+
             traceback.print_exc()
 
     print("=" * 70)

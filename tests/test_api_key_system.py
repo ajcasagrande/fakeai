@@ -37,7 +37,7 @@ def test_file_parsing():
     from fakeai.cli import parse_api_keys
 
     # Create a temporary file with keys
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:
         f.write("# Comment line\n")
         f.write("sk-file-key-1\n")
         f.write("\n")  # Blank line
@@ -63,17 +63,13 @@ def test_mixed_sources():
     from fakeai.cli import parse_api_keys
 
     # Create a temporary file
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:
         f.write("sk-from-file-1\n")
         f.write("sk-from-file-2\n")
         temp_path = f.name
 
     try:
-        keys = parse_api_keys([
-            "sk-direct-1",
-            temp_path,
-            "sk-direct-2"
-        ])
+        keys = parse_api_keys(["sk-direct-1", temp_path, "sk-direct-2"])
         assert len(keys) == 4, f"Should have 4 keys total, got {len(keys)}"
         assert "sk-direct-1" in keys
         assert "sk-direct-2" in keys
@@ -87,30 +83,25 @@ def test_mixed_sources():
 def test_auto_enable_auth():
     """Test that authentication is auto-enabled when keys are provided."""
     print("Test 5: Auto-enable authentication")
-    from fakeai.config import AppConfig
     from fakeai.cli import parse_api_keys
+    from fakeai.config import AppConfig
 
     # With keys
     parsed_keys = parse_api_keys(["sk-test"])
-    config = AppConfig(
-        api_keys=parsed_keys,
-        require_api_key=bool(parsed_keys)
-    )
+    config = AppConfig(api_keys=parsed_keys, require_api_key=bool(parsed_keys))
     assert config.require_api_key == True
     assert len(config.api_keys) == 1
     print("  ✓ Auth auto-enabled when keys provided\n")
 
 
 def test_cli_help():
-    """Test CLI help shows new options."""
-    print("Test 6: CLI help")
+    """Test CLI server help shows new options."""
+    print("Test 6: CLI server help")
     result = subprocess.run(
-        ["fakeai-server", "--help"],
-        capture_output=True,
-        text=True
+        ["fakeai", "server", "--help"], capture_output=True, text=True
     )
-    assert "--api-key" in result.stdout
-    print("  ✓ CLI help shows --api-key option\n")
+    assert "--api-key" in result.stdout or "api-key" in result.stdout.lower()
+    print("  ✓ CLI server help shows --api-key option\n")
 
 
 def main():
@@ -154,6 +145,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Unexpected error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

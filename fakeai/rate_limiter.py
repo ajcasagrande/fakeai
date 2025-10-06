@@ -5,12 +5,15 @@ This module provides a thread-safe, per-API-key rate limiting system that enforc
 both requests per minute (RPM) and tokens per minute (TPM) limits using the
 token bucket algorithm with continuous refill.
 """
+
 #  SPDX-License-Identifier: Apache-2.0
 
 import threading
 import time
 from dataclasses import dataclass
 from typing import Literal
+
+from fakeai.rate_limiter_metrics import RateLimiterMetrics
 
 
 @dataclass
@@ -139,6 +142,9 @@ class RateLimiter:
         self._rpm_override: int | None = None
         self._tpm_override: int | None = None
 
+        # Metrics tracker integration
+        self.metrics = RateLimiterMetrics()
+
         self._initialized = True
 
     def configure(
@@ -167,12 +173,14 @@ class RateLimiter:
             if self._rpm_override is not None and self._tpm_override is not None:
                 rpm_limit = self._rpm_override
                 tpm_limit = self._tpm_override
+                tier_name = f"custom-{self._default_tier}"
             else:
                 tier = RATE_LIMIT_TIERS.get(
                     self._default_tier, RATE_LIMIT_TIERS["tier-1"]
                 )
                 rpm_limit = self._rpm_override or tier.rpm
                 tpm_limit = self._tpm_override or tier.tpm
+                tier_name = tier.name
 
             # Create buckets with per-second refill rates
             self._buckets[api_key] = {
@@ -185,6 +193,9 @@ class RateLimiter:
                     refill_rate=tpm_limit / 60.0,  # Tokens per second
                 ),
             }
+
+            # Assign tier in metrics
+            self.metrics.assign_tier(api_key, tier_name)
 
         return self._buckets[api_key]
 
@@ -215,15 +226,63 @@ class RateLimiter:
         # Build rate limit headers
         headers = self._build_headers(buckets)
 
+        # Determine if request is allowed
+        allowed = rpm_allowed and tpm_allowed
+        retry_after = None
+        rpm_exceeded = not rpm_allowed
+        tpm_exceeded = not tpm_allowed
+
+        # Record metrics for request attempt
+        self.metrics.record_request_attempt(
+            api_key=api_key,
+            allowed=allowed,
+            tokens=tokens,
+            rpm_limit=buckets["rpm"].capacity,
+            tpm_limit=buckets["tpm"].capacity,
+        )
+
+        # Update quota snapshot
+        self.metrics.update_quota_snapshot(
+            api_key=api_key,
+            rpm_remaining=buckets["rpm"].remaining(),
+            tpm_remaining=buckets["tpm"].remaining(),
+        )
+
         # If either limit is exceeded, deny the request
         if not rpm_allowed:
-            return False, str(int(rpm_retry) + 1), headers
+            retry_after_seconds = int(rpm_retry) + 1
+            retry_after = str(retry_after_seconds)
+
+            # Record throttle event
+            self.metrics.record_throttle(
+                api_key=api_key,
+                retry_after_ms=retry_after_seconds * 1000,
+                requested_tokens=tokens,
+                rpm_exceeded=True,
+                tpm_exceeded=False,
+            )
+
+            return False, retry_after, headers
+
         if not tpm_allowed:
             # Refund the RPM token since we're denying the request
             buckets["rpm"].tokens = min(
                 buckets["rpm"].capacity, buckets["rpm"].tokens + 1
             )
-            return False, str(int(tpm_retry) + 1), headers
+
+            retry_after_seconds = int(tpm_retry) + 1
+            retry_after = str(retry_after_seconds)
+
+            # Record throttle event
+            self.metrics.record_throttle(
+                api_key=api_key,
+                retry_after_ms=retry_after_seconds * 1000,
+                requested_tokens=tokens,
+                rpm_exceeded=False,
+                tpm_exceeded=True,
+            )
+
+            return False, retry_after, headers
 
         return True, None, headers
 

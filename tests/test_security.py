@@ -4,21 +4,23 @@ Security hardening tests for FakeAI.
 Tests input validation, injection detection, API key security,
 abuse detection, and CORS policies.
 """
+
 #  SPDX-License-Identifier: Apache-2.0
 
-import pytest
 import time
 from datetime import datetime, timedelta
+
+import pytest
 from fastapi.testclient import TestClient
 
 from fakeai.app import app
 from fakeai.config import AppConfig
 from fakeai.security import (
-    ApiKeyManager,
     AbuseDetector,
-    InputValidator,
-    InputValidationError,
+    ApiKeyManager,
     InjectionAttackDetected,
+    InputValidationError,
+    InputValidator,
     PayloadTooLarge,
     generate_api_key,
 )
@@ -402,10 +404,8 @@ class TestSecurityIntegration:
             "/v1/chat/completions",
             json={
                 "model": "openai/gpt-oss-120b",
-                "messages": [
-                    {"role": "user", "content": "'; DROP TABLE users; --"}
-                ]
-            }
+                "messages": [{"role": "user", "content": "'; DROP TABLE users; --"}],
+            },
         )
 
         # Should be blocked (either 400 or 401 depending on auth)
@@ -421,10 +421,8 @@ class TestSecurityIntegration:
             "/v1/chat/completions",
             json={
                 "model": "openai/gpt-oss-120b",
-                "messages": [
-                    {"role": "user", "content": large_message}
-                ]
-            }
+                "messages": [{"role": "user", "content": large_message}],
+            },
         )
 
         # Should be blocked with 413 Payload Too Large
@@ -439,7 +437,7 @@ class TestSecurityIntegration:
             headers={
                 "Origin": "http://localhost:3000",
                 "Access-Control-Request-Method": "GET",
-            }
+            },
         )
 
         # CORS headers should be present
@@ -452,8 +450,7 @@ class TestSecurityIntegration:
         # Make multiple requests with invalid API key
         for _ in range(3):
             response = client.get(
-                "/v1/models",
-                headers={"Authorization": "Bearer invalid-key"}
+                "/v1/models", headers={"Authorization": "Bearer invalid-key"}
             )
             # Should get 401 if auth is required
             assert response.status_code in [200, 401]

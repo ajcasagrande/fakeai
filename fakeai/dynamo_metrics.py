@@ -5,9 +5,10 @@ Comprehensive LLM inference metrics including latency breakdown,
 throughput measurements, queue statistics, batch metrics, and
 disaggregated serving metrics.
 """
+
 import threading
 import time
-from collections import deque, defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -15,6 +16,7 @@ from typing import Any
 @dataclass
 class RequestMetrics:
     """Complete metrics for a single request."""
+
     request_id: str
     model: str
     endpoint: str
@@ -54,10 +56,14 @@ class RequestMetrics:
     def calculate_derived_metrics(self):
         """Calculate derived timing metrics."""
         if self.queue_start_time > 0 and self.prefill_start_time > 0:
-            self.queue_time_ms = (self.prefill_start_time - self.queue_start_time) * 1000
+            self.queue_time_ms = (
+                self.prefill_start_time - self.queue_start_time
+            ) * 1000
 
         if self.prefill_start_time > 0 and self.first_token_time > 0:
-            self.prefill_time_ms = (self.first_token_time - self.prefill_start_time) * 1000
+            self.prefill_time_ms = (
+                self.first_token_time - self.prefill_start_time
+            ) * 1000
 
         if self.decode_start_time > 0 and self.completion_time > 0:
             self.decode_time_ms = (self.completion_time - self.decode_start_time) * 1000
@@ -117,12 +123,14 @@ class DynamoMetricsCollector:
         self.failed_requests = 0
 
         # Per-model statistics
-        self.model_stats = defaultdict(lambda: {
-            "requests": 0,
-            "tokens": 0,
-            "ttft_sum": 0.0,
-            "itl_sum": 0.0,
-        })
+        self.model_stats = defaultdict(
+            lambda: {
+                "requests": 0,
+                "tokens": 0,
+                "ttft_sum": 0.0,
+                "itl_sum": 0.0,
+            }
+        )
 
         # Queue tracking
         self.current_queue_depth = 0
@@ -142,7 +150,9 @@ class DynamoMetricsCollector:
 
         self._lock = threading.Lock()
 
-    def start_request(self, request_id: str, model: str, endpoint: str, input_tokens: int) -> RequestMetrics:
+    def start_request(
+        self, request_id: str, model: str, endpoint: str, input_tokens: int
+    ) -> RequestMetrics:
         """
         Start tracking a new request.
 
@@ -235,13 +245,17 @@ class DynamoMetricsCollector:
 
             # Update running average
             if len(self.batch_size_history) > 0:
-                self.avg_batch_size = sum(self.batch_size_history) / len(self.batch_size_history)
+                self.avg_batch_size = sum(self.batch_size_history) / len(
+                    self.batch_size_history
+                )
 
     def get_recent_requests(self, seconds: int = 60) -> list[RequestMetrics]:
         """Get requests completed in last N seconds."""
         cutoff_time = time.time() - seconds
         with self._lock:
-            return [r for r in self._completed_requests if r.completion_time >= cutoff_time]
+            return [
+                r for r in self._completed_requests if r.completion_time >= cutoff_time
+            ]
 
     def calculate_percentile(self, values: list[float], percentile: float) -> float:
         """Calculate percentile from sorted values."""
@@ -301,13 +315,17 @@ class DynamoMetricsCollector:
                 "p99": self.calculate_percentile(queue_values, 99),
             },
             "prefill": {
-                "avg": sum(prefill_values) / len(prefill_values) if prefill_values else 0.0,
+                "avg": (
+                    sum(prefill_values) / len(prefill_values) if prefill_values else 0.0
+                ),
                 "p50": self.calculate_percentile(prefill_values, 50),
                 "p90": self.calculate_percentile(prefill_values, 90),
                 "p99": self.calculate_percentile(prefill_values, 99),
             },
             "decode": {
-                "avg": sum(decode_values) / len(decode_values) if decode_values else 0.0,
+                "avg": (
+                    sum(decode_values) / len(decode_values) if decode_values else 0.0
+                ),
                 "p50": self.calculate_percentile(decode_values, 50),
                 "p90": self.calculate_percentile(decode_values, 90),
                 "p99": self.calculate_percentile(decode_values, 99),
@@ -331,7 +349,8 @@ class DynamoMetricsCollector:
 
         return {
             "requests_per_second": len(recent) / window_seconds,
-            "tokens_per_second": (total_input_tokens + total_output_tokens) / window_seconds,
+            "tokens_per_second": (total_input_tokens + total_output_tokens)
+            / window_seconds,
             "input_tokens_per_second": total_input_tokens / window_seconds,
             "output_tokens_per_second": total_output_tokens / window_seconds,
         }
@@ -346,7 +365,11 @@ class DynamoMetricsCollector:
                         "requests": data["requests"],
                         "total_tokens": data["tokens"],
                         "avg_ttft_ms": data["ttft_sum"] / data["requests"],
-                        "avg_itl_ms": data["itl_sum"] / data["requests"] if data["requests"] > 0 else 0.0,
+                        "avg_itl_ms": (
+                            data["itl_sum"] / data["requests"]
+                            if data["requests"] > 0
+                            else 0.0
+                        ),
                     }
             return stats
 
@@ -356,7 +379,12 @@ class DynamoMetricsCollector:
             return {
                 "current_depth": self.current_queue_depth,
                 "max_depth": self.max_queue_depth,
-                "avg_depth": sum(d for _, d in self.queue_depth_history) / len(self.queue_depth_history) if self.queue_depth_history else 0.0,
+                "avg_depth": (
+                    sum(d for _, d in self.queue_depth_history)
+                    / len(self.queue_depth_history)
+                    if self.queue_depth_history
+                    else 0.0
+                ),
             }
 
     def get_batch_stats(self) -> dict[str, Any]:
@@ -365,7 +393,9 @@ class DynamoMetricsCollector:
             return {
                 "current_size": self.current_batch_size,
                 "avg_size": self.avg_batch_size,
-                "max_size": max(self.batch_size_history) if self.batch_size_history else 0,
+                "max_size": (
+                    max(self.batch_size_history) if self.batch_size_history else 0
+                ),
             }
 
     def get_cache_stats(self, window_seconds: int = 60) -> dict[str, Any]:
@@ -382,12 +412,20 @@ class DynamoMetricsCollector:
 
         hits = sum(1 for r in recent if r.kv_cache_hit)
         total_cached = sum(r.cached_tokens for r in recent)
-        overlap_scores = [r.kv_cache_overlap_score for r in recent if r.kv_cache_overlap_score > 0]
+        overlap_scores = [
+            r.kv_cache_overlap_score for r in recent if r.kv_cache_overlap_score > 0
+        ]
 
         return {
             "hit_rate": (hits / len(recent)) * 100 if recent else 0.0,
-            "avg_overlap_score": sum(overlap_scores) / len(overlap_scores) if overlap_scores else 0.0,
-            "avg_blocks_matched": sum(r.kv_cache_blocks_matched for r in recent) / len(recent) if recent else 0.0,
+            "avg_overlap_score": (
+                sum(overlap_scores) / len(overlap_scores) if overlap_scores else 0.0
+            ),
+            "avg_blocks_matched": (
+                sum(r.kv_cache_blocks_matched for r in recent) / len(recent)
+                if recent
+                else 0.0
+            ),
             "total_cached_tokens": total_cached,
         }
 
@@ -419,7 +457,9 @@ class DynamoMetricsCollector:
         lines.append("# TYPE fakeai_dynamo_requests_total counter")
         lines.append(f"fakeai_dynamo_requests_total {self.total_requests}")
         lines.append("# TYPE fakeai_dynamo_requests_successful_total counter")
-        lines.append(f"fakeai_dynamo_requests_successful_total {self.successful_requests}")
+        lines.append(
+            f"fakeai_dynamo_requests_successful_total {self.successful_requests}"
+        )
         lines.append("# TYPE fakeai_dynamo_requests_failed_total counter")
         lines.append(f"fakeai_dynamo_requests_failed_total {self.failed_requests}")
         lines.append("")
@@ -438,9 +478,13 @@ class DynamoMetricsCollector:
 
         # Throughput metrics
         lines.append("# TYPE fakeai_dynamo_requests_per_second gauge")
-        lines.append(f'fakeai_dynamo_requests_per_second {throughput_stats["requests_per_second"]:.2f}')
+        lines.append(
+            f'fakeai_dynamo_requests_per_second {throughput_stats["requests_per_second"]:.2f}'
+        )
         lines.append("# TYPE fakeai_dynamo_tokens_per_second gauge")
-        lines.append(f'fakeai_dynamo_tokens_per_second {throughput_stats["tokens_per_second"]:.2f}')
+        lines.append(
+            f'fakeai_dynamo_tokens_per_second {throughput_stats["tokens_per_second"]:.2f}'
+        )
         lines.append("")
 
         # Queue metrics
