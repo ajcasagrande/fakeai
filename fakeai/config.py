@@ -3,6 +3,7 @@ Configuration for the OpenAI simulated server.
 
 This module provides configuration settings and options for the OpenAI simulated server.
 """
+
 #  SPDX-License-Identifier: Apache-2.0
 
 from pydantic import Field, field_validator
@@ -39,20 +40,19 @@ class AppConfig(BaseSettings):
     rate_limit_enabled: bool = Field(default=False, description="Enable rate limiting.")
     rate_limit_tier: str = Field(
         default="tier-1",
-        description="Rate limit tier (free, tier-1, tier-2, tier-3, tier-4, tier-5)."
+        description="Rate limit tier (free, tier-1, tier-2, tier-3, tier-4, tier-5).",
     )
     rate_limit_rpm: int | None = Field(
-        default=None,
-        description="Custom requests per minute limit (overrides tier)."
+        default=None, description="Custom requests per minute limit (overrides tier)."
     )
     rate_limit_tpm: int | None = Field(
-        default=None,
-        description="Custom tokens per minute limit (overrides tier)."
+        default=None, description="Custom tokens per minute limit (overrides tier)."
     )
 
     # Security settings (disabled by default for easy testing)
     enable_security: bool = Field(
-        default=False, description="Master flag to enable all security features (overrides individual flags)."
+        default=False,
+        description="Master flag to enable all security features (overrides individual flags).",
     )
     hash_api_keys: bool = Field(
         default=False, description="Hash API keys for secure storage."
@@ -67,17 +67,19 @@ class AppConfig(BaseSettings):
         default=False, description="Enable IP-based abuse detection and banning."
     )
     max_request_size: int = Field(
-        default=100 * 1024 * 1024, description="Maximum request size in bytes (default: 100 MB)."
+        default=100 * 1024 * 1024,
+        description="Maximum request size in bytes (default: 100 MB).",
     )
     cors_allowed_origins: list[str] = Field(
         default_factory=lambda: ["*"],
-        description="CORS allowed origins (use ['*'] for all or specific domains)."
+        description="CORS allowed origins (use ['*'] for all or specific domains).",
     )
     cors_allow_credentials: bool = Field(
         default=True, description="Allow credentials in CORS requests."
     )
     abuse_cleanup_interval: int = Field(
-        default=3600, description="Interval for cleaning up old abuse records (seconds)."
+        default=3600,
+        description="Interval for cleaning up old abuse records (seconds).",
     )
 
     # Prompt caching settings
@@ -116,13 +118,15 @@ class AppConfig(BaseSettings):
         default=False, description="Enable refusal responses for harmful content."
     )
     enable_safety_features: bool = Field(
-        default=False, description="Enable safety refusal mechanism for harmful content."
+        default=False,
+        description="Enable safety refusal mechanism for harmful content.",
     )
     enable_jailbreak_detection: bool = Field(
         default=False, description="Enable jailbreak/prompt injection detection."
     )
     prepend_safety_message: bool = Field(
-        default=False, description="Prepend safety guidelines as system message when no system message exists."
+        default=False,
+        description="Prepend safety guidelines as system message when no system message exists.",
     )
 
     # Audio settings
@@ -130,10 +134,61 @@ class AppConfig(BaseSettings):
         default=True, description="Enable audio input/output in chat completions."
     )
     default_voice: str = Field(
-        default="alloy", description="Default voice for audio output (alloy, echo, fable, onyx, nova, shimmer, etc.)."
+        default="alloy",
+        description="Default voice for audio output (alloy, echo, fable, onyx, nova, shimmer, etc.).",
     )
     default_audio_format: str = Field(
-        default="mp3", description="Default audio format (mp3, opus, aac, flac, wav, pcm16)."
+        default="mp3",
+        description="Default audio format (mp3, opus, aac, flac, wav, pcm16).",
+    )
+
+    # Embedding settings
+    use_semantic_embeddings: bool = Field(
+        default=False,
+        description="Use semantic embeddings via sentence-transformers (requires installation).",
+    )
+    embedding_model: str = Field(
+        default="all-MiniLM-L6-v2",
+        description="Sentence transformer model for semantic embeddings.",
+    )
+    embedding_use_gpu: bool = Field(
+        default=True, description="Use GPU for embedding generation if available."
+    )
+
+    # Image generation settings
+    generate_actual_images: bool = Field(
+        default=True, description="Generate actual images instead of fake URLs."
+    )
+    image_storage_backend: str = Field(
+        default="memory", description="Image storage backend (memory or disk)."
+    )
+    image_retention_hours: int = Field(
+        default=1, description="Hours to retain generated images before cleanup."
+    )
+
+    # LLM Generation settings
+    use_llm_generation: bool = Field(
+        default=False,
+        description="Use lightweight LLM for text generation (requires transformers, torch).",
+    )
+    llm_model_name: str = Field(
+        default="distilgpt2",
+        description="Model name for LLM generation (distilgpt2, gpt2, gpt2-medium, etc.).",
+    )
+    llm_use_gpu: bool = Field(
+        default=True, description="Use GPU for LLM generation if available."
+    )
+
+    # File storage settings
+    file_storage_backend: str = Field(
+        default="memory", description="File storage backend (memory or disk)."
+    )
+    file_storage_path: str | None = Field(
+        default=None,
+        description="Path for disk-based file storage (only used when backend is 'disk').",
+    )
+    file_cleanup_enabled: bool = Field(
+        default=True, description="Enable automatic cleanup of expired files."
     )
 
     # Performance settings
@@ -141,15 +196,18 @@ class AppConfig(BaseSettings):
         default=True, description="Enable context window validation and warnings."
     )
     strict_token_counting: bool = Field(
-        default=False, description="Use strict token counting (slower but more accurate)."
+        default=False,
+        description="Use strict token counting (slower but more accurate).",
     )
 
     # Streaming settings
     stream_timeout_seconds: float = Field(
-        default=300.0, description="Total timeout for streaming responses in seconds (default: 5 minutes)."
+        default=300.0,
+        description="Total timeout for streaming responses in seconds (default: 5 minutes).",
     )
     stream_token_timeout_seconds: float = Field(
-        default=30.0, description="Timeout between individual tokens in streaming (default: 30 seconds)."
+        default=30.0,
+        description="Timeout between individual tokens in streaming (default: 30 seconds).",
     )
     stream_keepalive_enabled: bool = Field(
         default=True, description="Enable keep-alive heartbeat for long streams."
@@ -162,24 +220,44 @@ class AppConfig(BaseSettings):
     ttft_ms: float = Field(
         default=20.0,
         ge=0.0,
-        description="Time to first token in milliseconds (default: 20ms)."
+        description="Time to first token in milliseconds (default: 20ms).",
     )
     ttft_variance_percent: float = Field(
         default=10.0,
         ge=0.0,
         le=100.0,
-        description="Variance/jitter for TTFT as percentage (default: 10%)."
+        description="Variance/jitter for TTFT as percentage (default: 10%).",
     )
     itl_ms: float = Field(
         default=5.0,
         ge=0.0,
-        description="Inter-token latency in milliseconds (default: 5ms)."
+        description="Inter-token latency in milliseconds (default: 5ms).",
     )
     itl_variance_percent: float = Field(
         default=10.0,
         ge=0.0,
         le=100.0,
-        description="Variance/jitter for ITL as percentage (default: 10%)."
+        description="Variance/jitter for ITL as percentage (default: 10%).",
+    )
+
+    # Error injection settings
+    error_injection_enabled: bool = Field(
+        default=False, description="Enable error injection for testing."
+    )
+    error_injection_rate: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Global error injection rate (0.0-1.0).",
+    )
+    error_injection_types: list[str] = Field(
+        default_factory=lambda: [
+            "internal_error",
+            "service_unavailable",
+            "gateway_timeout",
+            "rate_limit_quota",
+        ],
+        description="List of error types to inject (internal_error, bad_gateway, service_unavailable, gateway_timeout, rate_limit_quota, context_length_exceeded).",
     )
 
     class Config:
@@ -280,11 +358,22 @@ class AppConfig(BaseSettings):
     def validate_default_voice(cls, v: str) -> str:
         """Validate default voice."""
         valid_voices = {
-            "alloy", "ash", "ballad", "coral", "echo", "fable",
-            "onyx", "nova", "shimmer", "sage", "verse"
+            "alloy",
+            "ash",
+            "ballad",
+            "coral",
+            "echo",
+            "fable",
+            "onyx",
+            "nova",
+            "shimmer",
+            "sage",
+            "verse",
         }
         if v not in valid_voices:
-            raise ValueError(f"Default voice must be one of: {', '.join(sorted(valid_voices))}")
+            raise ValueError(
+                f"Default voice must be one of: {', '.join(sorted(valid_voices))}"
+            )
         return v
 
     @field_validator("default_audio_format")
@@ -292,7 +381,9 @@ class AppConfig(BaseSettings):
         """Validate default audio format."""
         valid_formats = {"mp3", "opus", "aac", "flac", "wav", "pcm16"}
         if v not in valid_formats:
-            raise ValueError(f"Default audio format must be one of: {', '.join(sorted(valid_formats))}")
+            raise ValueError(
+                f"Default audio format must be one of: {', '.join(sorted(valid_formats))}"
+            )
         return v
 
     @field_validator("max_request_size")
@@ -316,6 +407,81 @@ class AppConfig(BaseSettings):
         """Validate CORS allowed origins."""
         if not v:
             raise ValueError("CORS allowed origins cannot be empty")
+        return v
+
+    @field_validator("embedding_model")
+    def validate_embedding_model(cls, v: str) -> str:
+        """Validate embedding model name."""
+        valid_models = {
+            "all-MiniLM-L6-v2",
+            "all-mpnet-base-v2",
+            "sentence-transformers/all-MiniLM-L6-v2",
+            "sentence-transformers/all-mpnet-base-v2",
+        }
+        if v not in valid_models:
+            # Allow custom models, just log a warning
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"Using custom embedding model '{v}'. "
+                f"Recommended models: {', '.join(sorted(valid_models))}"
+            )
+        return v
+
+    @field_validator("image_storage_backend")
+    def validate_image_storage_backend(cls, v: str) -> str:
+        """Validate image storage backend."""
+        valid_backends = {"memory", "disk"}
+        if v not in valid_backends:
+            raise ValueError(
+                f"Image storage backend must be one of: {', '.join(sorted(valid_backends))}"
+            )
+        return v
+
+    @field_validator("image_retention_hours")
+    def validate_image_retention_hours(cls, v: int) -> int:
+        """Validate image retention hours."""
+        if v < 0:
+            raise ValueError("Image retention hours cannot be negative")
+        if v > 168:  # 1 week max
+            raise ValueError("Image retention hours cannot exceed 168 (1 week)")
+        return v
+
+    @field_validator("file_storage_backend")
+    def validate_file_storage_backend(cls, v: str) -> str:
+        """Validate file storage backend."""
+        valid_backends = {"memory", "disk"}
+        if v not in valid_backends:
+            raise ValueError(
+                f"File storage backend must be one of: {', '.join(sorted(valid_backends))}"
+            )
+        return v
+
+    @field_validator("error_injection_rate")
+    def validate_error_injection_rate(cls, v: float) -> float:
+        """Validate error injection rate."""
+        if not 0.0 <= v <= 1.0:
+            raise ValueError("Error injection rate must be between 0.0 and 1.0")
+        return v
+
+    @field_validator("error_injection_types")
+    def validate_error_injection_types(cls, v: list[str]) -> list[str]:
+        """Validate error injection types."""
+        valid_types = {
+            "internal_error",
+            "bad_gateway",
+            "service_unavailable",
+            "gateway_timeout",
+            "rate_limit_quota",
+            "context_length_exceeded",
+        }
+        for error_type in v:
+            if error_type not in valid_types:
+                raise ValueError(
+                    f"Invalid error type '{error_type}'. "
+                    f"Valid types: {', '.join(sorted(valid_types))}"
+                )
         return v
 
     # Properties to check security flags with master override

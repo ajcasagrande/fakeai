@@ -1,0 +1,452 @@
+================================================================================
+                    FAKEAI 3.0 - MODULES ORGANIZATION
+                      85+ Modules in Hierarchical Structure
+================================================================================
+
+fakeai/
+├── ENTRY POINTS (4 modules)
+│   ├── __init__.py              Core package initialization
+│   ├── __main__.py              Python -m fakeai entry point
+│   ├── app.py                   FastAPI application (50+ routes)
+│   └── cli.py                   CLI interface (argparse based)
+│
+├── CORE SERVICE (1 module)
+│   └── fakeai_service.py        Main service orchestrator (5000+ lines)
+│                                - Handles all API endpoints
+│                                - Model registry integration
+│                                - KV cache management
+│                                - Response generation
+│
+├── SPECIALIZED SERVICES (7 modules)
+│   └── services/
+│       ├── __init__.py          Service exports
+│       ├── audio_service.py     Text-to-speech simulation
+│       ├── batch_service.py     Batch job processing
+│       ├── embedding_service.py Vector embedding generation
+│       ├── file_service.py      File upload/management
+│       ├── image_generation_service.py Image creation
+│       └── moderation_service.py Content safety checks
+│
+├── CONFIGURATION (10 modules)
+│   ├── config.py                Legacy unified config
+│   └── config/
+│       ├── __init__.py          Config aggregator
+│       ├── base.py              Core AppConfig
+│       ├── server.py            Server settings
+│       ├── auth.py              Authentication config
+│       ├── security.py          Security settings
+│       ├── rate_limits.py       Rate limit configuration
+│       ├── features.py          Feature flags
+│       ├── generation.py        Response generation config
+│       ├── metrics.py           Metrics configuration
+│       ├── kv_cache.py          KV cache settings
+│       └── storage.py           Storage configuration
+│
+├── PYDANTIC MODELS (9 modules)
+│   ├── models.py                Legacy unified models
+│   └── models/
+│       ├── __init__.py          Model exports
+│       ├── _base.py             Base model classes
+│       ├── _content.py          Content part types
+│       ├── chat.py              Chat completion models
+│       ├── embeddings.py        Embedding models
+│       ├── images.py            Image generation models
+│       ├── audio.py             Audio/TTS models
+│       └── batches.py           Batch processing models
+│
+├── METRICS SYSTEMS (13 modules)
+│   ├── metrics.py               Core MetricsTracker (singleton)
+│   ├── model_metrics.py         Per-model tracking
+│   ├── streaming_metrics.py     Streaming stats (TTFT, tokens/sec)
+│   ├── batch_metrics.py         Batch job metrics
+│   ├── error_metrics.py         Error tracking
+│   ├── rate_limiter_metrics.py  Rate limit stats
+│   ├── dcgm_metrics.py          GPU simulation (DCGM)
+│   ├── dynamo_metrics.py        Basic Dynamo metrics
+│   ├── dynamo_metrics_advanced.py Advanced Dynamo metrics
+│   ├── latency_histograms.py    Latency distribution
+│   ├── latency_profiles.py      Model latency profiling
+│   ├── metrics_aggregator.py    Cross-metric aggregation
+│   ├── metrics_persistence.py   Metrics export/storage
+│   └── metrics_streaming.py     Real-time WebSocket streaming
+│
+├── ADVANCED FEATURES (12 modules)
+│   ├── kv_cache.py              Basic KV cache
+│   ├── kv_cache_advanced.py     Radix tree implementation
+│   ├── smart_router_advanced.py AI-Dynamo routing
+│   ├── dynamo_advanced.py       Advanced Dynamo features
+│   ├── cost_tracker.py          Usage cost calculation
+│   ├── tool_calling.py          Function calling simulation
+│   ├── structured_outputs.py    JSON schema validation
+│   ├── logprobs_enhanced.py     Token probability tracking
+│   ├── semantic_embeddings.py   Semantic similarity
+│   ├── vector_store_engine.py   Vector store backend
+│   ├── context_validator.py     Context window validation
+│   └── tokenizers.py            Token counting
+│
+├── UTILITIES (8 modules)
+│   ├── utils_legacy.py          Legacy utilities
+│   └── utils/
+│       ├── __init__.py          Utility exports
+│       ├── tokens.py            Token calculation
+│       ├── text_generation.py   Text generation helpers
+│       ├── audio_generation.py  Audio synthesis
+│       ├── embeddings.py        Embedding utilities
+│       └── async_executor.py    Async helpers
+│
+├── GENERATORS (5 modules)
+│   ├── llm_generator.py         LLM response generation
+│   ├── image_generator.py       Image creation
+│   ├── audio.py                 Audio synthesis
+│   ├── audio_transcriber.py     Audio transcription
+│   └── file_manager.py          File operations
+│
+├── SECURITY (3 modules)
+│   ├── security.py              Security components
+│   │                            - ApiKeyManager (bcrypt hashing)
+│   │                            - AbuseDetector (IP banning)
+│   │                            - InputValidator (injection detection)
+│   ├── rate_limiter.py          Rate limiting engine
+│   └── error_injector.py        Fault injection testing
+│
+├── MODEL REGISTRY (11 modules)
+│   └── models_registry/
+│       ├── __init__.py          Registry exports
+│       ├── registry.py          ModelRegistry core
+│       ├── definition.py        ModelDefinition class
+│       ├── capabilities.py      Model capabilities
+│       ├── discovery.py         Model discovery engine
+│       └── catalog/
+│           ├── __init__.py      Catalog exports
+│           ├── openai.py        OpenAI models (GPT, O1)
+│           ├── anthropic.py     Claude models
+│           ├── meta.py          Llama models
+│           ├── mistral.py       Mistral/Mixtral models
+│           ├── deepseek.py      DeepSeek models
+│           ├── nvidia.py        NVIDIA NIM models
+│           └── registry_loader.py Catalog loading
+│
+├── VISION & MEDIA (2 modules)
+│   ├── vision.py                Image processing
+│   └── video.py                 Video content handling
+│
+├── MIDDLEWARE (1 module)
+│   └── middleware/
+│       └── (empty - middleware in app.py)
+│
+├── HANDLERS (1 module)
+│   └── handlers/
+│       └── (empty - handlers in app.py)
+│
+├── STREAMING (1 module)
+│   └── streaming/
+│       └── generators/
+│           └── (to be populated)
+│
+├── SHARED (1 module)
+│   └── shared/
+│       └── DECORATORS_README.md Documentation
+│
+├── STATIC ASSETS (2 files)
+│   └── static/
+│       ├── dashboard.html       Basic metrics dashboard
+│       └── dashboard_advanced.html Advanced Dynamo dashboard
+│
+├── LEGACY BACKUPS (2 modules)
+│   ├── models_legacy_backup.py  Models backup
+│   └── async_server.py          Old async server
+│
+└── CLIENT (1 module)
+    └── client.py                Python client for testing
+
+
+================================================================================
+                           MODULE DEPENDENCIES
+================================================================================
+
+Core Dependencies Flow:
+  app.py
+    ├─→ fakeai_service.py (main orchestrator)
+    │     ├─→ services/* (specialized services)
+    │     ├─→ metrics.py (core metrics)
+    │     ├─→ models.py (Pydantic schemas)
+    │     ├─→ config.py (configuration)
+    │     ├─→ kv_cache_advanced.py (caching)
+    │     ├─→ smart_router_advanced.py (routing)
+    │     ├─→ cost_tracker.py (cost tracking)
+    │     ├─→ dcgm_metrics.py (GPU metrics)
+    │     ├─→ dynamo_metrics_advanced.py (Dynamo metrics)
+    │     ├─→ vector_store_engine.py (vector storage)
+    │     ├─→ tool_calling.py (function calling)
+    │     └─→ models_registry/* (model catalog)
+    │
+    ├─→ metrics.py (MetricsTracker singleton)
+    ├─→ model_metrics.py (per-model tracking)
+    ├─→ metrics_streaming.py (WebSocket streaming)
+    ├─→ rate_limiter.py (rate limiting)
+    ├─→ security.py (auth & validation)
+    └─→ models.py (request/response schemas)
+
+Service Layer Dependencies:
+  services/audio_service.py
+    ├─→ utils/audio_generation.py
+    └─→ audio.py
+
+  services/embedding_service.py
+    ├─→ utils/embeddings.py
+    └─→ semantic_embeddings.py
+
+  services/image_generation_service.py
+    └─→ image_generator.py
+
+  services/batch_service.py
+    ├─→ batch_metrics.py
+    └─→ file_manager.py
+
+Metrics Dependencies:
+  metrics.py (core)
+    ├─→ numpy (vectorized operations)
+    └─→ threading.Lock (thread safety)
+
+  model_metrics.py
+    └─→ metrics.py
+
+  streaming_metrics.py
+    └─→ metrics.py
+
+  metrics_streaming.py
+    ├─→ metrics.py
+    └─→ asyncio (WebSocket)
+
+Shared Utilities:
+  utils/tokens.py
+    └─→ Used by: fakeai_service, all services
+
+  utils/text_generation.py
+    └─→ Used by: llm_generator, services
+
+  utils/embeddings.py
+    └─→ Used by: embedding_service, semantic_embeddings
+
+
+================================================================================
+                        MODULE SIZE & COMPLEXITY
+================================================================================
+
+Large Modules (>3000 lines):
+  - fakeai_service.py          ~5000 lines   Core orchestrator
+  - app.py                     ~1900 lines   FastAPI routes
+  - models.py                  ~3500 lines   Pydantic schemas
+
+Medium Modules (1000-3000 lines):
+  - dcgm_metrics.py            ~1500 lines   GPU metrics
+  - dynamo_metrics_advanced.py ~1400 lines   Advanced Dynamo
+  - kv_cache_advanced.py       ~1200 lines   Radix tree cache
+  - smart_router_advanced.py   ~1100 lines   Smart routing
+  - cost_tracker.py            ~1000 lines   Cost tracking
+  - error_metrics.py           ~1000 lines   Error tracking
+  - batch_metrics.py           ~900 lines    Batch metrics
+  - metrics.py                 ~850 lines    Core metrics
+
+Small Modules (<1000 lines):
+  - All other modules          <800 lines    Focused functionality
+
+
+================================================================================
+                       IMPORT STRUCTURE & PATTERNS
+================================================================================
+
+Public API Exports:
+  fakeai/__init__.py exports:
+    - FakeAIService
+    - AppConfig
+    - MetricsTracker
+    - All models from models.py
+
+  fakeai/services/__init__.py exports:
+    - AudioService
+    - BatchService
+    - EmbeddingService
+    - FileService
+    - ImageGenerationService
+    - ModerationService
+
+  fakeai/models/__init__.py exports:
+    - All Pydantic model classes
+    - Aggregated from submodules
+
+  fakeai/config/__init__.py exports:
+    - AppConfig (aggregated)
+    - All config subclasses
+
+Internal Imports:
+  - Absolute imports: from fakeai.module import Class
+  - No relative imports in core modules
+  - Type hints use string forward references where needed
+
+Circular Dependency Avoidance:
+  - Models defined separately from services
+  - Config loaded before service initialization
+  - Metrics use singleton pattern
+  - TYPE_CHECKING for type-only imports
+
+
+================================================================================
+                        MODULE CATEGORIZATION
+================================================================================
+
+By Layer:
+  ┌─────────────────────────────────────────────┐
+  │ APPLICATION LAYER (Entry Points)            │ app.py, cli.py, __main__.py
+  ├─────────────────────────────────────────────┤
+  │ PRESENTATION LAYER (Route Handlers)         │ app.py handlers
+  ├─────────────────────────────────────────────┤
+  │ SERVICE LAYER (Business Logic)              │ fakeai_service, services/*
+  ├─────────────────────────────────────────────┤
+  │ DOMAIN LAYER (Models & Logic)               │ models/*, tool_calling, etc.
+  ├─────────────────────────────────────────────┤
+  │ INFRASTRUCTURE LAYER (External Concerns)    │ metrics, security, storage
+  └─────────────────────────────────────────────┘
+
+By Responsibility:
+  Core Business Logic:
+    - fakeai_service.py
+    - services/*
+    - llm_generator.py
+
+  Data Models:
+    - models/*
+    - All Pydantic schemas
+
+  Configuration:
+    - config/*
+    - Environment variable loading
+
+  Metrics & Observability:
+    - metrics*.py (13 modules)
+    - latency*.py
+    - cost_tracker.py
+
+  Security & Rate Limiting:
+    - security.py
+    - rate_limiter*.py
+
+  Advanced Features:
+    - kv_cache*.py
+    - smart_router*.py
+    - tool_calling.py
+    - structured_outputs.py
+
+  Utilities:
+    - utils/*
+    - tokenizers.py
+    - context_validator.py
+
+
+================================================================================
+                        CODE ORGANIZATION PRINCIPLES
+================================================================================
+
+1. Single Responsibility:
+   - Each module has one clear purpose
+   - Services handle one domain (audio, images, etc.)
+   - Metrics modules track one aspect
+
+2. Separation of Concerns:
+   - Models separate from logic
+   - Config separate from implementation
+   - Metrics separate from business logic
+
+3. Dependency Injection:
+   - Services receive config in constructor
+   - No global state except singletons
+   - Easy to test and mock
+
+4. Composition Over Inheritance:
+   - Services composed of utilities
+   - Metrics composed of windows
+   - No deep inheritance hierarchies
+
+5. Progressive Enhancement:
+   - Basic features in core modules
+   - Advanced features in *_advanced modules
+   - Legacy versions kept as *_legacy
+
+6. Explicit Over Implicit:
+   - All imports explicit
+   - Type hints on all functions
+   - Clear module naming
+
+7. DRY (Don't Repeat Yourself):
+   - Shared utilities in utils/*
+   - Common patterns in shared/*
+   - Reusable components
+
+
+================================================================================
+                            MODULE NAMING CONVENTIONS
+================================================================================
+
+Patterns:
+  *_service.py      - Service layer modules
+  *_metrics.py      - Metrics tracking modules
+  *_advanced.py     - Advanced feature implementations
+  *_legacy.py       - Legacy/backup versions
+  *_generator.py    - Content generation modules
+
+Directories:
+  services/         - Specialized business logic
+  config/           - Configuration modules
+  models/           - Pydantic schemas
+  utils/            - Shared utilities
+  models_registry/  - Model catalog system
+  middleware/       - Request/response middleware
+  handlers/         - Request handlers
+  streaming/        - Streaming generators
+  shared/           - Shared resources
+  static/           - Static web assets
+
+Special Files:
+  __init__.py       - Package exports
+  __main__.py       - CLI entry point
+  app.py            - FastAPI application
+  cli.py            - Command-line interface
+
+
+================================================================================
+                            EXTENSION POINTS
+================================================================================
+
+Adding New Features:
+  1. New Endpoint:
+     - Add route in app.py
+     - Add handler in fakeai_service.py or new service
+     - Add models in models/*
+     - Update metrics tracking
+
+  2. New Service:
+     - Create services/new_service.py
+     - Export from services/__init__.py
+     - Integrate in fakeai_service.py
+     - Add tests
+
+  3. New Model Provider:
+     - Create models_registry/catalog/provider.py
+     - Define models in catalog
+     - Update registry_loader.py
+     - Add capabilities
+
+  4. New Metrics:
+     - Create *_metrics.py module
+     - Integrate with MetricsTracker
+     - Add export endpoints in app.py
+     - Update dashboards
+
+  5. New Config:
+     - Add to appropriate config/* module
+     - Update config/__init__.py
+     - Add environment variable support
+     - Document in README
+
+
+================================================================================

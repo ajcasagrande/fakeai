@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fakeai"
-version = "0.0.5"
+version = "0.3.0"
 description = "Simulated OpenAI Compatible API Server for Testing and Development"
 authors = [
     {name = "Anthony Casagrande"}
@@ -33,6 +33,7 @@ dependencies = [
     "faker>=13.0.0",
     "python-multipart>=0.0.9",
     "cyclopts>=3.0.0",
+    "aiohttp>=3.9.0",
 ]
 
 [project.urls]
@@ -44,11 +45,30 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
     "black>=23.0.0",
     "isort>=5.12.0",
     "flake8>=6.0.0",
     "mypy>=1.0.0",
-    "openai",
+    "openai>=1.0.0",
+    "httpx>=0.24.0",
+]
+llm = [
+    "tiktoken>=0.5.0",
+    "transformers>=4.30.0",
+    "torch>=2.0.0",
+]
+embeddings = [
+    "sentence-transformers>=2.2.0",
+    "torch>=2.0.0",
+]
+vector = [
+    "faiss-cpu>=1.7.4",
+    "numpy>=1.24.0",
+]
+all = [
+    "fakeai[dev,llm,embeddings,vector]",
 ]
 publish = [
     "build>=1.0.0",
@@ -76,10 +96,14 @@ line_length = 88
 
 [tool.mypy]
 python_version = "3.10"
-warn_return_any = true
+warn_return_any = false
 warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+ignore_missing_imports = true
+no_implicit_optional = true
+strict_optional = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -95,6 +119,7 @@ addopts = [
     "--color=yes",
 ]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 markers = [
     "unit: Unit tests for individual components",
     "integration: Integration tests for API endpoints",
@@ -106,6 +131,8 @@ markers = [
     "streaming: Streaming response tests",
     "multimodal: Multi-modal content tests",
     "metrics: Metrics and monitoring tests",
+    "prompt_caching: Prompt caching tests",
+    "stress: Stress and load tests for performance validation",
 ]
 log_cli = false
 log_cli_level = "INFO"
@@ -118,4 +145,5 @@ filterwarnings = [
 ]
 
 [project.scripts]
-fakeai-server = "fakeai:run_server"
+fakeai = "fakeai.cli:main"
+fakeai-server = "fakeai.cli:main"  # Deprecated: kept for backward compatibility

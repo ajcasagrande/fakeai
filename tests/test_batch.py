@@ -6,6 +6,7 @@ Tests batch creation, processing, cancellation, error handling, and output file 
 
 import asyncio
 import json
+
 import pytest
 
 from fakeai import AppConfig
@@ -68,19 +69,23 @@ async def test_batch_processing_completion(service):
     file_id = service.files[0].id
 
     # Store sample input content
-    sample_input = "\n".join([
-        json.dumps({
-            "custom_id": f"req-{i}",
-            "method": "POST",
-            "url": "/v1/chat/completions",
-            "body": {
-                "model": "meta-llama/Llama-3.1-8B-Instruct",
-                "messages": [{"role": "user", "content": f"Test {i}"}],
-                "max_tokens": 10,
-            },
-        })
-        for i in range(3)
-    ])
+    sample_input = "\n".join(
+        [
+            json.dumps(
+                {
+                    "custom_id": f"req-{i}",
+                    "method": "POST",
+                    "url": "/v1/chat/completions",
+                    "body": {
+                        "model": "meta-llama/Llama-3.1-8B-Instruct",
+                        "messages": [{"role": "user", "content": f"Test {i}"}],
+                        "max_tokens": 10,
+                    },
+                }
+            )
+            for i in range(3)
+        ]
+    )
     service.batch_file_contents[file_id] = sample_input
 
     # Create batch
@@ -112,7 +117,9 @@ async def test_batch_processing_completion(service):
 
     # Verify output file was created
     assert final_batch.output_file_id is not None
-    output_file = next((f for f in service.files if f.id == final_batch.output_file_id), None)
+    output_file = next(
+        (f for f in service.files if f.id == final_batch.output_file_id), None
+    )
     assert output_file is not None
     assert output_file.purpose == "batch_output"
     assert output_file.status == "processed"
@@ -138,18 +145,22 @@ async def test_batch_cancellation(service):
     file_id = service.files[0].id
 
     # Create a batch with many requests to ensure it's still processing
-    sample_input = "\n".join([
-        json.dumps({
-            "custom_id": f"req-{i}",
-            "method": "POST",
-            "url": "/v1/chat/completions",
-            "body": {
-                "model": "meta-llama/Llama-3.1-8B-Instruct",
-                "messages": [{"role": "user", "content": f"Test {i}"}],
-            },
-        })
-        for i in range(20)
-    ])
+    sample_input = "\n".join(
+        [
+            json.dumps(
+                {
+                    "custom_id": f"req-{i}",
+                    "method": "POST",
+                    "url": "/v1/chat/completions",
+                    "body": {
+                        "model": "meta-llama/Llama-3.1-8B-Instruct",
+                        "messages": [{"role": "user", "content": f"Test {i}"}],
+                    },
+                }
+            )
+            for i in range(20)
+        ]
+    )
     service.batch_file_contents[file_id] = sample_input
 
     # Create batch
@@ -179,27 +190,33 @@ async def test_batch_with_errors(service):
     file_id = service.files[0].id
 
     # Create input with both valid and invalid requests
-    sample_input = "\n".join([
-        # Valid request
-        json.dumps({
-            "custom_id": "req-1",
-            "method": "POST",
-            "url": "/v1/chat/completions",
-            "body": {
-                "model": "meta-llama/Llama-3.1-8B-Instruct",
-                "messages": [{"role": "user", "content": "Test"}],
-            },
-        }),
-        # Invalid request (missing messages)
-        json.dumps({
-            "custom_id": "req-2",
-            "method": "POST",
-            "url": "/v1/chat/completions",
-            "body": {
-                "model": "meta-llama/Llama-3.1-8B-Instruct",
-            },
-        }),
-    ])
+    sample_input = "\n".join(
+        [
+            # Valid request
+            json.dumps(
+                {
+                    "custom_id": "req-1",
+                    "method": "POST",
+                    "url": "/v1/chat/completions",
+                    "body": {
+                        "model": "meta-llama/Llama-3.1-8B-Instruct",
+                        "messages": [{"role": "user", "content": "Test"}],
+                    },
+                }
+            ),
+            # Invalid request (missing messages)
+            json.dumps(
+                {
+                    "custom_id": "req-2",
+                    "method": "POST",
+                    "url": "/v1/chat/completions",
+                    "body": {
+                        "model": "meta-llama/Llama-3.1-8B-Instruct",
+                    },
+                }
+            ),
+        ]
+    )
     service.batch_file_contents[file_id] = sample_input
 
     # Create batch
@@ -226,7 +243,9 @@ async def test_batch_with_errors(service):
     # Verify error file was created
     if final_batch.request_counts.failed > 0:
         assert final_batch.error_file_id is not None
-        error_file = next((f for f in service.files if f.id == final_batch.error_file_id), None)
+        error_file = next(
+            (f for f in service.files if f.id == final_batch.error_file_id), None
+        )
         assert error_file is not None
         assert error_file.purpose == "batch_errors"
 
@@ -299,7 +318,11 @@ async def test_list_batches(service):
     assert result_ids == created_ids
     assert result.has_more is False
     # Most recent should be first (last created)
-    assert result.data[0].created_at >= result.data[1].created_at >= result.data[2].created_at
+    assert (
+        result.data[0].created_at
+        >= result.data[1].created_at
+        >= result.data[2].created_at
+    )
 
 
 @pytest.mark.asyncio
@@ -341,18 +364,22 @@ async def test_batch_embeddings_endpoint(service):
     file_id = service.files[0].id
 
     # Create embeddings batch input
-    sample_input = "\n".join([
-        json.dumps({
-            "custom_id": f"emb-{i}",
-            "method": "POST",
-            "url": "/v1/embeddings",
-            "body": {
-                "model": "sentence-transformers/all-mpnet-base-v2",
-                "input": f"Sample text {i}",
-            },
-        })
-        for i in range(2)
-    ])
+    sample_input = "\n".join(
+        [
+            json.dumps(
+                {
+                    "custom_id": f"emb-{i}",
+                    "method": "POST",
+                    "url": "/v1/embeddings",
+                    "body": {
+                        "model": "sentence-transformers/all-mpnet-base-v2",
+                        "input": f"Sample text {i}",
+                    },
+                }
+            )
+            for i in range(2)
+        ]
+    )
     service.batch_file_contents[file_id] = sample_input
 
     # Create batch
@@ -390,18 +417,24 @@ async def test_batch_request_counts(service):
     file_id = service.files[0].id
 
     # Create input with mix of valid and invalid
-    sample_input = "\n".join([
-        json.dumps({
-            "custom_id": f"req-{i}",
-            "method": "POST",
-            "url": "/v1/chat/completions",
-            "body": {
-                "model": "meta-llama/Llama-3.1-8B-Instruct",
-                "messages": [{"role": "user", "content": "Test"}] if i % 2 == 0 else [],  # Every other is invalid
-            },
-        })
-        for i in range(4)
-    ])
+    sample_input = "\n".join(
+        [
+            json.dumps(
+                {
+                    "custom_id": f"req-{i}",
+                    "method": "POST",
+                    "url": "/v1/chat/completions",
+                    "body": {
+                        "model": "meta-llama/Llama-3.1-8B-Instruct",
+                        "messages": (
+                            [{"role": "user", "content": "Test"}] if i % 2 == 0 else []
+                        ),  # Every other is invalid
+                    },
+                }
+            )
+            for i in range(4)
+        ]
+    )
     service.batch_file_contents[file_id] = sample_input
 
     # Create batch
@@ -431,15 +464,17 @@ async def test_batch_output_file_format(service):
     file_id = service.files[0].id
 
     # Simple valid input
-    sample_input = json.dumps({
-        "custom_id": "test-1",
-        "method": "POST",
-        "url": "/v1/chat/completions",
-        "body": {
-            "model": "meta-llama/Llama-3.1-8B-Instruct",
-            "messages": [{"role": "user", "content": "Hello"}],
-        },
-    })
+    sample_input = json.dumps(
+        {
+            "custom_id": "test-1",
+            "method": "POST",
+            "url": "/v1/chat/completions",
+            "body": {
+                "model": "meta-llama/Llama-3.1-8B-Instruct",
+                "messages": [{"role": "user", "content": "Hello"}],
+            },
+        }
+    )
     service.batch_file_contents[file_id] = sample_input
 
     # Create and process batch

@@ -9,9 +9,10 @@ generation.
 Ideal for: document editing, code refactoring, translation updates.
 """
 import asyncio
+
 from fakeai import AppConfig
 from fakeai.fakeai_service import FakeAIService
-from fakeai.models import ChatCompletionRequest, Message, Role, PredictionContent
+from fakeai.models import ChatCompletionRequest, Message, PredictionContent, Role
 
 
 async def test_without_prediction():
@@ -26,7 +27,11 @@ async def test_without_prediction():
 
     request = ChatCompletionRequest(
         model="openai/gpt-oss-120b",
-        messages=[Message(role=Role.USER, content="Refactor this code to use list comprehension")],
+        messages=[
+            Message(
+                role=Role.USER, content="Refactor this code to use list comprehension"
+            )
+        ],
     )
 
     response = await service.create_chat_completion(request)
@@ -63,11 +68,10 @@ for item in items:
 
     request = ChatCompletionRequest(
         model="openai/gpt-oss-120b",
-        messages=[Message(role=Role.USER, content=f"Refactor this code: {original_code}")],
-        prediction=PredictionContent(
-            type="content",
-            content=prediction_text
-        )
+        messages=[
+            Message(role=Role.USER, content=f"Refactor this code: {original_code}")
+        ],
+        prediction=PredictionContent(type="content", content=prediction_text),
     )
 
     response = await service.create_chat_completion(request)
@@ -84,8 +88,9 @@ for item in items:
         print(f"  Rejected prediction tokens: {details.rejected_prediction_tokens}")
 
         if details.accepted_prediction_tokens + details.rejected_prediction_tokens > 0:
-            acceptance_rate = (details.accepted_prediction_tokens /
-                             (details.accepted_prediction_tokens + details.rejected_prediction_tokens))
+            acceptance_rate = details.accepted_prediction_tokens / (
+                details.accepted_prediction_tokens + details.rejected_prediction_tokens
+            )
             print(f"  Acceptance rate: {acceptance_rate:.1%}")
     print()
 
@@ -106,10 +111,7 @@ async def test_with_poor_prediction():
     request = ChatCompletionRequest(
         model="openai/gpt-oss-120b",
         messages=[Message(role=Role.USER, content="Explain quantum computing")],
-        prediction=PredictionContent(
-            type="content",
-            content=prediction_text
-        )
+        prediction=PredictionContent(type="content", content=prediction_text),
     )
 
     response = await service.create_chat_completion(request)
@@ -126,8 +128,9 @@ async def test_with_poor_prediction():
         print(f"  Rejected prediction tokens: {details.rejected_prediction_tokens}")
 
         if details.accepted_prediction_tokens + details.rejected_prediction_tokens > 0:
-            acceptance_rate = (details.accepted_prediction_tokens /
-                             (details.accepted_prediction_tokens + details.rejected_prediction_tokens))
+            acceptance_rate = details.accepted_prediction_tokens / (
+                details.accepted_prediction_tokens + details.rejected_prediction_tokens
+            )
             print(f"  Acceptance rate: {acceptance_rate:.1%}")
     print()
 

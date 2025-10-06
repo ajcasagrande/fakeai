@@ -1,0 +1,626 @@
+================================================================================
+                 FAKEAI 3.0 - MODEL REGISTRY ARCHITECTURE
+              Comprehensive Model Catalog & Discovery System
+================================================================================
+
+                        ┌──────────────────┐
+                        │  MODEL REGISTRY  │
+                        │  (Singleton)     │
+                        └────────┬─────────┘
+                                 │
+                ┌────────────────┼────────────────┐
+                │                │                │
+                v                v                v
+      ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+      │  PROVIDER    │  │  DISCOVERY   │  │ CAPABILITIES │
+      │  CATALOGS    │  │  ENGINE      │  │  QUERY       │
+      └──────────────┘  └──────────────┘  └──────────────┘
+                │
+        ┌───────┼───────┬───────┬───────┬───────┬────────┐
+        v       v       v       v       v       v        v
+    ┌──────┐┌──────┐┌──────┐┌──────┐┌──────┐┌──────┐┌──────┐
+    │OpenAI││Anthro││ Meta ││Mistral││DeepS.││NVIDIA││Custom│
+    │      ││pic   ││      ││       ││      ││      ││      │
+    └──────┘└──────┘└──────┘└──────┘└──────┘└──────┘└──────┘
+
+
+================================================================================
+                        MODEL REGISTRY CORE
+================================================================================
+
+File: models_registry/registry.py
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  ModelRegistry Class                                                    │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  Storage:                                                               │
+│    _models: Dict[str, ModelDefinition]                                 │
+│    _provider_catalogs: Dict[str, ProviderCatalog]                      │
+│    _aliases: Dict[str, str]  # alias -> canonical_id                   │
+│                                                                         │
+│  Core Methods:                                                          │
+│    register_model(definition: ModelDefinition)                          │
+│    get_model(model_id: str) -> ModelDefinition                         │
+│    list_models(provider=None, capabilities=None) -> List[ModelDef]     │
+│    search_models(query: str) -> List[ModelDefinition]                  │
+│    get_model_capabilities(model_id: str) -> ModelCapabilities          │
+│    supports_capability(model_id: str, cap: str) -> bool                │
+│                                                                         │
+│  Provider Management:                                                   │
+│    register_provider_catalog(catalog: ProviderCatalog)                  │
+│    get_provider_models(provider: str) -> List[ModelDefinition]         │
+│                                                                         │
+│  Discovery:                                                             │
+│    discover_models() -> List[ModelDefinition]                           │
+│    load_catalog_from_file(path: str)                                   │
+│    load_catalog_from_url(url: str)                                     │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                        MODEL DEFINITION STRUCTURE
+================================================================================
+
+File: models_registry/definition.py
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  ModelDefinition (Pydantic)                                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  Basic Info:                                                            │
+│    id: str                           e.g., "openai/gpt-oss-120b"       │
+│    name: str                         Human-readable name                │
+│    provider: str                     "openai", "anthropic", etc.        │
+│    description: str                  Model description                  │
+│    created: int                      Unix timestamp                     │
+│    owned_by: str                     Owner organization                 │
+│                                                                         │
+│  Architecture:                                                          │
+│    architecture: str                 "transformer", "moe", etc.         │
+│    parameters: int                   Total parameter count              │
+│    active_parameters: int | None     Active params (for MoE)            │
+│    num_experts: int | None           Number of experts (MoE)            │
+│    experts_per_token: int | None     Active experts per token           │
+│    num_layers: int | None            Layer count                        │
+│    hidden_size: int | None           Hidden dimension size              │
+│    num_heads: int | None             Attention heads                    │
+│                                                                         │
+│  Context & Capabilities:                                                │
+│    context_window: int               Max context tokens                 │
+│    max_completion_tokens: int        Max output tokens                  │
+│    supports_streaming: bool          Streaming support                  │
+│    supports_function_calling: bool   Tool calling support               │
+│    supports_vision: bool             Image input support                │
+│    supports_audio_input: bool        Audio input support                │
+│    supports_audio_output: bool       Audio output support               │
+│    supports_reasoning: bool          O1/R1 style reasoning              │
+│    supports_structured_output: bool  JSON schema output                 │
+│    supports_predicted_outputs: bool  EAGLE/speculative decoding         │
+│                                                                         │
+│  Pricing:                                                               │
+│    pricing: ModelPricing | None                                        │
+│      prompt_price_per_1m: float      $/1M prompt tokens                │
+│      completion_price_per_1m: float  $/1M completion tokens             │
+│      cached_price_per_1m: float      $/1M cached tokens                │
+│      image_price_per_unit: float     $ per image                       │
+│      audio_price_per_minute: float   $ per minute                      │
+│                                                                         │
+│  Fine-Tuning:                                                           │
+│    supports_fine_tuning: bool        Fine-tuning available             │
+│    fine_tuning_config: dict | None   FT configuration                   │
+│                                                                         │
+│  Metadata:                                                              │
+│    license: str | None               License type                       │
+│    paper_url: str | None             Research paper link                │
+│    release_date: str | None          Release date                       │
+│    tags: List[str]                   Categorization tags                │
+│    aliases: List[str]                Alternative IDs                    │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                        PROVIDER CATALOGS
+================================================================================
+
+1. OPENAI CATALOG
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: models_registry/catalog/openai.py
+
+   Models:
+     GPT-OSS Series (Latest):
+       - openai/gpt-oss-120b          120B MoE, 128K context
+       - openai/gpt-oss-20b           20B dense, 128K context
+       - gpt-oss-120b-realtime-preview Audio/Text realtime
+
+     GPT-4 Series:
+       - gpt-4o                       Flagship multimodal
+       - gpt-4o-mini                  Fast & affordable
+       - gpt-4-turbo                  Previous flagship
+       - gpt-4                        Original GPT-4
+       - gpt-4-32k                    Extended context
+
+     GPT-3.5 Series:
+       - gpt-3.5-turbo                Fast & cheap
+       - gpt-3.5-turbo-16k            Extended context
+
+     O1 Series (Reasoning):
+       - o1                           Latest reasoning model
+       - o1-preview                   Preview reasoning
+       - o1-mini                      Small reasoning model
+
+     Embeddings:
+       - text-embedding-3-large       3072 dimensions
+       - text-embedding-3-small       1536 dimensions
+       - text-embedding-ada-002       1536 dimensions (legacy)
+
+     Images:
+       - dall-e-3                     Latest image model
+       - dall-e-2                     Legacy image model
+
+     Audio:
+       - tts-1                        Text-to-speech
+       - tts-1-hd                     HD text-to-speech
+       - whisper-1                    Speech-to-text
+
+
+2. ANTHROPIC CATALOG
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: models_registry/catalog/anthropic.py
+
+   Models:
+     Claude 3.5 Series:
+       - claude-3-5-sonnet-20250514   Latest Sonnet
+       - claude-3-5-haiku-20250514    Latest Haiku
+
+     Claude 3 Series:
+       - claude-3-opus-20240229       Most capable
+       - claude-3-sonnet-20240229     Balanced
+       - claude-3-haiku-20240307      Fast & affordable
+
+
+3. META CATALOG
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: models_registry/catalog/meta.py
+
+   Models:
+     Llama 3.3 Series:
+       - meta-llama/Llama-3.3-70B-Instruct      Latest 70B
+
+     Llama 3.2 Series:
+       - meta-llama/Llama-3.2-90B-Vision-Instruct  Vision model
+       - meta-llama/Llama-3.2-11B-Vision-Instruct  Small vision
+       - meta-llama/Llama-3.2-3B-Instruct          Tiny model
+       - meta-llama/Llama-3.2-1B-Instruct          Ultra small
+
+     Llama 3.1 Series:
+       - meta-llama/Llama-3.1-405B-Instruct     Largest
+       - meta-llama/Llama-3.1-70B-Instruct      Popular
+       - meta-llama/Llama-3.1-8B-Instruct       Small
+
+
+4. MISTRAL CATALOG
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: models_registry/catalog/mistral.py
+
+   Models:
+     Mistral Series:
+       - mistral-large-2501         Latest large model
+       - mistral-medium              Medium model
+       - mistral-small               Small model
+
+     Mixtral Series (MoE):
+       - mixtral-8x7b               8 experts, 7B each
+       - mixtral-8x22b              8 experts, 22B each
+
+     Pixtral Series (Multimodal):
+       - pixtral-12b-2409           Vision model
+
+
+5. DEEPSEEK CATALOG
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: models_registry/catalog/deepseek.py
+
+   Models:
+     DeepSeek-V3 Series:
+       - deepseek-ai/DeepSeek-V3           671B MoE model
+
+     DeepSeek-R1 Series (Reasoning):
+       - deepseek-ai/DeepSeek-R1                 Reasoning model
+       - deepseek-ai/DeepSeek-R1-Distill-Qwen-32B Distilled version
+
+
+6. NVIDIA CATALOG
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: models_registry/catalog/nvidia.py
+
+   Models:
+     NIM Models:
+       - nvidia/nemotron-4-340b-instruct    Flagship
+       - nv-mistralai/mistral-nemo-12b-instruct  Mistral variant
+       - meta/llama-3.1-405b-instruct       Llama variant
+
+     Embeddings:
+       - nvidia/nv-embed-v1                 1024 dimensions
+
+     Reranking:
+       - nvidia/nv-rerank-qa-v1             QA reranking
+
+
+7. CUSTOM MODELS
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Support for:
+     - Fine-tuned models (ft:base:org::id format)
+     - Custom endpoints
+     - User-defined models
+     - Auto-created on first use
+
+
+================================================================================
+                        MODEL CAPABILITIES QUERY
+================================================================================
+
+File: models_registry/capabilities.py
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  ModelCapabilities (Response Format)                                    │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  model: str                                                             │
+│  context_window: int                                                    │
+│  max_completion_tokens: int                                             │
+│  pricing: ModelPricing | None                                          │
+│                                                                         │
+│  capabilities: dict                                                     │
+│    streaming: bool                                                      │
+│    function_calling: bool                                               │
+│    vision: bool                                                         │
+│    audio_input: bool                                                    │
+│    audio_output: bool                                                   │
+│    reasoning: bool                                                      │
+│    structured_output: bool                                              │
+│    predicted_outputs: bool                                              │
+│    fine_tuning: bool                                                    │
+│    batch_processing: bool                                               │
+│                                                                         │
+│  modalities: List[str]                                                  │
+│    ["text", "image", "audio", "video"]                                  │
+│                                                                         │
+│  supported_features: List[str]                                          │
+│    ["temperature", "top_p", "frequency_penalty", ...]                   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+Endpoint: GET /v1/models/{model_id}/capabilities
+
+Example Response:
+  ```json
+  {
+    "model": "openai/gpt-oss-120b",
+    "context_window": 131072,
+    "max_completion_tokens": 16384,
+    "pricing": {
+      "prompt_price_per_1m": 2.50,
+      "completion_price_per_1m": 10.00
+    },
+    "capabilities": {
+      "streaming": true,
+      "function_calling": true,
+      "vision": true,
+      "audio_input": false,
+      "audio_output": false,
+      "reasoning": false,
+      "structured_output": true,
+      "predicted_outputs": true,
+      "fine_tuning": true,
+      "batch_processing": true
+    },
+    "modalities": ["text", "image"],
+    "supported_features": [
+      "temperature",
+      "top_p",
+      "max_tokens",
+      "stop",
+      "frequency_penalty",
+      "presence_penalty",
+      "logprobs",
+      "seed"
+    ]
+  }
+  ```
+
+
+================================================================================
+                        MODEL DISCOVERY ENGINE
+================================================================================
+
+File: models_registry/discovery.py
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  ModelDiscovery                                                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  Discovery Sources:                                                     │
+│    1. Built-in catalogs (7 providers)                                   │
+│    2. Environment variables (FAKEAI_CUSTOM_MODELS)                      │
+│    3. Config files (models.json)                                        │
+│    4. Runtime registration (API calls)                                  │
+│    5. Auto-creation (_ensure_model_exists)                              │
+│                                                                         │
+│  Discovery Methods:                                                     │
+│    discover_from_env() -> List[ModelDefinition]                         │
+│    discover_from_config(path: str) -> List[ModelDefinition]            │
+│    discover_from_url(url: str) -> List[ModelDefinition]                │
+│    auto_discover() -> List[ModelDefinition]                             │
+│                                                                         │
+│  Search Capabilities:                                                   │
+│    search_by_name(query: str) -> List[ModelDefinition]                 │
+│    search_by_provider(provider: str) -> List[ModelDefinition]          │
+│    search_by_capability(cap: str) -> List[ModelDefinition]             │
+│    search_by_tags(tags: List[str]) -> List[ModelDefinition]            │
+│    fuzzy_search(query: str) -> List[ModelDefinition]                   │
+│                                                                         │
+│  Filtering:                                                             │
+│    filter_by_context_window(min_tokens: int)                            │
+│    filter_by_pricing(max_cost: float)                                  │
+│    filter_by_architecture(arch: str)                                   │
+│    filter_by_modality(modality: str)                                   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+Auto-Discovery Example:
+  ```python
+  # Environment variable
+  export FAKEAI_CUSTOM_MODELS='[
+    {
+      "id": "custom/my-model",
+      "name": "My Custom Model",
+      "provider": "custom",
+      "context_window": 8192,
+      "supports_streaming": true
+    }
+  ]'
+
+  # Will be automatically discovered on startup
+  ```
+
+
+================================================================================
+                        MODEL CATALOG LOADING
+================================================================================
+
+File: models_registry/catalog/registry_loader.py
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  load_all_catalogs() → List[ModelDefinition]                           │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  1. Load OpenAI catalog                                                 │
+│     - GPT-OSS, GPT-4, GPT-3.5, O1                                       │
+│     - Embeddings, Images, Audio                                         │
+│     - ~20 models                                                        │
+│                                                                         │
+│  2. Load Anthropic catalog                                              │
+│     - Claude 3.5, Claude 3                                              │
+│     - ~5 models                                                         │
+│                                                                         │
+│  3. Load Meta catalog                                                   │
+│     - Llama 3.3, 3.2, 3.1                                               │
+│     - Vision models                                                     │
+│     - ~10 models                                                        │
+│                                                                         │
+│  4. Load Mistral catalog                                                │
+│     - Mistral, Mixtral, Pixtral                                         │
+│     - ~6 models                                                         │
+│                                                                         │
+│  5. Load DeepSeek catalog                                               │
+│     - DeepSeek-V3, DeepSeek-R1                                          │
+│     - ~3 models                                                         │
+│                                                                         │
+│  6. Load NVIDIA catalog                                                 │
+│     - NIM models                                                        │
+│     - Embeddings, Reranking                                             │
+│     - ~5 models                                                         │
+│                                                                         │
+│  7. Merge and deduplicate                                               │
+│     - Handle aliases                                                    │
+│     - Resolve conflicts                                                 │
+│     - Return ~50 models                                                 │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                        INTEGRATION WITH FAKEAI SERVICE
+================================================================================
+
+In FakeAIService.__init__:
+
+  ```python
+  # Initialize model registry
+  self.model_registry = ModelRegistry()
+
+  # Load all provider catalogs
+  catalog_models = load_all_catalogs()
+  for model_def in catalog_models:
+      self.model_registry.register_model(model_def)
+
+  # Convert to OpenAI API format
+  self.models: Dict[str, Model] = {}
+  for model_def in catalog_models:
+      self.models[model_def.id] = Model(
+          id=model_def.id,
+          created=model_def.created,
+          owned_by=model_def.owned_by,
+          permission=[ModelPermission(...)],
+          root=None,
+          parent=None
+      )
+  ```
+
+Usage in Service Methods:
+
+  ```python
+  async def create_chat_completion(
+      self, request: ChatCompletionRequest
+  ) -> ChatCompletionResponse:
+      # Ensure model exists
+      self._ensure_model_exists(request.model)
+
+      # Get model capabilities
+      model_def = self.model_registry.get_model(request.model)
+
+      # Check capabilities
+      if request.stream and not model_def.supports_streaming:
+          raise ValueError("Model does not support streaming")
+
+      # Get pricing for cost calculation
+      pricing = model_def.pricing
+      if pricing:
+          cost = self.cost_tracker.calculate_cost(
+              request.model, prompt_tokens, completion_tokens
+          )
+  ```
+
+
+================================================================================
+                        MODEL AUTO-CREATION
+================================================================================
+
+_ensure_model_exists(model_id: str):
+
+  ```python
+  def _ensure_model_exists(self, model_id: str) -> None:
+      """Auto-create model if it doesn't exist."""
+      if model_id in self.models:
+          return  # Model already exists
+
+      # Try to get from registry first
+      try:
+          model_def = self.model_registry.get_model(model_id)
+          # Convert to OpenAI format
+          self.models[model_id] = Model(
+              id=model_def.id,
+              created=model_def.created,
+              owned_by=model_def.owned_by,
+              permission=[base_permission],
+              root=None,
+              parent=None
+          )
+          return
+      except ValueError:
+          pass  # Not in registry, create default
+
+      # Create default model with basic capabilities
+      creation_time = int(time.time()) - 10000
+      base_permission = next(iter(self.models.values())).permission[0]
+
+      self.models[model_id] = Model(
+          id=model_id,
+          created=creation_time,
+          owned_by="custom",
+          permission=[base_permission],
+          root=None,
+          parent=None
+      )
+
+      # Register in registry with default definition
+      model_def = ModelDefinition(
+          id=model_id,
+          name=model_id,
+          provider="custom",
+          description="Auto-created custom model",
+          created=creation_time,
+          owned_by="custom",
+          context_window=8192,
+          max_completion_tokens=4096,
+          supports_streaming=True
+      )
+      self.model_registry.register_model(model_def)
+  ```
+
+
+================================================================================
+                        FINE-TUNED MODEL SUPPORT
+================================================================================
+
+Format: ft:base_model:org::id
+
+Examples:
+  - ft:openai/gpt-oss-20b:my-org::abc123
+  - ft:gpt-3.5-turbo:acme::xyz789
+
+Parsing:
+  ```python
+  def parse_fine_tuned_model_id(model_id: str) -> tuple:
+      """Parse fine-tuned model ID."""
+      if not model_id.startswith("ft:"):
+          return None, None, None
+
+      parts = model_id.split(":")
+      if len(parts) < 5:
+          return None, None, None
+
+      base_model = parts[1]
+      org = parts[2]
+      ft_id = parts[4]
+
+      return base_model, org, ft_id
+  ```
+
+Handling:
+  ```python
+  base_model, org, ft_id = parse_fine_tuned_model_id(request.model)
+
+  if base_model:
+      # Use base model capabilities
+      model_def = self.model_registry.get_model(base_model)
+
+      # Apply fine-tuning customizations
+      # (currently just uses base model)
+  ```
+
+
+================================================================================
+                        BENEFITS OF MODEL REGISTRY
+================================================================================
+
+1. Centralized Model Management:
+   - Single source of truth for model metadata
+   - Consistent model definitions across codebase
+   - Easy to add new models
+
+2. Rich Metadata:
+   - Architecture details (parameters, MoE, etc.)
+   - Capability flags (vision, audio, reasoning)
+   - Pricing information
+   - Context window limits
+
+3. Discovery & Search:
+   - Find models by capability
+   - Search by provider
+   - Filter by features
+   - Fuzzy matching
+
+4. Auto-Creation:
+   - Any model ID can be used
+   - Falls back to defaults
+   - Prevents errors
+   - Flexible for testing
+
+5. Cost Calculation:
+   - Accurate pricing data
+   - Per-model cost tracking
+   - Usage-based billing simulation
+
+6. Capability Validation:
+   - Check if model supports feature
+   - Prevent invalid requests
+   - Better error messages
+
+
+================================================================================

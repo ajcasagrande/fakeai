@@ -15,18 +15,25 @@ from datetime import datetime
 from typing import Annotated
 
 import uvicorn
+from fastapi import (
+    Depends,
+    FastAPI,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 
 from fakeai.config import AppConfig
 from fakeai.fakeai_service import FakeAIService, RealtimeSessionHandler
 from fakeai.metrics import MetricsTracker
-from fakeai.rate_limiter import RateLimiter
-from fakeai.security import (
-    ApiKeyManager,
-    AbuseDetector,
-    InputValidator,
-    InjectionAttackDetected,
-    PayloadTooLarge,
-)
+from fakeai.metrics_streaming import MetricsStreamer
+from fakeai.model_metrics import ModelMetricsTracker
 from fakeai.models import (
     ArchiveOrganizationProjectResponse,
     AudioSpeechesUsageResponse,
@@ -45,6 +52,9 @@ from fakeai.models import (
     CreateOrganizationUserRequest,
     CreateProjectUserRequest,
     CreateServiceAccountRequest,
+    CreateVectorStoreFileBatchRequest,
+    CreateVectorStoreFileRequest,
+    CreateVectorStoreRequest,
     DeleteOrganizationInviteResponse,
     DeleteProjectUserResponse,
     DeleteServiceAccountResponse,
@@ -55,16 +65,21 @@ from fakeai.models import (
     ErrorResponse,
     FileListResponse,
     FileObject,
+    FineTuningCheckpointList,
+    FineTuningJob,
+    FineTuningJobList,
+    FineTuningJobRequest,
     ImageGenerationRequest,
     ImageGenerationResponse,
     ImagesUsageResponse,
-    ModerationRequest,
-    ModerationResponse,
     ModelCapabilitiesResponse,
     ModelListResponse,
+    ModerationRequest,
+    ModerationResponse,
     ModifyOrganizationProjectRequest,
     ModifyOrganizationUserRequest,
     ModifyProjectUserRequest,
+    ModifyVectorStoreRequest,
     OrganizationInvite,
     OrganizationInviteListResponse,
     OrganizationProject,
@@ -79,6 +94,8 @@ from fakeai.models import (
     ResponsesResponse,
     ServiceAccount,
     ServiceAccountListResponse,
+    SolidoRagRequest,
+    SolidoRagResponse,
     SpeechRequest,
     TextGenerationRequest,
     TextGenerationResponse,
@@ -87,15 +104,15 @@ from fakeai.models import (
     VectorStoreFileBatch,
     VectorStoreFileListResponse,
     VectorStoreListResponse,
-    CreateVectorStoreRequest,
-    ModifyVectorStoreRequest,
-    CreateVectorStoreFileRequest,
-    CreateVectorStoreFileBatchRequest,
 )
-
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fakeai.rate_limiter import RateLimiter
+from fakeai.security import (
+    AbuseDetector,
+    ApiKeyManager,
+    InjectionAttackDetected,
+    InputValidator,
+    PayloadTooLarge,
+)
 
 # Set up logging
 logging.basicConfig(
@@ -142,6 +159,15 @@ fakeai_service = FakeAIService(config)
 # Get the metrics tracker singleton instance
 metrics_tracker = fakeai_service.metrics_tracker
 
+# Initialize per-model metrics tracker
+model_metrics_tracker = ModelMetricsTracker()
+
+# Initialize metrics streamer
+metrics_streamer = MetricsStreamer(metrics_tracker)
+
+# Server readiness state
+server_ready = False
+
 # Initialize rate limiter
 rate_limiter = RateLimiter()
 rate_limiter.configure(
@@ -154,7 +180,7 @@ rate_limiter.configure(
 # Authentication dependency
 async def verify_api_key(
     request: Request,
-    api_key: Annotated[str | None, Header(alias="Authorization")] = None
+    api_key: Annotated[str | None, Header(alias="Authorization")] = None,
 ):
     """Verifies the API key from the Authorization header with security checks."""
     client_ip = request.client.host if request.client else "unknown"
@@ -212,7 +238,9 @@ async def log_requests(request: Request, call_next):
     request_id = f"{int(time.time())}-{random.randint(1000, 9999)}"
     endpoint = request.url.path
     client_ip = request.client.host if request.client else "unknown"
-    logger.debug("Request %s: %s %s from %s", request_id, request.method, endpoint, client_ip)
+    logger.debug(
+        "Request %s: %s %s from %s", request_id, request.method, endpoint, client_ip
+    )
     start_time = time.time()
 
     # Track the request in the metrics
@@ -250,7 +278,9 @@ async def log_requests(request: Request, call_next):
                 try:
                     body_str = body.decode("utf-8", errors="ignore")
                     # Quick check for injection patterns in the raw request
-                    input_validator.sanitize_string(body_str[:10000])  # Check first 10KB
+                    input_validator.sanitize_string(
+                        body_str[:10000]
+                    )  # Check first 10KB
                 except InjectionAttackDetected as e:
                     if config.enable_abuse_detection:
                         abuse_detector.record_injection_attempt(client_ip)
@@ -294,7 +324,11 @@ async def log_requests(request: Request, call_next):
         if api_key and api_key in config.api_keys:
             # Estimate token count from request body for chat/completions endpoints
             estimated_tokens = 0
-            if endpoint in ["/v1/chat/completions", "/v1/completions", "/v1/embeddings"]:
+            if endpoint in [
+                "/v1/chat/completions",
+                "/v1/completions",
+                "/v1/embeddings",
+            ]:
                 try:
                     body = await request.body()
                     # Store body for later use since it can only be read once
@@ -374,8 +408,39 @@ async def log_requests(request: Request, call_next):
 # Health check endpoint
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+    """Health check endpoint with readiness status"""
+    global server_ready
+    status = "healthy" if server_ready else "starting"
+    return {
+        "status": status,
+        "ready": server_ready,
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+# Startup event to mark server as ready
+@app.on_event("startup")
+async def startup_event():
+    """Mark server as ready after startup."""
+    global server_ready
+    # Give a brief moment for all initialization to complete
+    import asyncio
+
+    await asyncio.sleep(0.1)
+    server_ready = True
+
+    # Start metrics streamer
+    await metrics_streamer.start()
+
+    logger.info("Server is ready to accept requests")
+
+
+# Shutdown event to cleanup
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown."""
+    await metrics_streamer.stop()
+    logger.info("Server shutdown complete")
 
 
 # Dashboard endpoint
@@ -383,6 +448,7 @@ async def health_check():
 async def get_dashboard():
     """Serve the interactive metrics dashboard"""
     import os
+
     dashboard_path = os.path.join(os.path.dirname(__file__), "static", "dashboard.html")
     return FileResponse(dashboard_path, media_type="text/html")
 
@@ -391,7 +457,10 @@ async def get_dashboard():
 async def get_dynamo_dashboard():
     """Serve the advanced Dynamo dashboard with DCGM, KVBM, and SLA metrics"""
     import os
-    dashboard_path = os.path.join(os.path.dirname(__file__), "static", "dashboard_advanced.html")
+
+    dashboard_path = os.path.join(
+        os.path.dirname(__file__), "static", "dashboard_advanced.html"
+    )
     return FileResponse(dashboard_path, media_type="text/html")
 
 
@@ -402,24 +471,39 @@ async def list_models() -> ModelListResponse:
     return await fakeai_service.list_models()
 
 
-@app.get("/v1/models/{model_id}", dependencies=[Depends(verify_api_key)])
+@app.get("/v1/models/{model_id:path}", dependencies=[Depends(verify_api_key)])
 async def get_model(model_id: str):
     """Get model details"""
-    return await fakeai_service.get_model(model_id)
+    try:
+        return await fakeai_service.get_model(model_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@app.get("/v1/models/{model_id}/capabilities", dependencies=[Depends(verify_api_key)])
+@app.get(
+    "/v1/models/{model_id:path}/capabilities", dependencies=[Depends(verify_api_key)]
+)
 async def get_model_capabilities(model_id: str) -> ModelCapabilitiesResponse:
     """Get model capabilities including context window, pricing, and feature support"""
     return await fakeai_service.get_model_capabilities(model_id)
 
 
 # Chat completions endpoints
-@app.post("/v1/chat/completions", dependencies=[Depends(verify_api_key)], response_model=None)
+@app.post(
+    "/v1/chat/completions", dependencies=[Depends(verify_api_key)], response_model=None
+)
 async def create_chat_completion(
-    request: ChatCompletionRequest
+    request: ChatCompletionRequest,
+    authorization: Annotated[str | None, Header(alias="Authorization")] = None,
 ):
     """Create a chat completion"""
+    start_time = time.time()
+
+    # Extract user from API key
+    user = None
+    if authorization and authorization.startswith("Bearer "):
+        user = authorization[7:][:20]  # Use first 20 chars as identifier
+
     if request.stream:
 
         async def generate():
@@ -432,15 +516,39 @@ async def create_chat_completion(
             media_type="text/event-stream",
         )
     else:
-        return await fakeai_service.create_chat_completion(request)
+        response = await fakeai_service.create_chat_completion(request)
+
+        # Track per-model metrics
+        latency_ms = (time.time() - start_time) * 1000
+        model_metrics_tracker.track_request(
+            model=request.model,
+            endpoint="/v1/chat/completions",
+            prompt_tokens=response.usage.prompt_tokens if response.usage else 0,
+            completion_tokens=response.usage.completion_tokens if response.usage else 0,
+            latency_ms=latency_ms,
+            user=user,
+            error=False,
+        )
+
+        return response
 
 
 # Completions endpoints
-@app.post("/v1/completions", dependencies=[Depends(verify_api_key)], response_model=None)
+@app.post(
+    "/v1/completions", dependencies=[Depends(verify_api_key)], response_model=None
+)
 async def create_completion(
-    request: CompletionRequest
+    request: CompletionRequest,
+    authorization: Annotated[str | None, Header(alias="Authorization")] = None,
 ):
     """Create a completion"""
+    start_time = time.time()
+
+    # Extract user from API key
+    user = None
+    if authorization and authorization.startswith("Bearer "):
+        user = authorization[7:][:20]
+
     if request.stream:
 
         async def generate():
@@ -453,14 +561,52 @@ async def create_completion(
             media_type="text/event-stream",
         )
     else:
-        return await fakeai_service.create_completion(request)
+        response = await fakeai_service.create_completion(request)
+
+        # Track per-model metrics
+        latency_ms = (time.time() - start_time) * 1000
+        model_metrics_tracker.track_request(
+            model=request.model,
+            endpoint="/v1/completions",
+            prompt_tokens=response.usage.prompt_tokens if response.usage else 0,
+            completion_tokens=response.usage.completion_tokens if response.usage else 0,
+            latency_ms=latency_ms,
+            user=user,
+            error=False,
+        )
+
+        return response
 
 
 # Embeddings endpoint
 @app.post("/v1/embeddings", dependencies=[Depends(verify_api_key)])
-async def create_embedding(request: EmbeddingRequest) -> EmbeddingResponse:
+async def create_embedding(
+    request: EmbeddingRequest,
+    authorization: Annotated[str | None, Header(alias="Authorization")] = None,
+) -> EmbeddingResponse:
     """Create embeddings"""
-    return await fakeai_service.create_embedding(request)
+    start_time = time.time()
+
+    # Extract user from API key
+    user = None
+    if authorization and authorization.startswith("Bearer "):
+        user = authorization[7:][:20]
+
+    response = await fakeai_service.create_embedding(request)
+
+    # Track per-model metrics
+    latency_ms = (time.time() - start_time) * 1000
+    model_metrics_tracker.track_request(
+        model=request.model,
+        endpoint="/v1/embeddings",
+        prompt_tokens=response.usage.prompt_tokens if response.usage else 0,
+        completion_tokens=0,
+        latency_ms=latency_ms,
+        user=user,
+        error=False,
+    )
+
+    return response
 
 
 # Images endpoints
@@ -468,6 +614,35 @@ async def create_embedding(request: EmbeddingRequest) -> EmbeddingResponse:
 async def generate_images(request: ImageGenerationRequest) -> ImageGenerationResponse:
     """Generate images"""
     return await fakeai_service.generate_images(request)
+
+
+@app.get("/images/{image_id}.png")
+async def get_image(image_id: str) -> Response:
+    """
+    Retrieve a generated image by ID.
+
+    This endpoint serves actual generated images when image generation is enabled.
+    Images are stored in memory and automatically cleaned up after retention period.
+    """
+    if not fakeai_service.image_generator:
+        raise HTTPException(
+            status_code=404,
+            detail="Image generation is disabled. Enable with FAKEAI_GENERATE_ACTUAL_IMAGES=true",
+        )
+
+    image_bytes = fakeai_service.image_generator.get_image(image_id)
+
+    if image_bytes is None:
+        raise HTTPException(status_code=404, detail="Image not found or expired")
+
+    return Response(
+        content=image_bytes,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "public, max-age=3600",
+            "Content-Disposition": f'inline; filename="{image_id}.png"',
+        },
+    )
 
 
 # Audio (Text-to-Speech) endpoint
@@ -552,6 +727,18 @@ async def create_ranking(request: RankingRequest) -> RankingResponse:
     return await fakeai_service.create_ranking(request)
 
 
+# Solido RAG API endpoint
+@app.post("/rag/api/prompt", dependencies=[Depends(verify_api_key)])
+async def create_solido_rag(request: SolidoRagRequest) -> SolidoRagResponse:
+    """
+    Create a Solido RAG response with retrieval-augmented generation.
+
+    Retrieves relevant documents based on filters and generates
+    context-aware responses using the specified inference model.
+    """
+    return await fakeai_service.create_solido_rag(request)
+
+
 # Metrics endpoints
 @app.get("/metrics")
 async def get_metrics():
@@ -578,38 +765,137 @@ async def get_csv_metrics():
     )
 
 
+@app.websocket("/metrics/stream")
+async def metrics_stream(websocket: WebSocket):
+    """
+    Real-time metrics streaming via WebSocket.
+
+    Supports subscription-based filtering by endpoint, model, and metric type.
+    Clients can control update intervals and receive delta calculations.
+
+    Example client usage:
+    ```javascript
+    const ws = new WebSocket('ws://localhost:8000/metrics/stream');
+    ws.onopen = () => {
+        ws.send(JSON.stringify({
+            type: 'subscribe',
+            filters: {
+                endpoint: '/v1/chat/completions',
+                interval: 1.0
+            }
+        }));
+    };
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log('Metrics update:', data);
+    };
+    ```
+    """
+    await metrics_streamer.handle_websocket(websocket)
+
+
 @app.get("/health/detailed")
 async def detailed_health_check():
     """Detailed health check with metrics summary"""
     return metrics_tracker.get_detailed_health()
 
 
-@app.get("/kv-cache-metrics")
+@app.get("/kv-cache/metrics")
 async def get_kv_cache_metrics():
     """Get KV cache and AI-Dynamo smart routing metrics."""
-    # Simple safe version that can't deadlock
     return {
-        "cache_performance": {
-            "cache_hit_rate": 0.0,
-            "token_reuse_rate": 0.0,
-            "total_cache_hits": 0,
-            "total_cache_misses": 0,
-        },
-        "smart_router": {
-            "workers": {},
-            "radix_tree": {
-                "total_nodes": 0,
-                "total_cached_blocks": 0,
-            },
-            "config": {
-                "num_workers": 4,
-            }
-        }
+        "cache_performance": fakeai_service.kv_cache_metrics.get_stats(),
+        "smart_router": fakeai_service.kv_cache_router.get_stats(),
     }
 
 
+# Per-Model Metrics endpoints
+@app.get("/metrics/by-model")
+async def get_metrics_by_model():
+    """Get metrics grouped by model in JSON format."""
+    return model_metrics_tracker.get_all_models_stats()
+
+
+@app.get("/metrics/by-model/prometheus")
+async def get_model_metrics_prometheus():
+    """Get per-model metrics in Prometheus format."""
+    return Response(
+        content=model_metrics_tracker.get_prometheus_metrics(),
+        media_type="text/plain; version=0.0.4",
+    )
+
+
+@app.get("/metrics/by-model/{model_id:path}")
+async def get_model_metrics(model_id: str):
+    """Get metrics for a specific model."""
+    return model_metrics_tracker.get_model_stats(model_id)
+
+
+@app.get("/metrics/compare")
+async def compare_models(
+    model1: str = Query(..., description="First model ID"),
+    model2: str = Query(..., description="Second model ID"),
+):
+    """
+    Compare two models side-by-side.
+
+    Returns comparison metrics including:
+    - Request counts
+    - Latency differences
+    - Error rates
+    - Cost comparisons
+    - Winner determination
+    """
+    return model_metrics_tracker.compare_models(model1, model2)
+
+
+@app.get("/metrics/ranking")
+async def get_model_ranking(
+    metric: str = Query(
+        default="request_count",
+        description="Metric to rank by (request_count, latency, error_rate, cost, tokens)",
+    ),
+    limit: int = Query(
+        default=10, ge=1, le=100, description="Number of models to return"
+    ),
+):
+    """
+    Get top models ranked by a specific metric.
+
+    Supports ranking by:
+    - request_count: Most used models
+    - latency: Fastest models
+    - error_rate: Most reliable models
+    - cost: Most expensive models
+    - tokens: Highest token usage
+    """
+    return model_metrics_tracker.get_model_ranking(metric=metric, limit=limit)
+
+
+@app.get("/metrics/costs")
+async def get_costs_by_model():
+    """Get estimated cost breakdown by model."""
+    return {
+        "costs_by_model": model_metrics_tracker.get_cost_by_model(),
+        "total_cost_usd": sum(model_metrics_tracker.get_cost_by_model().values()),
+    }
+
+
+@app.get("/metrics/multi-dimensional")
+async def get_multi_dimensional_metrics():
+    """
+    Get multi-dimensional metrics breakdown.
+
+    Returns 2D breakdowns:
+    - Model by endpoint
+    - Model by user
+    - Model by time (24h buckets)
+    """
+    return model_metrics_tracker.get_multi_dimensional_stats()
+
+
 # DCGM GPU Metrics endpoints
-@app.get("/dcgm-metrics")
+@app.get("/dcgm/metrics")
 async def get_dcgm_metrics_prometheus():
     """Get simulated DCGM GPU metrics in Prometheus format."""
     # Return real simulated DCGM metrics in Prometheus format
@@ -619,7 +905,7 @@ async def get_dcgm_metrics_prometheus():
     )
 
 
-@app.get("/dcgm-metrics/json")
+@app.get("/dcgm/metrics/json")
 async def get_dcgm_metrics_json():
     """Get simulated DCGM GPU metrics in JSON format."""
     # Return real simulated GPU metrics
@@ -627,7 +913,7 @@ async def get_dcgm_metrics_json():
 
 
 # Dynamo LLM Metrics endpoints
-@app.get("/dynamo-metrics")
+@app.get("/dynamo/metrics")
 async def get_dynamo_metrics_prometheus():
     """Get AI-Dynamo LLM inference metrics in Prometheus format."""
     # Return real Prometheus metrics from DynamoMetricsCollector
@@ -637,11 +923,95 @@ async def get_dynamo_metrics_prometheus():
     )
 
 
-@app.get("/dynamo-metrics/json")
+@app.get("/dynamo/metrics/json")
 async def get_dynamo_metrics_json():
     """Get AI-Dynamo LLM inference metrics in JSON format."""
     # Return real metrics from DynamoMetricsCollector
     return fakeai_service.dynamo_metrics.get_stats_dict()
+
+
+# Rate Limiter Metrics endpoints
+@app.get("/metrics/rate-limits")
+async def get_rate_limit_metrics():
+    """
+    Get comprehensive rate limiting metrics.
+
+    Returns detailed statistics including:
+    - Per-key metrics (requests, tokens, throttling)
+    - Tier-level aggregations
+    - Throttle analytics (histograms, distributions)
+    - Abuse pattern detection
+    """
+    return rate_limiter.metrics.get_all_metrics()
+
+
+@app.get("/metrics/rate-limits/key/{api_key}")
+async def get_rate_limit_key_stats(api_key: str):
+    """
+    Get rate limiting statistics for a specific API key.
+
+    Args:
+        api_key: The API key to retrieve stats for
+
+    Returns detailed metrics including:
+    - Request counts (attempted, allowed, throttled)
+    - Token consumption and efficiency
+    - Throttling statistics
+    - Usage patterns and peaks
+    - Quota utilization
+    """
+    stats = rate_limiter.metrics.get_key_stats(api_key)
+    if not stats:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No metrics found for API key: {api_key}",
+        )
+    return stats
+
+
+@app.get("/metrics/rate-limits/tier")
+async def get_rate_limit_tier_stats():
+    """
+    Get rate limiting statistics aggregated by tier.
+
+    Returns per-tier aggregations including:
+    - Total requests and tokens
+    - Average throttle rates
+    - Keys with high throttle rates
+    - Quota exhaustion events
+    - Upgrade opportunities
+    """
+    return rate_limiter.metrics.get_tier_stats()
+
+
+@app.get("/metrics/rate-limits/throttle-analytics")
+async def get_throttle_analytics():
+    """
+    Get detailed throttling analytics.
+
+    Returns:
+    - Throttle duration histogram
+    - Retry-after distribution (percentiles)
+    - RPM vs TPM exceeded breakdown
+    """
+    return rate_limiter.metrics.get_throttle_analytics()
+
+
+@app.get("/metrics/rate-limits/abuse-patterns")
+async def get_abuse_patterns():
+    """
+    Detect potential abuse patterns across API keys.
+
+    Analyzes:
+    - High throttle rates (>50%)
+    - Excessive retries
+    - Burst behavior
+    - Quota exhaustion patterns
+
+    Returns list of API keys with detected abuse patterns,
+    including severity classification.
+    """
+    return rate_limiter.metrics.detect_abuse_patterns()
 
 
 # Moderation endpoint
@@ -687,6 +1057,7 @@ async def list_batches(
 
 # Organization and Project Management API endpoints
 
+
 # Organization Users
 @app.get("/v1/organization/users", dependencies=[Depends(verify_api_key)])
 async def list_organization_users(
@@ -707,7 +1078,9 @@ async def get_organization_user(user_id: str) -> OrganizationUser:
 
 
 @app.post("/v1/organization/users", dependencies=[Depends(verify_api_key)])
-async def create_organization_user(request: CreateOrganizationUserRequest) -> OrganizationUser:
+async def create_organization_user(
+    request: CreateOrganizationUserRequest,
+) -> OrganizationUser:
     """Add a user to the organization."""
     return await fakeai_service.create_organization_user(request)
 
@@ -759,8 +1132,12 @@ async def get_organization_invite(invite_id: str) -> OrganizationInvite:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@app.delete("/v1/organization/invites/{invite_id}", dependencies=[Depends(verify_api_key)])
-async def delete_organization_invite(invite_id: str) -> DeleteOrganizationInviteResponse:
+@app.delete(
+    "/v1/organization/invites/{invite_id}", dependencies=[Depends(verify_api_key)]
+)
+async def delete_organization_invite(
+    invite_id: str,
+) -> DeleteOrganizationInviteResponse:
     """Delete an organization invite."""
     try:
         return await fakeai_service.delete_organization_invite(invite_id)
@@ -789,7 +1166,9 @@ async def create_organization_project(
     return await fakeai_service.create_organization_project(request)
 
 
-@app.get("/v1/organization/projects/{project_id}", dependencies=[Depends(verify_api_key)])
+@app.get(
+    "/v1/organization/projects/{project_id}", dependencies=[Depends(verify_api_key)]
+)
 async def get_organization_project(project_id: str) -> OrganizationProject:
     """Get a specific project."""
     try:
@@ -798,7 +1177,9 @@ async def get_organization_project(project_id: str) -> OrganizationProject:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@app.post("/v1/organization/projects/{project_id}", dependencies=[Depends(verify_api_key)])
+@app.post(
+    "/v1/organization/projects/{project_id}", dependencies=[Depends(verify_api_key)]
+)
 async def modify_organization_project(
     project_id: str, request: ModifyOrganizationProjectRequest
 ) -> OrganizationProject:
@@ -810,7 +1191,8 @@ async def modify_organization_project(
 
 
 @app.post(
-    "/v1/organization/projects/{project_id}/archive", dependencies=[Depends(verify_api_key)]
+    "/v1/organization/projects/{project_id}/archive",
+    dependencies=[Depends(verify_api_key)],
 )
 async def archive_organization_project(
     project_id: str,
@@ -824,7 +1206,8 @@ async def archive_organization_project(
 
 # Project Users
 @app.get(
-    "/v1/organization/projects/{project_id}/users", dependencies=[Depends(verify_api_key)]
+    "/v1/organization/projects/{project_id}/users",
+    dependencies=[Depends(verify_api_key)],
 )
 async def list_project_users(
     project_id: str,
@@ -841,7 +1224,8 @@ async def list_project_users(
 
 
 @app.post(
-    "/v1/organization/projects/{project_id}/users", dependencies=[Depends(verify_api_key)]
+    "/v1/organization/projects/{project_id}/users",
+    dependencies=[Depends(verify_api_key)],
 )
 async def create_project_user(
     project_id: str, request: CreateProjectUserRequest
@@ -883,7 +1267,9 @@ async def modify_project_user(
     "/v1/organization/projects/{project_id}/users/{user_id}",
     dependencies=[Depends(verify_api_key)],
 )
-async def delete_project_user(project_id: str, user_id: str) -> DeleteProjectUserResponse:
+async def delete_project_user(
+    project_id: str, user_id: str
+) -> DeleteProjectUserResponse:
     """Remove a user from a project."""
     try:
         return await fakeai_service.delete_project_user(project_id, user_id)
@@ -928,7 +1314,9 @@ async def create_service_account(
     "/v1/organization/projects/{project_id}/service_accounts/{service_account_id}",
     dependencies=[Depends(verify_api_key)],
 )
-async def get_service_account(project_id: str, service_account_id: str) -> ServiceAccount:
+async def get_service_account(
+    project_id: str, service_account_id: str
+) -> ServiceAccount:
     """Get a specific service account."""
     try:
         return await fakeai_service.get_service_account(project_id, service_account_id)
@@ -945,7 +1333,9 @@ async def delete_service_account(
 ) -> DeleteServiceAccountResponse:
     """Delete a service account."""
     try:
-        return await fakeai_service.delete_service_account(project_id, service_account_id)
+        return await fakeai_service.delete_service_account(
+            project_id, service_account_id
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
@@ -957,8 +1347,12 @@ async def delete_service_account(
 async def get_completions_usage(
     start_time: int = Query(description="Start time (Unix timestamp)"),
     end_time: int = Query(description="End time (Unix timestamp)"),
-    bucket_width: str = Query(default="1d", description="Time bucket width ('1m', '1h', '1d')"),
-    project_id: str | None = Query(default=None, description="Optional project ID filter"),
+    bucket_width: str = Query(
+        default="1d", description="Time bucket width ('1m', '1h', '1d')"
+    ),
+    project_id: str | None = Query(
+        default=None, description="Optional project ID filter"
+    ),
     model: str | None = Query(default=None, description="Optional model filter"),
 ) -> CompletionsUsageResponse:
     """
@@ -979,8 +1373,12 @@ async def get_completions_usage(
 async def get_embeddings_usage(
     start_time: int = Query(description="Start time (Unix timestamp)"),
     end_time: int = Query(description="End time (Unix timestamp)"),
-    bucket_width: str = Query(default="1d", description="Time bucket width ('1m', '1h', '1d')"),
-    project_id: str | None = Query(default=None, description="Optional project ID filter"),
+    bucket_width: str = Query(
+        default="1d", description="Time bucket width ('1m', '1h', '1d')"
+    ),
+    project_id: str | None = Query(
+        default=None, description="Optional project ID filter"
+    ),
     model: str | None = Query(default=None, description="Optional model filter"),
 ) -> EmbeddingsUsageResponse:
     """
@@ -1001,8 +1399,12 @@ async def get_embeddings_usage(
 async def get_images_usage(
     start_time: int = Query(description="Start time (Unix timestamp)"),
     end_time: int = Query(description="End time (Unix timestamp)"),
-    bucket_width: str = Query(default="1d", description="Time bucket width ('1m', '1h', '1d')"),
-    project_id: str | None = Query(default=None, description="Optional project ID filter"),
+    bucket_width: str = Query(
+        default="1d", description="Time bucket width ('1m', '1h', '1d')"
+    ),
+    project_id: str | None = Query(
+        default=None, description="Optional project ID filter"
+    ),
 ) -> ImagesUsageResponse:
     """
     Get usage data for images endpoints.
@@ -1017,12 +1419,18 @@ async def get_images_usage(
     )
 
 
-@app.get("/v1/organization/usage/audio_speeches", dependencies=[Depends(verify_api_key)])
+@app.get(
+    "/v1/organization/usage/audio_speeches", dependencies=[Depends(verify_api_key)]
+)
 async def get_audio_speeches_usage(
     start_time: int = Query(description="Start time (Unix timestamp)"),
     end_time: int = Query(description="End time (Unix timestamp)"),
-    bucket_width: str = Query(default="1d", description="Time bucket width ('1m', '1h', '1d')"),
-    project_id: str | None = Query(default=None, description="Optional project ID filter"),
+    bucket_width: str = Query(
+        default="1d", description="Time bucket width ('1m', '1h', '1d')"
+    ),
+    project_id: str | None = Query(
+        default=None, description="Optional project ID filter"
+    ),
 ) -> AudioSpeechesUsageResponse:
     """
     Get usage data for audio speeches endpoints.
@@ -1037,12 +1445,19 @@ async def get_audio_speeches_usage(
     )
 
 
-@app.get("/v1/organization/usage/audio_transcriptions", dependencies=[Depends(verify_api_key)])
+@app.get(
+    "/v1/organization/usage/audio_transcriptions",
+    dependencies=[Depends(verify_api_key)],
+)
 async def get_audio_transcriptions_usage(
     start_time: int = Query(description="Start time (Unix timestamp)"),
     end_time: int = Query(description="End time (Unix timestamp)"),
-    bucket_width: str = Query(default="1d", description="Time bucket width ('1m', '1h', '1d')"),
-    project_id: str | None = Query(default=None, description="Optional project ID filter"),
+    bucket_width: str = Query(
+        default="1d", description="Time bucket width ('1m', '1h', '1d')"
+    ),
+    project_id: str | None = Query(
+        default=None, description="Optional project ID filter"
+    ),
 ) -> AudioTranscriptionsUsageResponse:
     """
     Get usage data for audio transcriptions endpoints.
@@ -1061,9 +1476,15 @@ async def get_audio_transcriptions_usage(
 async def get_costs(
     start_time: int = Query(description="Start time (Unix timestamp)"),
     end_time: int = Query(description="End time (Unix timestamp)"),
-    bucket_width: str = Query(default="1d", description="Time bucket width ('1m', '1h', '1d')"),
-    project_id: str | None = Query(default=None, description="Optional project ID filter"),
-    group_by: list[str] | None = Query(default=None, description="Optional grouping dimensions"),
+    bucket_width: str = Query(
+        default="1d", description="Time bucket width ('1m', '1h', '1d')"
+    ),
+    project_id: str | None = Query(
+        default=None, description="Optional project ID filter"
+    ),
+    group_by: list[str] | None = Query(
+        default=None, description="Optional grouping dimensions"
+    ),
 ) -> CostsResponse:
     """
     Get cost data aggregated by time buckets.
@@ -1103,6 +1524,7 @@ async def realtime_websocket(
 
     # Send session.created event
     from fakeai.models import RealtimeEventType
+
     session_created = session_handler._create_event(
         RealtimeEventType.SESSION_CREATED,
         session=session_handler.session,
@@ -1116,6 +1538,7 @@ async def realtime_websocket(
 
             try:
                 import json
+
                 event_data = json.loads(data)
                 event_type = event_data.get("type")
 
@@ -1172,6 +1595,7 @@ async def realtime_websocket(
                 else:
                     # Unknown event type
                     from fakeai.models import RealtimeError, RealtimeEventType
+
                     error_event = session_handler._create_event(
                         RealtimeEventType.ERROR,
                         error=RealtimeError(
@@ -1185,6 +1609,7 @@ async def realtime_websocket(
             except json.JSONDecodeError as e:
                 # Invalid JSON
                 from fakeai.models import RealtimeError, RealtimeEventType
+
                 error_event = session_handler._create_event(
                     RealtimeEventType.ERROR,
                     error=RealtimeError(
@@ -1199,6 +1624,7 @@ async def realtime_websocket(
                 # Other errors
                 logger.exception(f"Error processing Realtime event: {str(e)}")
                 from fakeai.models import RealtimeError, RealtimeEventType
+
                 error_event = session_handler._create_event(
                     RealtimeEventType.ERROR,
                     error=RealtimeError(
@@ -1214,6 +1640,82 @@ async def realtime_websocket(
     except Exception as e:
         logger.exception(f"Unexpected error in Realtime WebSocket: {str(e)}")
 
+
+# Fine-Tuning API endpoints
+@app.post("/v1/fine_tuning/jobs", dependencies=[Depends(verify_api_key)])
+async def create_fine_tuning_job(request: FineTuningJobRequest) -> FineTuningJob:
+    """Create a new fine-tuning job."""
+    try:
+        return await fakeai_service.create_fine_tuning_job(request)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/v1/fine_tuning/jobs", dependencies=[Depends(verify_api_key)])
+async def list_fine_tuning_jobs(
+    limit: int = Query(default=20, ge=1, le=100),
+    after: str | None = Query(default=None),
+) -> FineTuningJobList:
+    """List fine-tuning jobs with pagination."""
+    return await fakeai_service.list_fine_tuning_jobs(limit=limit, after=after)
+
+
+@app.get("/v1/fine_tuning/jobs/{job_id}", dependencies=[Depends(verify_api_key)])
+async def retrieve_fine_tuning_job(job_id: str) -> FineTuningJob:
+    """Retrieve a specific fine-tuning job."""
+    try:
+        return await fakeai_service.retrieve_fine_tuning_job(job_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.post(
+    "/v1/fine_tuning/jobs/{job_id}/cancel", dependencies=[Depends(verify_api_key)]
+)
+async def cancel_fine_tuning_job(job_id: str) -> FineTuningJob:
+    """Cancel a running or queued fine-tuning job."""
+    try:
+        return await fakeai_service.cancel_fine_tuning_job(job_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/v1/fine_tuning/jobs/{job_id}/events", dependencies=[Depends(verify_api_key)])
+async def list_fine_tuning_events(
+    job_id: str,
+    limit: int = Query(default=20, ge=1, le=100),
+):
+    """Stream fine-tuning events via Server-Sent Events (SSE)."""
+    try:
+
+        async def event_stream():
+            async for event in fakeai_service.list_fine_tuning_events(job_id, limit):
+                yield event
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            },
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get(
+    "/v1/fine_tuning/jobs/{job_id}/checkpoints", dependencies=[Depends(verify_api_key)]
+)
+async def list_fine_tuning_checkpoints(
+    job_id: str,
+    limit: int = Query(default=10, ge=1, le=100),
+) -> FineTuningCheckpointList:
+    """List checkpoints for a fine-tuning job."""
+    try:
+        return await fakeai_service.list_fine_tuning_checkpoints(job_id, limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 # Vector Stores API endpoints
@@ -1256,7 +1758,9 @@ async def modify_vector_store(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@app.delete("/v1/vector_stores/{vector_store_id}", dependencies=[Depends(verify_api_key)])
+@app.delete(
+    "/v1/vector_stores/{vector_store_id}", dependencies=[Depends(verify_api_key)]
+)
 async def delete_vector_store(vector_store_id: str) -> dict:
     """Delete a vector store."""
     try:
@@ -1266,7 +1770,9 @@ async def delete_vector_store(vector_store_id: str) -> dict:
 
 
 # Vector Store Files endpoints
-@app.post("/v1/vector_stores/{vector_store_id}/files", dependencies=[Depends(verify_api_key)])
+@app.post(
+    "/v1/vector_stores/{vector_store_id}/files", dependencies=[Depends(verify_api_key)]
+)
 async def create_vector_store_file(
     vector_store_id: str, request: CreateVectorStoreFileRequest
 ) -> VectorStoreFile:
@@ -1277,7 +1783,9 @@ async def create_vector_store_file(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@app.get("/v1/vector_stores/{vector_store_id}/files", dependencies=[Depends(verify_api_key)])
+@app.get(
+    "/v1/vector_stores/{vector_store_id}/files", dependencies=[Depends(verify_api_key)]
+)
 async def list_vector_store_files(
     vector_store_id: str,
     limit: int = Query(default=20, ge=1, le=100),
@@ -1330,7 +1838,9 @@ async def create_vector_store_file_batch(
 ) -> VectorStoreFileBatch:
     """Create a batch of files in a vector store."""
     try:
-        return await fakeai_service.create_vector_store_file_batch(vector_store_id, request)
+        return await fakeai_service.create_vector_store_file_batch(
+            vector_store_id, request
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
@@ -1360,7 +1870,9 @@ async def cancel_vector_store_file_batch(
 ) -> VectorStoreFileBatch:
     """Cancel a file batch in a vector store."""
     try:
-        return await fakeai_service.cancel_vector_store_file_batch(vector_store_id, batch_id)
+        return await fakeai_service.cancel_vector_store_file_batch(
+            vector_store_id, batch_id
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 

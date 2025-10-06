@@ -1,0 +1,684 @@
+================================================================================
+                    FAKEAI 3.0 - METRICS ARCHITECTURE
+                    18 Integrated Metrics Systems
+================================================================================
+
+                           ┌──────────────────┐
+                           │  CLIENT REQUEST  │
+                           └────────┬─────────┘
+                                    │
+                                    v
+                        ┌───────────────────────┐
+                        │   REQUEST MIDDLEWARE  │
+                        │   (app.py)            │
+                        └───────────┬───────────┘
+                                    │
+                ┌───────────────────┼───────────────────┐
+                │                   │                   │
+                v                   v                   v
+    ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
+    │ METRICS TRACKER  │ │  RATE LIMITER    │ │  ABUSE DETECTOR  │
+    │   (Singleton)    │ │                  │ │                  │
+    │                  │ │ - RPM/TPM Limits │ │ - IP Tracking    │
+    │ - Request Rate   │ │ - Tier-based     │ │ - Ban Logic      │
+    │ - Response Rate  │ │ - Key-based      │ │ - Attempts       │
+    │ - Token Count    │ │                  │ │                  │
+    │ - Error Rate     │ └──────────────────┘ └──────────────────┘
+    │ - Latency        │
+    │ - Streaming      │
+    └────────┬─────────┘
+             │
+             │ Per-request tracking
+             │
+    ┌────────┴──────────────────────────────────────────┐
+    │                                                    │
+    v                                                    v
+┌─────────────────────┐                      ┌─────────────────────┐
+│ MODEL METRICS       │                      │ STREAMING METRICS   │
+│   TRACKER           │                      │                     │
+│                     │                      │ - TTFT Tracking     │
+│ - Per-Model Stats   │                      │ - Token/sec         │
+│ - Cost Calculation  │                      │ - Active Streams    │
+│ - Latency by Model  │                      │ - Stream Duration   │
+│ - Token Usage       │                      │ - Completion Rate   │
+│ - Error Rate        │                      │ - Failure Rate      │
+│ - User Tracking     │                      │                     │
+└─────────────────────┘                      └─────────────────────┘
+
+
+================================================================================
+                        18 METRICS SYSTEMS BREAKDOWN
+================================================================================
+
+1. METRICSRACKER (Core)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: metrics.py
+   Type: Singleton with threading.Lock
+
+   Tracked Metrics:
+     ├─ Requests per Second (per endpoint)
+     ├─ Responses per Second (per endpoint)
+     ├─ Tokens per Second (per endpoint)
+     ├─ Errors per Second (per endpoint)
+     ├─ Latency (avg, min, max, p50, p90, p99)
+     └─ Streaming (active, completed, failed)
+
+   Storage: MetricsWindow (numpy-based sliding windows)
+     ├─ Window Size: 60 seconds (configurable)
+     ├─ Max Samples: 100,000 per window
+     ├─ Auto-cleanup of old data
+     └─ Vectorized operations for performance
+
+   Tracked Endpoints:
+     ├─ /v1/chat/completions
+     ├─ /v1/completions
+     ├─ /v1/embeddings
+     ├─ /v1/images/generations
+     ├─ /v1/audio/speech
+     ├─ /v1/audio/transcriptions
+     ├─ /v1/moderations
+     ├─ /v1/files
+     ├─ /v1/batches
+     ├─ /v1/responses
+     ├─ /v1/ranking
+     ├─ /v1/text/generation
+     ├─ /rag/api/prompt
+     └─ /v1/realtime
+
+   Exports:
+     ├─ JSON (GET /metrics)
+     ├─ Prometheus (GET /metrics/prometheus)
+     └─ CSV (GET /metrics/csv)
+
+
+2. MODEL METRICS TRACKER
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: model_metrics.py
+   Type: Global instance (one per server)
+
+   Per-Model Tracking:
+     ├─ Request Count
+     ├─ Prompt Tokens
+     ├─ Completion Tokens
+     ├─ Total Tokens
+     ├─ Latency Statistics (avg, min, max, p50, p95, p99)
+     ├─ Error Count & Rate
+     ├─ Cost Estimation (based on pricing)
+     └─ Per-User Usage
+
+   Multi-Dimensional Stats:
+     ├─ Model × Endpoint breakdown
+     ├─ Model × User breakdown
+     └─ Model × Time (24h buckets)
+
+   Advanced Features:
+     ├─ Model Comparison (side-by-side)
+     ├─ Model Ranking (by metric)
+     ├─ Cost Breakdown
+     └─ Winner Determination
+
+   Exports:
+     ├─ JSON (GET /metrics/by-model)
+     ├─ Prometheus (GET /metrics/by-model/prometheus)
+     ├─ Per-Model JSON (GET /metrics/by-model/{model_id})
+     ├─ Comparison (GET /metrics/compare?model1=...&model2=...)
+     ├─ Ranking (GET /metrics/ranking?metric=...)
+     └─ Costs (GET /metrics/costs)
+
+
+3. STREAMING METRICS
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: streaming_metrics.py
+   Type: Integrated with MetricsTracker
+
+   Tracked Per Stream:
+     ├─ Stream ID
+     ├─ Start Time
+     ├─ First Token Time (TTFT)
+     ├─ Last Token Time
+     ├─ Token Count
+     ├─ Completion Status
+     ├─ Error Message (if failed)
+     └─ Total Duration
+
+   Aggregate Stats:
+     ├─ Active Streams Count
+     ├─ Completed Streams Count
+     ├─ Failed Streams Count
+     ├─ TTFT (avg, min, max, p50, p90, p99)
+     └─ Tokens/sec (avg, min, max, p50, p90, p99)
+
+   Storage:
+     ├─ Active: Dict[stream_id, StreamingMetrics]
+     ├─ Completed: Deque (maxlen=1000)
+     └─ Failed: Deque (maxlen=1000)
+
+
+4. DYNAMO METRICS (Basic)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: dynamo_metrics.py
+   Type: Instance per FakeAIService
+
+   LLM Inference Metrics:
+     ├─ Request Count
+     ├─ Active Requests
+     ├─ Tokens Generated
+     ├─ Latency (prefill, decode, total)
+     ├─ Throughput (tokens/sec)
+     └─ Error Rate
+
+   Export: Prometheus (GET /dynamo/metrics)
+
+
+5. DYNAMO METRICS ADVANCED
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: dynamo_metrics_advanced.py
+   Type: Instance per FakeAIService
+
+   Advanced Tracking:
+     ├─ KV Cache Hit Rate
+     ├─ Prefill vs Decode Breakdown
+     ├─ Batch Size Distribution
+     ├─ Queue Depth
+     ├─ Model Loading Time
+     ├─ Memory Usage
+     ├─ CUDA Graph Hits
+     └─ Continuous Batching Stats
+
+   Per-Model Metrics:
+     ├─ Latency by Model
+     ├─ Throughput by Model
+     └─ Cache Performance by Model
+
+   Exports:
+     ├─ Prometheus (GET /dynamo/metrics)
+     └─ JSON (GET /dynamo/metrics/json)
+
+
+6. DCGM METRICS (GPU Simulation)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: dcgm_metrics.py
+   Type: Instance per FakeAIService
+
+   Simulated GPU Metrics:
+     ├─ GPU Utilization (%)
+     ├─ Memory Used/Free/Total (MB)
+     ├─ Power Usage (W)
+     ├─ Temperature (°C)
+     ├─ SM Clock (MHz)
+     ├─ Memory Clock (MHz)
+     ├─ PCIe TX/RX (MB/s)
+     ├─ NVLink TX/RX (GB/s)
+     ├─ ECC Errors
+     └─ Performance State (P0-P15)
+
+   Multi-GPU Support:
+     ├─ 1-8 GPUs simulated
+     └─ Per-GPU metrics
+
+   Exports:
+     ├─ Prometheus (GET /dcgm/metrics)
+     └─ JSON (GET /dcgm/metrics/json)
+
+
+7. BATCH METRICS
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: batch_metrics.py
+   Type: Global instance
+
+   Tracked Per Batch:
+     ├─ Batch ID
+     ├─ Status (validating, in_progress, completed, failed)
+     ├─ Request Count
+     ├─ Completed Count
+     ├─ Failed Count
+     ├─ Start Time
+     ├─ End Time
+     ├─ Duration
+     └─ Throughput (requests/sec)
+
+   Aggregate Stats:
+     ├─ Total Batches
+     ├─ Active Batches
+     ├─ Completed Batches
+     ├─ Failed Batches
+     └─ Average Duration
+
+
+8. ERROR METRICS
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: error_metrics.py
+   Type: Global instance
+
+   Error Tracking:
+     ├─ Error Count by Type
+     ├─ Error Count by Endpoint
+     ├─ Error Rate (%)
+     ├─ Error Messages
+     ├─ Stack Traces (last 100)
+     └─ Error Timestamps
+
+   Error Categories:
+     ├─ 4xx Client Errors
+     ├─ 5xx Server Errors
+     ├─ Validation Errors
+     ├─ Timeout Errors
+     └─ Rate Limit Errors
+
+   Exports:
+     ├─ JSON (included in /metrics)
+     └─ Prometheus (included in /metrics/prometheus)
+
+
+9. RATE LIMITER METRICS
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: rate_limiter_metrics.py
+   Type: Instance in RateLimiter
+
+   Per-Key Tracking:
+     ├─ Requests Attempted
+     ├─ Requests Allowed
+     ├─ Requests Throttled
+     ├─ Tokens Consumed
+     ├─ Throttle Rate (%)
+     ├─ Peak RPM
+     ├─ Peak TPM
+     └─ Last Throttle Time
+
+   Tier-Level Aggregation:
+     ├─ Total Requests by Tier
+     ├─ Average Throttle Rate
+     ├─ Keys with High Throttle
+     └─ Quota Exhaustion Events
+
+   Throttle Analytics:
+     ├─ Duration Histogram
+     ├─ Retry-After Distribution
+     └─ RPM vs TPM Exceeded Breakdown
+
+   Abuse Pattern Detection:
+     ├─ High Throttle Rate Keys (>50%)
+     ├─ Excessive Retry Keys
+     ├─ Burst Behavior
+     └─ Quota Exhaustion Patterns
+
+   Exports:
+     ├─ All Metrics (GET /metrics/rate-limits)
+     ├─ Per-Key Stats (GET /metrics/rate-limits/key/{api_key})
+     ├─ Tier Stats (GET /metrics/rate-limits/tier)
+     ├─ Throttle Analytics (GET /metrics/rate-limits/throttle-analytics)
+     └─ Abuse Patterns (GET /metrics/rate-limits/abuse-patterns)
+
+
+10. COST TRACKER
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    File: cost_tracker.py
+    Type: Instance per FakeAIService
+
+    Cost Calculation:
+      ├─ Prompt Token Cost
+      ├─ Completion Token Cost
+      ├─ Image Generation Cost
+      ├─ Audio Generation Cost
+      ├─ Embedding Cost
+      └─ Total Cost
+
+    Pricing Models:
+      ├─ Per-model pricing (from registry)
+      ├─ Tiered pricing (volume discounts)
+      ├─ Time-based pricing
+      └─ Custom pricing rules
+
+    Aggregations:
+      ├─ Cost by Model
+      ├─ Cost by User
+      ├─ Cost by Project
+      ├─ Cost by Endpoint
+      └─ Cost over Time
+
+    Export: GET /v1/organization/costs
+
+
+11. LATENCY HISTOGRAMS
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    File: latency_histograms.py
+    Type: Global instance
+
+    Distribution Tracking:
+      ├─ Latency Buckets (10ms, 50ms, 100ms, 500ms, 1s, 5s, 10s+)
+      ├─ Count per Bucket
+      ├─ Percentage Distribution
+      └─ Cumulative Distribution
+
+    Per-Endpoint Histograms:
+      ├─ Chat Completions
+      ├─ Completions
+      ├─ Embeddings
+      ├─ Image Generation
+      └─ Audio Generation
+
+    Visualization Ready:
+      ├─ Histogram data
+      ├─ Percentile curves
+      └─ Heat maps
+
+
+12. LATENCY PROFILES
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    File: latency_profiles.py
+    Type: Global instance
+
+    Model Profiling:
+      ├─ Latency by Model Type
+      ├─ Latency by Model Size
+      ├─ Latency by Context Length
+      ├─ Latency by Output Length
+      └─ Latency by Batch Size
+
+    Comparative Analysis:
+      ├─ Fastest Models
+      ├─ Slowest Models
+      ├─ Most Consistent Models
+      └─ Most Variable Models
+
+
+13. METRICS AGGREGATOR
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    File: metrics_aggregator.py
+    Type: Singleton
+
+    Cross-Metric Aggregation:
+      ├─ Combined request + response + token stats
+      ├─ Error rate calculations
+      ├─ Cost vs Performance analysis
+      └─ Multi-dimensional rollups
+
+    Time-Series Aggregation:
+      ├─ 1-minute buckets
+      ├─ 5-minute buckets
+      ├─ 1-hour buckets
+      ├─ 1-day buckets
+      └─ Custom intervals
+
+    Statistical Functions:
+      ├─ Sum, Average, Min, Max
+      ├─ Percentiles (p50, p90, p95, p99)
+      ├─ Standard Deviation
+      └─ Rate of Change
+
+
+14. METRICS PERSISTENCE
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    File: metrics_persistence.py
+    Type: Singleton
+
+    Storage Backends:
+      ├─ In-Memory (default)
+      ├─ File System (JSON/CSV)
+      ├─ Time-Series Database (optional)
+      └─ Cloud Storage (optional)
+
+    Export Formats:
+      ├─ JSON
+      ├─ CSV
+      ├─ Prometheus
+      ├─ InfluxDB Line Protocol
+      └─ Custom formats
+
+    Retention Policies:
+      ├─ High-resolution: 1 hour
+      ├─ Medium-resolution: 24 hours
+      ├─ Low-resolution: 30 days
+      └─ Automatic downsampling
+
+
+15. METRICS STREAMING
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    File: metrics_streaming.py
+    Type: Singleton with WebSocket
+
+    Real-Time Streaming:
+      ├─ WebSocket endpoint (WS /metrics/stream)
+      ├─ Subscription-based filtering
+      ├─ Configurable update intervals
+      └─ Delta calculations
+
+    Subscription Filters:
+      ├─ By Endpoint
+      ├─ By Model
+      ├─ By Metric Type
+      └─ By Time Range
+
+    Push Notifications:
+      ├─ Threshold alerts
+      ├─ Anomaly detection
+      └─ Custom triggers
+
+
+16. KV CACHE METRICS
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    File: kv_cache_advanced.py (integrated)
+    Type: Instance in SmartRouter
+
+    Cache Performance:
+      ├─ Cache Hit Rate (%)
+      ├─ Token Reuse Rate (%)
+      ├─ Average Prefix Length
+      ├─ Cache Lookups
+      ├─ Cache Hits
+      └─ Cache Misses
+
+    Per-Endpoint Stats:
+      ├─ Hit Rate by Endpoint
+      ├─ Reuse by Endpoint
+      └─ Benefit by Endpoint
+
+    Export: GET /kv-cache/metrics
+
+
+17. SMART ROUTER METRICS
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    File: smart_router_advanced.py (integrated)
+    Type: Instance in SmartRouter
+
+    Routing Stats:
+      ├─ Requests Routed
+      ├─ Worker Load Distribution
+      ├─ Routing Decisions
+      ├─ Load Balance Score
+      └─ Cache Benefit Score
+
+    Per-Worker Stats:
+      ├─ Active Requests
+      ├─ Completed Requests
+      ├─ Cached Blocks
+      ├─ Total Tokens Processed
+      └─ Cache Hit Rate
+
+    Export: GET /kv-cache/metrics (combined)
+
+
+18. VECTOR STORE METRICS
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    File: vector_store_engine.py (integrated)
+    Type: Instance per VectorStore
+
+    Store Performance:
+      ├─ Document Count
+      ├─ Embedding Dimension
+      ├─ Index Size
+      ├─ Query Count
+      ├─ Average Query Time
+      └─ Retrieval Accuracy
+
+    Per-Store Stats:
+      ├─ Documents Added
+      ├─ Documents Retrieved
+      ├─ Search Latency
+      └─ Top-K Performance
+
+
+================================================================================
+                        METRICS INTEGRATION FLOW
+================================================================================
+
+Request Lifecycle:
+
+  1. Request Arrives
+     └─→ MetricsTracker.track_request(endpoint)
+
+  2. Rate Limit Check
+     └─→ RateLimiter.check_rate_limit(api_key, tokens)
+         └─→ RateLimiterMetrics.record_request(...)
+
+  3. Service Processing
+     ├─→ FakeAIService.create_chat_completion(...)
+     │   ├─→ SmartRouter.route_request(tokens)
+     │   │   └─→ SmartRouterMetrics.record_routing(...)
+     │   │       └─→ KVCacheMetrics.record_cache_lookup(...)
+     │   │
+     │   ├─→ CostTracker.calculate_cost(model, tokens)
+     │   │
+     │   └─→ ModelMetricsTracker.track_request(model, ...)
+     │
+     └─→ If Streaming:
+         ├─→ MetricsTracker.start_stream(stream_id, endpoint)
+         ├─→ MetricsTracker.track_stream_first_token(stream_id)
+         ├─→ MetricsTracker.track_stream_token(stream_id) [x N tokens]
+         └─→ MetricsTracker.complete_stream(stream_id, endpoint)
+
+  4. Response Sent
+     └─→ MetricsTracker.track_response(endpoint, latency)
+         └─→ MetricsWindow.add_latency(latency)
+
+  5. Error Handling (if error)
+     └─→ MetricsTracker.track_error(endpoint)
+         └─→ ErrorMetrics.record_error(error_type, endpoint, ...)
+
+Background Tasks:
+
+  - MetricsTracker._print_metrics_periodically()
+    └─→ Every 5 seconds, log current metrics
+
+  - MetricsStreamer.broadcast_metrics()
+    └─→ Push to WebSocket subscribers
+
+  - MetricsPersistence.save_snapshot()
+    └─→ Periodic disk writes (if enabled)
+
+  - DCGMMetrics.update_gpu_metrics()
+    └─→ Simulate GPU state changes
+
+
+================================================================================
+                        EXPORT ENDPOINTS SUMMARY
+================================================================================
+
+Core Metrics:
+  GET /metrics                      JSON export (all metrics)
+  GET /metrics/prometheus           Prometheus format
+  GET /metrics/csv                  CSV format
+  WS  /metrics/stream               Real-time WebSocket stream
+
+Per-Model Metrics:
+  GET /metrics/by-model             All models JSON
+  GET /metrics/by-model/prometheus  All models Prometheus
+  GET /metrics/by-model/{model_id}  Single model JSON
+  GET /metrics/compare              Compare two models
+  GET /metrics/ranking              Ranked models
+  GET /metrics/costs                Cost breakdown
+
+Specialized Metrics:
+  GET /dcgm/metrics                 GPU metrics (Prometheus)
+  GET /dcgm/metrics/json            GPU metrics (JSON)
+  GET /dynamo/metrics               Dynamo metrics (Prometheus)
+  GET /dynamo/metrics/json          Dynamo metrics (JSON)
+  GET /kv-cache/metrics             KV cache + Smart Router (JSON)
+
+Rate Limiting Metrics:
+  GET /metrics/rate-limits          All rate limit metrics
+  GET /metrics/rate-limits/key/{key} Per-key stats
+  GET /metrics/rate-limits/tier     Tier-level aggregations
+  GET /metrics/rate-limits/throttle-analytics Throttling analysis
+  GET /metrics/rate-limits/abuse-patterns Abuse detection
+
+Health & Status:
+  GET /health                       Basic health check
+  GET /health/detailed              Health with metrics summary
+
+
+================================================================================
+                        PROMETHEUS METRICS NAMING
+================================================================================
+
+Core Metrics:
+  fakeai_requests_per_second{endpoint="..."}
+  fakeai_responses_per_second{endpoint="..."}
+  fakeai_tokens_per_second{endpoint="..."}
+  fakeai_errors_per_second{endpoint="..."}
+  fakeai_latency_seconds{endpoint="...", quantile="..."}
+  fakeai_active_streams
+  fakeai_completed_streams
+  fakeai_failed_streams
+  fakeai_ttft_seconds{quantile="..."}
+  fakeai_stream_tokens_per_second{quantile="..."}
+
+Per-Model Metrics:
+  fakeai_model_requests_total{model="...", endpoint="..."}
+  fakeai_model_tokens_total{model="...", type="prompt|completion"}
+  fakeai_model_latency_seconds{model="...", quantile="..."}
+  fakeai_model_errors_total{model="..."}
+  fakeai_model_cost_usd{model="..."}
+
+GPU Metrics (DCGM):
+  dcgm_gpu_utilization{gpu="..."}
+  dcgm_fb_memory_usage{gpu="..."}
+  dcgm_power_usage{gpu="..."}
+  dcgm_gpu_temp{gpu="..."}
+  dcgm_sm_clock{gpu="..."}
+  dcgm_pcie_tx_throughput{gpu="..."}
+  dcgm_nvlink_bandwidth{gpu="..."}
+
+Dynamo Metrics:
+  dynamo_llm_requests_total
+  dynamo_llm_active_requests
+  dynamo_llm_tokens_total
+  dynamo_llm_prefill_latency_seconds{quantile="..."}
+  dynamo_llm_decode_latency_seconds{quantile="..."}
+  dynamo_kv_cache_hit_rate
+
+
+================================================================================
+                        METRICS STORAGE DETAILS
+================================================================================
+
+MetricsWindow Implementation:
+  ┌─────────────────────────────────────────────┐
+  │ Numpy Arrays (vectorized operations)       │
+  ├─────────────────────────────────────────────┤
+  │ timestamps: np.array(dtype=float64)         │ Event timestamps
+  │ values: np.array(dtype=float64)             │ Event values
+  │ latencies: np.array(dtype=float64)          │ Latency measurements
+  │ latency_timestamps: np.array(dtype=float64) │ Latency timestamps
+  └─────────────────────────────────────────────┘
+       │
+       ├─→ add(value) - Append new data point
+       ├─→ add_latency(latency) - Append latency measurement
+       ├─→ _cleanup() - Remove data older than window_size
+       ├─→ get_rate() - Calculate rate per second
+       └─→ get_latency_stats() - Calculate percentiles
+
+Thread Safety:
+  - threading.Lock for all operations
+  - Works in both sync and async contexts
+  - Numpy operations are extremely fast (microseconds)
+  - Blocking is negligible
+
+Memory Management:
+  - Automatic cleanup of old data
+  - Max samples limit (100K default)
+  - Sliding window (60s default)
+  - Efficient numpy storage
+
+
+================================================================================

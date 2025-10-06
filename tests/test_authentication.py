@@ -3,6 +3,7 @@ Authentication behavior tests.
 
 Tests authentication logic - when to require keys, when to bypass, how to validate.
 """
+
 import pytest
 
 
@@ -119,10 +120,7 @@ class TestAPIKeyParsing:
         # Create temp key file
         key_file = tmp_path / "keys.txt"
         key_file.write_text(
-            "# This is a comment\n"
-            "sk-key-1\n"
-            "# Another comment\n"
-            "sk-key-2\n"
+            "# This is a comment\n" "sk-key-1\n" "# Another comment\n" "sk-key-2\n"
         )
 
         keys = parse_api_keys([str(key_file)])
@@ -152,9 +150,7 @@ class TestAPIKeyParsing:
         key_file = tmp_path / "keys.txt"
         key_file.write_text("sk-file-key-1\nsk-file-key-2\n")
 
-        keys = parse_api_keys(
-            ["sk-direct-1", str(key_file), "sk-direct-2"]
-        )
+        keys = parse_api_keys(["sk-direct-1", str(key_file), "sk-direct-2"])
 
         assert len(keys) == 4
         assert "sk-direct-1" in keys

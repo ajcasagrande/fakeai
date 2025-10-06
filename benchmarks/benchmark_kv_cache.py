@@ -60,7 +60,10 @@ class KVCacheBenchmark:
         self.router_results: list[SmartRouterResult] = []
 
     async def _make_chat_request(
-        self, client: httpx.AsyncClient, messages: list[dict[str, str]], max_tokens: int = 100
+        self,
+        client: httpx.AsyncClient,
+        messages: list[dict[str, str]],
+        max_tokens: int = 100,
     ) -> tuple[float, dict[str, Any]]:
         """
         Make a chat completion request.
@@ -73,7 +76,11 @@ class KVCacheBenchmark:
         try:
             response = await client.post(
                 f"{self.base_url}/v1/chat/completions",
-                json={"model": "openai/gpt-oss-120b", "messages": messages, "max_tokens": max_tokens},
+                json={
+                    "model": "openai/gpt-oss-120b",
+                    "messages": messages,
+                    "max_tokens": max_tokens,
+                },
                 headers={"Authorization": f"Bearer {self.api_key}"},
                 timeout=60.0,
             )
@@ -87,7 +94,10 @@ class KVCacheBenchmark:
             return latency, {}
 
     async def test_cache_hit_rates(
-        self, shared_prefixes: list[str], unique_suffixes: list[str], num_iterations: int = 10
+        self,
+        shared_prefixes: list[str],
+        unique_suffixes: list[str],
+        num_iterations: int = 10,
     ) -> CacheTestResult:
         """
         Test cache hit rates with shared prefixes.
@@ -125,7 +135,9 @@ class KVCacheBenchmark:
                                 {"role": "system", "content": prefix},
                                 {"role": "user", "content": suffix},
                             ]
-                            latency, response = await self._make_chat_request(client, messages)
+                            latency, response = await self._make_chat_request(
+                                client, messages
+                            )
 
                             if response:
                                 cache_misses += 1
@@ -137,9 +149,14 @@ class KVCacheBenchmark:
                         else:
                             messages = [
                                 {"role": "system", "content": prefix},
-                                {"role": "user", "content": suffix + f" (iteration {iteration})"},
+                                {
+                                    "role": "user",
+                                    "content": suffix + f" (iteration {iteration})",
+                                },
                             ]
-                            latency, response = await self._make_chat_request(client, messages)
+                            latency, response = await self._make_chat_request(
+                                client, messages
+                            )
 
                             if response:
                                 cache_hits += 1
@@ -153,10 +170,16 @@ class KVCacheBenchmark:
                                 prefix_lengths.append(prompt_tokens // 2)
 
         # Calculate statistics
-        hit_rate = (cache_hits / (cache_hits + cache_misses) * 100) if (cache_hits + cache_misses) > 0 else 0
+        hit_rate = (
+            (cache_hits / (cache_hits + cache_misses) * 100)
+            if (cache_hits + cache_misses) > 0
+            else 0
+        )
 
         avg_latency_with_cache = (
-            sum(latencies_with_cache) / len(latencies_with_cache) if latencies_with_cache else 0
+            sum(latencies_with_cache) / len(latencies_with_cache)
+            if latencies_with_cache
+            else 0
         )
         avg_latency_without_cache = (
             sum(latencies_without_cache) / len(latencies_without_cache)
@@ -165,12 +188,18 @@ class KVCacheBenchmark:
         )
 
         latency_improvement = (
-            ((avg_latency_without_cache - avg_latency_with_cache) / avg_latency_without_cache * 100)
+            (
+                (avg_latency_without_cache - avg_latency_with_cache)
+                / avg_latency_without_cache
+                * 100
+            )
             if avg_latency_without_cache > 0
             else 0
         )
 
-        token_reuse_rate = (cached_tokens / total_tokens * 100) if total_tokens > 0 else 0
+        token_reuse_rate = (
+            (cached_tokens / total_tokens * 100) if total_tokens > 0 else 0
+        )
         avg_prefix = sum(prefix_lengths) / len(prefix_lengths) if prefix_lengths else 0
 
         result = CacheTestResult(
@@ -259,10 +288,16 @@ class KVCacheBenchmark:
                         prefix_lengths.append(prompt_tokens // 2)
 
         # Calculate statistics
-        hit_rate = (cache_hits / (cache_hits + cache_misses) * 100) if (cache_hits + cache_misses) > 0 else 0
+        hit_rate = (
+            (cache_hits / (cache_hits + cache_misses) * 100)
+            if (cache_hits + cache_misses) > 0
+            else 0
+        )
 
         avg_latency_with_cache = (
-            sum(latencies_with_cache) / len(latencies_with_cache) if latencies_with_cache else 0
+            sum(latencies_with_cache) / len(latencies_with_cache)
+            if latencies_with_cache
+            else 0
         )
         avg_latency_without_cache = (
             sum(latencies_without_cache) / len(latencies_without_cache)
@@ -271,12 +306,18 @@ class KVCacheBenchmark:
         )
 
         latency_improvement = (
-            ((avg_latency_without_cache - avg_latency_with_cache) / avg_latency_without_cache * 100)
+            (
+                (avg_latency_without_cache - avg_latency_with_cache)
+                / avg_latency_without_cache
+                * 100
+            )
             if avg_latency_without_cache > 0
             else 0
         )
 
-        token_reuse_rate = (cached_tokens / total_tokens * 100) if total_tokens > 0 else 0
+        token_reuse_rate = (
+            (cached_tokens / total_tokens * 100) if total_tokens > 0 else 0
+        )
         avg_prefix = sum(prefix_lengths) / len(prefix_lengths) if prefix_lengths else 0
 
         result = CacheTestResult(
@@ -347,7 +388,11 @@ class KVCacheBenchmark:
         # Calculate load balance score (lower variance is better)
         request_counts = list(worker_stats.values())
         avg_load = sum(request_counts) / len(request_counts) if request_counts else 0
-        variance = sum((x - avg_load) ** 2 for x in request_counts) / len(request_counts) if request_counts else 0
+        variance = (
+            sum((x - avg_load) ** 2 for x in request_counts) / len(request_counts)
+            if request_counts
+            else 0
+        )
         load_balance_score = 100 - (variance / avg_load * 100) if avg_load > 0 else 0
 
         result = SmartRouterResult(
@@ -394,7 +439,7 @@ class KVCacheBenchmark:
         print(f"Load Balance Score:    {result.load_balance_score:.2f}/100")
         print(f"\nWorker Distribution:")
         for worker_id, count in sorted(result.worker_distribution.items()):
-            percentage = (count / result.total_requests * 100)
+            percentage = count / result.total_requests * 100
             print(f"  {worker_id}: {count} ({percentage:.1f}%)")
 
     def generate_markdown_report(self) -> str:
@@ -424,7 +469,9 @@ class KVCacheBenchmark:
                 report += f"- **Hit Rate:** {result.hit_rate:.2f}%\n\n"
                 report += "**Latency:**\n\n"
                 report += f"- With Cache: {result.avg_latency_with_cache*1000:.2f}ms\n"
-                report += f"- Without Cache: {result.avg_latency_without_cache*1000:.2f}ms\n"
+                report += (
+                    f"- Without Cache: {result.avg_latency_without_cache*1000:.2f}ms\n"
+                )
                 report += f"- Improvement: {result.latency_improvement:.2f}%\n\n"
                 report += "**Tokens:**\n\n"
                 report += f"- Total Processed: {result.total_tokens_processed}\n"
@@ -447,18 +494,22 @@ class KVCacheBenchmark:
             for result in self.router_results:
                 report += f"#### {result.test_name}\n\n"
                 report += f"- **Total Requests:** {result.total_requests}\n"
-                report += f"- **Load Balance Score:** {result.load_balance_score:.2f}/100\n"
+                report += (
+                    f"- **Load Balance Score:** {result.load_balance_score:.2f}/100\n"
+                )
                 report += f"- **Requests/sec:** {result.requests_per_second:.2f}\n\n"
                 report += "**Worker Distribution:**\n\n"
                 for worker_id, count in sorted(result.worker_distribution.items()):
-                    percentage = (count / result.total_requests * 100)
+                    percentage = count / result.total_requests * 100
                     report += f"- {worker_id}: {count} ({percentage:.1f}%)\n"
                 report += "\n"
 
         return report
 
 
-async def run_all_benchmarks(base_url: str = "http://localhost:8000", api_key: str = "test"):
+async def run_all_benchmarks(
+    base_url: str = "http://localhost:8000", api_key: str = "test"
+):
     """Run all KV cache benchmarks."""
     benchmark = KVCacheBenchmark(base_url, api_key)
 
@@ -476,7 +527,9 @@ async def run_all_benchmarks(base_url: str = "http://localhost:8000", api_key: s
         "How do decorators work?",
     ]
 
-    await benchmark.test_cache_hit_rates(shared_prefixes, unique_suffixes, num_iterations=5)
+    await benchmark.test_cache_hit_rates(
+        shared_prefixes, unique_suffixes, num_iterations=5
+    )
 
     # Test 2: Prefix sharing efficiency
     await benchmark.test_prefix_sharing()

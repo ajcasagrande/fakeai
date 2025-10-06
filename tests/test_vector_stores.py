@@ -5,16 +5,17 @@ Tests complete vector store CRUD operations, file management,
 chunking strategies, expiration policies, and search simulation.
 """
 
-import pytest
 import time
+
+import pytest
 
 from fakeai import AppConfig
 from fakeai.fakeai_service import FakeAIService
 from fakeai.models import (
     AutoChunkingStrategy,
-    CreateVectorStoreRequest,
-    CreateVectorStoreFileRequest,
     CreateVectorStoreFileBatchRequest,
+    CreateVectorStoreFileRequest,
+    CreateVectorStoreRequest,
     ExpiresAfter,
     ModifyVectorStoreRequest,
     StaticChunkingStrategy,
@@ -283,9 +284,7 @@ async def test_list_vector_store_files(service):
     files = await service.list_files()
     file_ids = [f.id for f in files.data[:2]]
 
-    vs_request = CreateVectorStoreRequest(
-        name="List Files Test", file_ids=file_ids
-    )
+    vs_request = CreateVectorStoreRequest(name="List Files Test", file_ids=file_ids)
     vs = await service.create_vector_store(vs_request)
 
     # Wait for processing
@@ -305,9 +304,7 @@ async def test_delete_vector_store_file(service):
     files = await service.list_files()
     file_id = files.data[0].id
 
-    vs_request = CreateVectorStoreRequest(
-        name="Delete File Test", file_ids=[file_id]
-    )
+    vs_request = CreateVectorStoreRequest(name="Delete File Test", file_ids=[file_id])
     vs = await service.create_vector_store(vs_request)
 
     # Wait for processing
@@ -357,9 +354,7 @@ async def test_retrieve_file_batch(service):
     files = await service.list_files()
     file_ids = [f.id for f in files.data[:2]]
 
-    vs_request = CreateVectorStoreRequest(
-        name="Batch Retrieve Test", file_ids=file_ids
-    )
+    vs_request = CreateVectorStoreRequest(name="Batch Retrieve Test", file_ids=file_ids)
     vs = await service.create_vector_store(vs_request)
 
     # Wait for processing
@@ -380,9 +375,7 @@ async def test_cancel_file_batch(service):
     files = await service.list_files()
     file_ids = [f.id for f in files.data[:2]]
 
-    vs_request = CreateVectorStoreRequest(
-        name="Batch Cancel Test", file_ids=file_ids
-    )
+    vs_request = CreateVectorStoreRequest(name="Batch Cancel Test", file_ids=file_ids)
     vs = await service.create_vector_store(vs_request)
 
     # Cancel immediately (before processing completes)
@@ -399,9 +392,7 @@ async def test_chunking_simulation(service):
     file_id = files.data[0].id
 
     # Test auto chunking
-    auto_chunks = await service._simulate_chunking(
-        file_id, AutoChunkingStrategy()
-    )
+    auto_chunks = await service._simulate_chunking(file_id, AutoChunkingStrategy())
     assert len(auto_chunks) > 0
     assert all("id" in chunk for chunk in auto_chunks)
     assert all("text" in chunk for chunk in auto_chunks)
@@ -449,9 +440,7 @@ async def test_vector_store_search(service):
     files = await service.list_files()
     file_id = files.data[0].id
 
-    vs_request = CreateVectorStoreRequest(
-        name="Search Test", file_ids=[file_id]
-    )
+    vs_request = CreateVectorStoreRequest(name="Search Test", file_ids=[file_id])
     vs = await service.create_vector_store(vs_request)
 
     # Wait for processing
@@ -519,9 +508,7 @@ async def test_vector_store_usage_bytes(service):
     files = await service.list_files()
     file_obj = files.data[0]
 
-    vs_request = CreateVectorStoreRequest(
-        name="Usage Test", file_ids=[file_obj.id]
-    )
+    vs_request = CreateVectorStoreRequest(name="Usage Test", file_ids=[file_obj.id])
     vs = await service.create_vector_store(vs_request)
 
     # Wait for processing

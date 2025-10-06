@@ -1,0 +1,509 @@
+================================================================================
+                    FAKEAI 3.0 - SERVICE LAYER ARCHITECTURE
+                    Specialized Services & Core Orchestrator
+================================================================================
+
+                            ┌─────────────────┐
+                            │  FASTAPI ROUTES │
+                            │    (app.py)     │
+                            └────────┬────────┘
+                                     │
+                         ┌───────────┴───────────┐
+                         │                       │
+                         v                       v
+              ┌─────────────────────┐   ┌──────────────────┐
+              │  FAKEAI SERVICE     │   │  SPECIALIZED     │
+              │  (Core Orchestrator)│   │  SERVICES        │
+              │                     │   │                  │
+              │ 5000+ lines         │   │ 7 Services       │
+              │ Main business logic │   │ Focused domains  │
+              └─────────────────────┘   └──────────────────┘
+                         │
+                         │
+            ┌────────────┼────────────┬────────────┐
+            │            │            │            │
+            v            v            v            v
+    ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
+    │ Model    │  │ KV Cache │  │ Smart    │  │ Cost     │
+    │ Registry │  │ Manager  │  │ Router   │  │ Tracker  │
+    └──────────┘  └──────────┘  └──────────┘  └──────────┘
+
+
+================================================================================
+                        CORE FAKEAI SERVICE (Orchestrator)
+================================================================================
+
+File: fakeai/fakeai_service.py
+Lines: ~5000
+Type: Main business logic class
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        FAKEAISERVICE CLASS                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  INITIALIZATION:                                                        │
+│    - Load configuration (AppConfig)                                     │
+│    - Initialize model registry                                          │
+│    - Setup KV cache & smart router                                      │
+│    - Initialize metrics trackers                                        │
+│    - Setup DCGM simulator                                               │
+│    - Initialize cost tracker                                            │
+│    - Create vector store engine                                         │
+│    - Setup specialized services                                         │
+│                                                                         │
+│  MAIN COMPONENTS:                                                       │
+│    ├─ models: Dict[str, Model]                    Model catalog        │
+│    ├─ files: Dict[str, FileObject]                File storage         │
+│    ├─ batches: Dict[str, Batch]                   Batch jobs           │
+│    ├─ fine_tuning_jobs: Dict[str, FineTuningJob]  FT jobs              │
+│    ├─ vector_stores: Dict[str, VectorStore]       Vector stores        │
+│    ├─ assistants: Dict[str, Assistant]            Assistants           │
+│    ├─ threads: Dict[str, Thread]                  Conversation threads │
+│    │                                                                    │
+│    ├─ model_registry: ModelRegistry               Model catalog        │
+│    ├─ kv_cache_router: SmartRouter                Routing engine       │
+│    ├─ kv_cache_metrics: KVCacheMetrics            Cache metrics        │
+│    ├─ cost_tracker: CostTracker                   Cost calculation     │
+│    ├─ dcgm_simulator: DCGMMetricsCollector        GPU simulation       │
+│    ├─ dynamo_metrics: DynamoMetricsCollector      LLM metrics          │
+│    ├─ vector_store_engine: VectorStoreEngine      RAG backend          │
+│    ├─ image_generator: ImageGenerator             Image creation       │
+│    ├─ file_manager: FileManager                   File handling        │
+│    └─ metrics_tracker: MetricsTracker             Core metrics         │
+│                                                                         │
+│  CORE API METHODS (30+ methods):                                        │
+│                                                                         │
+│  Models:                                                                │
+│    ├─ list_models() → ModelListResponse                                │
+│    ├─ get_model(model_id) → Model                                      │
+│    ├─ get_model_capabilities(model_id) → ModelCapabilitiesResponse     │
+│    └─ _ensure_model_exists(model_id) → None                            │
+│                                                                         │
+│  Chat:                                                                  │
+│    ├─ create_chat_completion(request) → ChatCompletionResponse         │
+│    ├─ create_chat_completion_stream(request) → AsyncGenerator          │
+│    └─ _generate_chat_response(...) → str                               │
+│                                                                         │
+│  Completions:                                                           │
+│    ├─ create_completion(request) → CompletionResponse                  │
+│    ├─ create_completion_stream(request) → AsyncGenerator               │
+│    └─ _generate_completion_text(...) → str                             │
+│                                                                         │
+│  Embeddings:                                                            │
+│    ├─ create_embedding(request) → EmbeddingResponse                    │
+│    └─ _generate_embedding(text, model) → List[float]                   │
+│                                                                         │
+│  Images:                                                                │
+│    ├─ generate_images(request) → ImageGenerationResponse               │
+│    └─ _generate_image_data(...) → bytes                                │
+│                                                                         │
+│  Audio:                                                                 │
+│    ├─ create_speech(request) → bytes                                   │
+│    └─ _generate_audio_bytes(...) → bytes                               │
+│                                                                         │
+│  Files:                                                                 │
+│    ├─ list_files() → FileListResponse                                  │
+│    ├─ upload_file() → FileObject                                       │
+│    ├─ get_file(file_id) → FileObject                                   │
+│    └─ delete_file(file_id) → dict                                      │
+│                                                                         │
+│  Batches:                                                               │
+│    ├─ create_batch(request) → Batch                                    │
+│    ├─ retrieve_batch(batch_id) → Batch                                 │
+│    ├─ cancel_batch(batch_id) → Batch                                   │
+│    ├─ list_batches(...) → BatchListResponse                            │
+│    └─ _process_batch_in_background(batch_id) → None                    │
+│                                                                         │
+│  Moderation:                                                            │
+│    ├─ create_moderation(request) → ModerationResponse                  │
+│    └─ _scan_content_for_violations(text) → bool                        │
+│                                                                         │
+│  Fine-Tuning:                                                           │
+│    ├─ create_fine_tuning_job(request) → FineTuningJob                  │
+│    ├─ retrieve_fine_tuning_job(job_id) → FineTuningJob                 │
+│    ├─ cancel_fine_tuning_job(job_id) → FineTuningJob                   │
+│    ├─ list_fine_tuning_jobs(...) → FineTuningJobList                   │
+│    ├─ list_fine_tuning_events(...) → AsyncGenerator                    │
+│    └─ list_fine_tuning_checkpoints(...) → FineTuningCheckpointList     │
+│                                                                         │
+│  Vector Stores:                                                         │
+│    ├─ create_vector_store(request) → VectorStore                       │
+│    ├─ retrieve_vector_store(store_id) → VectorStore                    │
+│    ├─ modify_vector_store(store_id, request) → VectorStore             │
+│    ├─ delete_vector_store(store_id) → dict                             │
+│    ├─ create_vector_store_file(...) → VectorStoreFile                  │
+│    ├─ list_vector_store_files(...) → VectorStoreFileListResponse       │
+│    └─ ... (file batches, etc.)                                         │
+│                                                                         │
+│  Organization Management:                                               │
+│    ├─ list_organization_users(...) → OrganizationUserListResponse      │
+│    ├─ create_organization_user(...) → OrganizationUser                 │
+│    ├─ list_organization_projects(...) → OrganizationProjectListResponse│
+│    ├─ create_organization_project(...) → OrganizationProject           │
+│    └─ ... (invites, service accounts, etc.)                            │
+│                                                                         │
+│  Usage & Billing:                                                       │
+│    ├─ get_completions_usage(...) → CompletionsUsageResponse            │
+│    ├─ get_embeddings_usage(...) → EmbeddingsUsageResponse              │
+│    ├─ get_images_usage(...) → ImagesUsageResponse                      │
+│    ├─ get_audio_speeches_usage(...) → AudioSpeechesUsageResponse       │
+│    └─ get_costs(...) → CostsResponse                                   │
+│                                                                         │
+│  NVIDIA & Azure APIs:                                                   │
+│    ├─ create_ranking(request) → RankingResponse                        │
+│    ├─ create_text_generation(request) → TextGenerationResponse         │
+│    └─ create_response(request) → ResponsesResponse                     │
+│                                                                         │
+│  Solido RAG:                                                            │
+│    └─ create_solido_rag(request) → SolidoRagResponse                   │
+│                                                                         │
+│  HELPER METHODS (20+ methods):                                          │
+│    ├─ _ensure_model_exists(model_id)                                   │
+│    ├─ _is_reasoning_model(model_id) → bool                             │
+│    ├─ _is_moe_model(model_id) → bool                                   │
+│    ├─ _supports_predicted_outputs(model_id) → bool                     │
+│    ├─ _generate_simulated_reasoning(prompt) → str                      │
+│    ├─ _simulate_speculative_decoding(...) → tuple                      │
+│    ├─ _extract_text_content(content) → str                             │
+│    ├─ _calculate_token_count(text) → int                               │
+│    ├─ _tokenize_text(text) → List[str]                                 │
+│    ├─ _apply_response_delay()                                          │
+│    └─ ... (many more)                                                  │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                        SPECIALIZED SERVICES (7 Services)
+================================================================================
+
+1. AUDIO SERVICE
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: services/audio_service.py
+   Responsibility: Text-to-speech audio generation
+
+   ┌───────────────────────────────────────────────────────────┐
+   │ AudioService                                              │
+   ├───────────────────────────────────────────────────────────┤
+   │ Methods:                                                  │
+   │   create_speech(request: SpeechRequest) → bytes          │
+   │                                                           │
+   │ Features:                                                 │
+   │   - Voice simulation (alloy, echo, fable, etc.)          │
+   │   - Speed adjustment (0.25x - 4.0x)                      │
+   │   - Multiple formats (mp3, opus, aac, flac, wav, pcm)    │
+   │   - Realistic duration calculation                       │
+   │   - Binary audio generation                              │
+   │                                                           │
+   │ Integration:                                              │
+   │   - Uses utils/audio_generation.py                       │
+   │   - Called by app.py /v1/audio/speech endpoint           │
+   └───────────────────────────────────────────────────────────┘
+
+
+2. BATCH SERVICE
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: services/batch_service.py
+   Responsibility: Batch job processing and management
+
+   ┌───────────────────────────────────────────────────────────┐
+   │ BatchService                                              │
+   ├───────────────────────────────────────────────────────────┤
+   │ Methods:                                                  │
+   │   create_batch(request) → Batch                          │
+   │   retrieve_batch(batch_id) → Batch                       │
+   │   cancel_batch(batch_id) → Batch                         │
+   │   list_batches(...) → BatchListResponse                  │
+   │   process_batch_in_background(batch_id)                  │
+   │                                                           │
+   │ Features:                                                 │
+   │   - Async batch processing                               │
+   │   - Status tracking (validating, in_progress, etc.)      │
+   │   - Request counting (total, completed, failed)          │
+   │   - Output file generation (JSONL)                       │
+   │   - Error handling and reporting                         │
+   │                                                           │
+   │ Integration:                                              │
+   │   - Uses BatchMetrics for tracking                       │
+   │   - Background thread processing                         │
+   │   - Called by app.py /v1/batches endpoints               │
+   └───────────────────────────────────────────────────────────┘
+
+
+3. EMBEDDING SERVICE
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: services/embedding_service.py
+   Responsibility: Vector embedding generation
+
+   ┌───────────────────────────────────────────────────────────┐
+   │ EmbeddingService                                          │
+   ├───────────────────────────────────────────────────────────┤
+   │ Methods:                                                  │
+   │   create_embedding(request) → EmbeddingResponse          │
+   │   generate_embedding(text, model) → List[float]          │
+   │                                                           │
+   │ Features:                                                 │
+   │   - Stable hash-based embeddings                         │
+   │   - L2-normalized vectors                                │
+   │   - Dimension based on model (768, 1024, 1536, 3072)     │
+   │   - Batch processing (multiple inputs)                   │
+   │   - Semantic similarity preservation                     │
+   │                                                           │
+   │ Models Supported:                                         │
+   │   - text-embedding-ada-002 (1536 dim)                    │
+   │   - text-embedding-3-small (1536 dim)                    │
+   │   - text-embedding-3-large (3072 dim)                    │
+   │   - Custom models                                         │
+   │                                                           │
+   │ Integration:                                              │
+   │   - Uses utils/embeddings.py                             │
+   │   - Uses semantic_embeddings.py                          │
+   │   - Called by app.py /v1/embeddings endpoint             │
+   └───────────────────────────────────────────────────────────┘
+
+
+4. FILE SERVICE
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: services/file_service.py
+   Responsibility: File upload and management
+
+   ┌───────────────────────────────────────────────────────────┐
+   │ FileService                                               │
+   ├───────────────────────────────────────────────────────────┤
+   │ Methods:                                                  │
+   │   list_files() → FileListResponse                        │
+   │   upload_file(file, purpose) → FileObject                │
+   │   get_file(file_id) → FileObject                         │
+   │   delete_file(file_id) → dict                            │
+   │   get_file_content(file_id) → bytes                      │
+   │                                                           │
+   │ Features:                                                 │
+   │   - In-memory file storage                               │
+   │   - Purpose tracking (assistants, fine-tune, etc.)       │
+   │   - Size tracking                                         │
+   │   - Filename preservation                                 │
+   │   - Content type detection                               │
+   │                                                           │
+   │ Supported Purposes:                                       │
+   │   - assistants (for retrieval)                           │
+   │   - fine-tune (training data)                            │
+   │   - batch (batch input)                                  │
+   │                                                           │
+   │ Integration:                                              │
+   │   - Uses FileManager for storage                         │
+   │   - Called by app.py /v1/files endpoints                 │
+   └───────────────────────────────────────────────────────────┘
+
+
+5. IMAGE GENERATION SERVICE
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: services/image_generation_service.py
+   Responsibility: Image creation and management
+
+   ┌───────────────────────────────────────────────────────────┐
+   │ ImageGenerationService                                    │
+   ├───────────────────────────────────────────────────────────┤
+   │ Methods:                                                  │
+   │   generate_images(request) → ImageGenerationResponse     │
+   │   generate_image(prompt, size, quality) → bytes          │
+   │                                                           │
+   │ Features:                                                 │
+   │   - Actual image generation (PIL-based)                  │
+   │   - Multiple sizes (256x256, 512x512, 1024x1024, etc.)   │
+   │   - Quality levels (standard, hd)                        │
+   │   - Style options (vivid, natural)                       │
+   │   - Response formats (url, b64_json)                     │
+   │   - Temporary URL generation                             │
+   │   - Image retention policy                               │
+   │                                                           │
+   │ Models Supported:                                         │
+   │   - dall-e-2                                             │
+   │   - dall-e-3                                             │
+   │                                                           │
+   │ Integration:                                              │
+   │   - Uses ImageGenerator for creation                     │
+   │   - Called by app.py /v1/images/generations endpoint     │
+   │   - Images served via /images/{id}.png endpoint          │
+   └───────────────────────────────────────────────────────────┘
+
+
+6. MODERATION SERVICE
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   File: services/moderation_service.py
+   Responsibility: Content safety and moderation
+
+   ┌───────────────────────────────────────────────────────────┐
+   │ ModerationService                                         │
+   ├───────────────────────────────────────────────────────────┤
+   │ Methods:                                                  │
+   │   create_moderation(request) → ModerationResponse        │
+   │   scan_text(text) → ModerationResult                     │
+   │   scan_image(image_url) → ModerationResult               │
+   │                                                           │
+   │ Features:                                                 │
+   │   - Multi-modal input (text, images)                     │
+   │   - Category detection (11 categories)                   │
+   │   - Severity scoring (0.0-1.0)                           │
+   │   - Threshold-based flagging                             │
+   │   - Keyword-based scanning                               │
+   │                                                           │
+   │ Categories Tracked:                                       │
+   │   - sexual, hate, harassment                             │
+   │   - self-harm, violence                                  │
+   │   - sexual/minors, hate/threatening                      │
+   │   - violence/graphic                                     │
+   │   - self-harm/intent, self-harm/instructions             │
+   │   - harassment/threatening                               │
+   │                                                           │
+   │ Integration:                                              │
+   │   - Called by app.py /v1/moderations endpoint            │
+   │   - Uses keyword matching for detection                  │
+   └───────────────────────────────────────────────────────────┘
+
+
+7. IMPLICIT SERVICES (In FakeAIService)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Not extracted but could be:
+
+   - OrganizationService (user/project/invite management)
+   - FineTuningService (job processing)
+   - VectorStoreService (vector operations)
+   - AssistantService (assistant & threads)
+   - RealtimeService (WebSocket streaming)
+
+
+================================================================================
+                        SERVICE INTEGRATION PATTERNS
+================================================================================
+
+Dependency Injection:
+  ┌─────────────────┐
+  │   App.py        │
+  │   FastAPI       │
+  └────────┬────────┘
+           │
+           │ Creates instances
+           v
+  ┌─────────────────┐         ┌──────────────────┐
+  │ FakeAIService   │────────→│ AudioService     │
+  │                 │         │ BatchService     │
+  │ config: Config  │         │ EmbeddingService │
+  │ metrics: Metrics│         │ FileService      │
+  │                 │         │ ImageService     │
+  │ Services:       │         │ ModerationService│
+  │   audio_svc     │         └──────────────────┘
+  │   batch_svc     │
+  │   embed_svc     │
+  │   ...           │
+  └─────────────────┘
+
+Service Construction:
+  ```python
+  # In FakeAIService.__init__
+  self.audio_service = AudioService(config=self.config)
+  self.batch_service = BatchService(config=self.config)
+  self.embedding_service = EmbeddingService(config=self.config)
+  self.file_service = FileService(file_manager=self.file_manager)
+  self.image_service = ImageGenerationService(
+      config=self.config,
+      image_generator=self.image_generator
+  )
+  self.moderation_service = ModerationService(config=self.config)
+  ```
+
+Service Invocation:
+  ```python
+  # In FakeAIService method
+  async def create_speech(self, request: SpeechRequest) -> bytes:
+      return await self.audio_service.create_speech(request)
+  ```
+
+Direct Route Integration:
+  ```python
+  # In app.py
+  @app.post("/v1/audio/speech")
+  async def create_speech(request: SpeechRequest) -> Response:
+      audio_bytes = await fakeai_service.create_speech(request)
+      return Response(content=audio_bytes, media_type="audio/mpeg")
+  ```
+
+
+================================================================================
+                        SERVICE LAYER BENEFITS
+================================================================================
+
+Separation of Concerns:
+  - Core orchestration in FakeAIService
+  - Domain-specific logic in specialized services
+  - Clear boundaries between responsibilities
+
+Testability:
+  - Services can be tested independently
+  - Mock services for integration tests
+  - Isolated unit tests per service
+
+Maintainability:
+  - Changes to audio logic don't affect embeddings
+  - Easy to locate and fix bugs
+  - Clear ownership of features
+
+Scalability:
+  - Services can be extracted to microservices
+  - Independent deployment possible
+  - Horizontal scaling per service
+
+Reusability:
+  - Services can be used by multiple endpoints
+  - Shared logic consolidated
+  - Consistent behavior across features
+
+
+================================================================================
+                        FUTURE SERVICE EXTRACTIONS
+================================================================================
+
+Candidates for Extraction:
+
+1. OrganizationService
+   - User management
+   - Project management
+   - Invite handling
+   - Service accounts
+   Currently: ~1000 lines in fakeai_service.py
+
+2. FineTuningService
+   - Job creation and tracking
+   - Event streaming
+   - Checkpoint management
+   Currently: ~500 lines in fakeai_service.py
+
+3. VectorStoreService
+   - Store creation and management
+   - File operations
+   - Batch operations
+   Currently: ~800 lines in fakeai_service.py
+
+4. AssistantService
+   - Assistant CRUD
+   - Thread management
+   - Message handling
+   - Run execution
+   Currently: ~600 lines in fakeai_service.py
+
+5. RealtimeService
+   - WebSocket session management
+   - Audio buffer handling
+   - Conversation items
+   - Response streaming
+   Currently: RealtimeSessionHandler class (~400 lines)
+
+6. CompletionService
+   - Chat completions
+   - Text completions
+   - Streaming logic
+   - Token counting
+   Currently: Core methods in fakeai_service.py (~1500 lines)
+
+
+================================================================================

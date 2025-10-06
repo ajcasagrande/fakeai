@@ -10,6 +10,7 @@ This example shows how to use:
 """
 
 import os
+
 from fakeai.config import AppConfig
 
 
@@ -21,39 +22,41 @@ def example_production_config():
         host="0.0.0.0",
         port=8000,
         require_api_key=True,
-
         # KV Cache settings for better performance
         kv_cache_enabled=True,
         kv_cache_block_size=32,
         kv_cache_num_workers=8,
         kv_overlap_weight=1.2,
-
         # Safety settings enabled
         enable_moderation=True,
         moderation_threshold=0.8,
         enable_refusals=True,
         enable_jailbreak_detection=True,
-
         # Audio enabled with default settings
         enable_audio=True,
         default_voice="alloy",
         default_audio_format="mp3",
-
         # Performance monitoring enabled
         enable_context_validation=True,
         strict_token_counting=False,  # Use fast token counting
     )
 
     print(f"Host: {config.host}:{config.port}")
-    print(f"KV Cache: enabled={config.kv_cache_enabled}, "
-          f"block_size={config.kv_cache_block_size}, "
-          f"workers={config.kv_cache_num_workers}")
-    print(f"Safety: moderation={config.enable_moderation}, "
-          f"threshold={config.moderation_threshold}, "
-          f"refusals={config.enable_refusals}")
-    print(f"Audio: enabled={config.enable_audio}, "
-          f"voice={config.default_voice}, "
-          f"format={config.default_audio_format}")
+    print(
+        f"KV Cache: enabled={config.kv_cache_enabled}, "
+        f"block_size={config.kv_cache_block_size}, "
+        f"workers={config.kv_cache_num_workers}"
+    )
+    print(
+        f"Safety: moderation={config.enable_moderation}, "
+        f"threshold={config.moderation_threshold}, "
+        f"refusals={config.enable_refusals}"
+    )
+    print(
+        f"Audio: enabled={config.enable_audio}, "
+        f"voice={config.default_voice}, "
+        f"format={config.default_audio_format}"
+    )
 
     return config
 
@@ -67,25 +70,20 @@ def example_development_config():
         port=8000,
         debug=True,
         require_api_key=False,
-
         # Minimal delays for fast testing
         response_delay=0.0,
         random_delay=False,
-
         # KV Cache enabled but with smaller settings
         kv_cache_enabled=True,
         kv_cache_block_size=16,
         kv_cache_num_workers=4,
-
         # Safety checks disabled for faster testing
         enable_moderation=False,
         enable_refusals=False,
         enable_jailbreak_detection=False,
-
         # Audio enabled for testing
         enable_audio=True,
         default_voice="nova",
-
         # Fast performance settings
         enable_context_validation=False,
         strict_token_counting=False,
@@ -108,29 +106,27 @@ def example_performance_config():
         # No delays
         response_delay=0.0,
         random_delay=False,
-
         # Maximum KV cache performance
         kv_cache_enabled=True,
         kv_cache_block_size=64,
         kv_cache_num_workers=16,
         kv_overlap_weight=1.5,
-
         # Minimal safety overhead
         enable_moderation=False,
         enable_refusals=False,
         enable_jailbreak_detection=False,
-
         # Audio enabled
         enable_audio=True,
-
         # Performance settings optimized
         enable_context_validation=False,  # Skip validation
         strict_token_counting=False,  # Use fast counting
     )
 
     print(f"Response delay: {config.response_delay}s (instant)")
-    print(f"KV Cache: block_size={config.kv_cache_block_size}, "
-          f"workers={config.kv_cache_num_workers}")
+    print(
+        f"KV Cache: block_size={config.kv_cache_block_size}, "
+        f"workers={config.kv_cache_num_workers}"
+    )
     print(f"Safety checks: disabled for maximum performance")
     print(f"Context validation: {config.enable_context_validation}")
 
@@ -146,11 +142,9 @@ def example_audio_focused_config():
         enable_audio=True,
         default_voice="nova",  # High-quality voice
         default_audio_format="opus",  # High-quality format
-
         # KV cache for better audio generation
         kv_cache_enabled=True,
         kv_cache_block_size=32,
-
         # Safety enabled
         enable_moderation=True,
         moderation_threshold=0.5,

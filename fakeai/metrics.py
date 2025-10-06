@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 class MetricType(Enum):
     """Types of metrics tracked."""
+
     REQUESTS = "requests"
     RESPONSES = "responses"
     TOKENS = "tokens"
@@ -34,6 +35,7 @@ class MetricType(Enum):
 @dataclass
 class StreamingMetrics:
     """Metrics for a single stream."""
+
     stream_id: str
     start_time: float
     first_token_time: float | None = None
@@ -60,6 +62,7 @@ class StreamingMetrics:
 @dataclass
 class MetricsWindow:
     """Numpy-based sliding window for metrics tracking with smooth rate calculations."""
+
     window_size: float = 60.0  # Default 60 seconds window
     max_samples: int = 100000  # Maximum samples to keep in memory
 
@@ -113,8 +116,8 @@ class MetricsWindow:
 
             # If we exceed max samples, keep only the most recent
             if len(self.timestamps) > self.max_samples:
-                self.timestamps = self.timestamps[-self.max_samples:]
-                self.values = self.values[-self.max_samples:]
+                self.timestamps = self.timestamps[-self.max_samples :]
+                self.values = self.values[-self.max_samples :]
 
         # Filter timestamps for latencies
         if len(self.latency_timestamps) > 0:
@@ -124,8 +127,8 @@ class MetricsWindow:
 
             # If we exceed max samples, keep only the most recent
             if len(self.latency_timestamps) > self.max_samples:
-                self.latency_timestamps = self.latency_timestamps[-self.max_samples:]
-                self.latencies = self.latencies[-self.max_samples:]
+                self.latency_timestamps = self.latency_timestamps[-self.max_samples :]
+                self.latencies = self.latencies[-self.max_samples :]
 
     def get_rate(self) -> float:
         """
@@ -212,6 +215,7 @@ class MetricsWindow:
 
 class MetricsTracker:
     """Singleton class to track FakeAI server metrics."""
+
     _instance = None
     _lock = threading.Lock()
 
@@ -235,16 +239,26 @@ class MetricsTracker:
             MetricType.STREAMING: defaultdict(lambda: MetricsWindow()),
         }
 
-        # Endpoints to skip tracking (non-OpenAI endpoints)
-        self._skip_endpoints = {
-            "/metrics",
-            "/dcgm-metrics",
-            "/dcgm-metrics/json",
-            "/dynamo-metrics",
-            "/dynamo-metrics/json",
-            "/kv-cache-metrics",
-            "/dashboard",
-            "/dashboard/dynamo",
+        # Core API endpoints to track (allowlist)
+        self._tracked_endpoints = {
+            # OpenAI API endpoints
+            "/v1/chat/completions",
+            "/v1/completions",
+            "/v1/embeddings",
+            "/v1/images/generations",
+            "/v1/audio/speech",
+            "/v1/audio/transcriptions",
+            "/v1/moderations",
+            "/v1/files",
+            "/v1/batches",
+            "/v1/responses",
+            # NVIDIA NIM endpoints
+            "/v1/ranking",
+            "/v1/text/generation",
+            # Solido RAG endpoint
+            "/rag/api/prompt",
+            # Realtime (WebSocket is handled separately)
+            "/v1/realtime",
         }
 
         # Queue for response times (used for per-request timing)
@@ -272,20 +286,14 @@ class MetricsTracker:
         """
         Check if an endpoint should be tracked.
 
-        Skip tracking for:
-        - Non-OpenAI endpoints (metrics, dashboards)
-        - Static file endpoints
+        Only track core API endpoints (allowlist approach):
+        - OpenAI API endpoints (/v1/*)
+        - NVIDIA NIM endpoints
+        - Solido RAG endpoint
+        - Other core inference endpoints
         """
-        # Skip exact matches
-        if endpoint in self._skip_endpoints:
-            return False
-
-        # Skip anything starting with /static/
-        if endpoint.startswith("/static/"):
-            return False
-
-        # Track everything else (OpenAI API endpoints, /health, etc.)
-        return True
+        # Only track endpoints in the allowlist
+        return endpoint in self._tracked_endpoints
 
     def track_request(self, endpoint: str) -> None:
         """Track a new request to a specific endpoint."""
@@ -312,13 +320,13 @@ class MetricsTracker:
         if not self._should_track_endpoint(endpoint):
             return
         self._metrics[MetricType.ERRORS][endpoint].add()
-    
+
     def start_request_timer(self, endpoint: str) -> int:
         """Start timing a request and return a request ID."""
         request_id = hash(f"{endpoint}_{time.time()}_{random.random()}")
         self._response_times[endpoint].append((request_id, time.time()))
         return request_id
-    
+
     def end_request_timer(self, endpoint: str, request_id: int) -> float:
         """End timing a request and return the latency."""
         for i, (rid, start_time) in enumerate(self._response_times[endpoint]):
@@ -367,7 +375,9 @@ class MetricsTracker:
 
                 # Track in metrics window
                 if metrics.total_duration:
-                    self._metrics[MetricType.RESPONSES][endpoint].add_latency(metrics.total_duration)
+                    self._metrics[MetricType.RESPONSES][endpoint].add_latency(
+                        metrics.total_duration
+                    )
 
                 # Remove from active
                 del self._streaming_metrics[stream_id]
@@ -401,8 +411,16 @@ class MetricsTracker:
             active_count = len(self._streaming_metrics)
 
             # Calculate TTFT stats from completed streams
-            ttfts = [s.calculate_ttft() for s in self._completed_streams if s.calculate_ttft() is not None]
-            tokens_per_sec = [s.calculate_tokens_per_second() for s in self._completed_streams if s.calculate_tokens_per_second() is not None]
+            ttfts = [
+                s.calculate_ttft()
+                for s in self._completed_streams
+                if s.calculate_ttft() is not None
+            ]
+            tokens_per_sec = [
+                s.calculate_tokens_per_second()
+                for s in self._completed_streams
+                if s.calculate_tokens_per_second() is not None
+            ]
 
             ttft_stats = {}
             if ttfts:
@@ -437,7 +455,7 @@ class MetricsTracker:
                 "ttft": ttft_stats,
                 "tokens_per_second": tps_stats,
             }
-    
+
     def get_metrics(self) -> Dict[str, Dict[str, Dict[str, float]] | Dict[str, Any]]:
         """Get all current metrics."""
         result = {}
@@ -467,14 +485,18 @@ class MetricsTracker:
         lines.append("# TYPE fakeai_requests_per_second gauge")
         for endpoint, window in self._metrics[MetricType.REQUESTS].items():
             stats = window.get_stats()
-            lines.append(f'fakeai_requests_per_second{{endpoint="{endpoint}"}} {stats["rate"]:.6f}')
+            lines.append(
+                f'fakeai_requests_per_second{{endpoint="{endpoint}"}} {stats["rate"]:.6f}'
+            )
 
         # Response metrics
         lines.append("# HELP fakeai_responses_per_second Response rate per endpoint")
         lines.append("# TYPE fakeai_responses_per_second gauge")
         for endpoint, window in self._metrics[MetricType.RESPONSES].items():
             stats = window.get_stats()
-            lines.append(f'fakeai_responses_per_second{{endpoint="{endpoint}"}} {stats["rate"]:.6f}')
+            lines.append(
+                f'fakeai_responses_per_second{{endpoint="{endpoint}"}} {stats["rate"]:.6f}'
+            )
 
         # Latency metrics
         lines.append("# HELP fakeai_latency_seconds Response latency in seconds")
@@ -482,17 +504,29 @@ class MetricsTracker:
         for endpoint, window in self._metrics[MetricType.RESPONSES].items():
             stats = window.get_latency_stats()
             if stats["avg"] > 0:
-                lines.append(f'fakeai_latency_seconds{{endpoint="{endpoint}",quantile="0.5"}} {stats["p50"]:.6f}')
-                lines.append(f'fakeai_latency_seconds{{endpoint="{endpoint}",quantile="0.9"}} {stats["p90"]:.6f}')
-                lines.append(f'fakeai_latency_seconds{{endpoint="{endpoint}",quantile="0.99"}} {stats["p99"]:.6f}')
-                lines.append(f'fakeai_latency_seconds_sum{{endpoint="{endpoint}"}} {stats["avg"] * stats["rate"]:.6f}')
+                lines.append(
+                    f'fakeai_latency_seconds{{endpoint="{endpoint}",quantile="0.5"}} {stats["p50"]:.6f}'
+                )
+                lines.append(
+                    f'fakeai_latency_seconds{{endpoint="{endpoint}",quantile="0.9"}} {stats["p90"]:.6f}'
+                )
+                lines.append(
+                    f'fakeai_latency_seconds{{endpoint="{endpoint}",quantile="0.99"}} {stats["p99"]:.6f}'
+                )
+                lines.append(
+                    f'fakeai_latency_seconds_sum{{endpoint="{endpoint}"}} {stats["avg"] * stats["rate"]:.6f}'
+                )
 
         # Token metrics
-        lines.append("# HELP fakeai_tokens_per_second Token generation rate per endpoint")
+        lines.append(
+            "# HELP fakeai_tokens_per_second Token generation rate per endpoint"
+        )
         lines.append("# TYPE fakeai_tokens_per_second gauge")
         for endpoint, window in self._metrics[MetricType.TOKENS].items():
             stats = window.get_stats()
-            lines.append(f'fakeai_tokens_per_second{{endpoint="{endpoint}"}} {stats["rate"]:.6f}')
+            lines.append(
+                f'fakeai_tokens_per_second{{endpoint="{endpoint}"}} {stats["rate"]:.6f}'
+            )
 
         # Error metrics
         lines.append("# HELP fakeai_errors_per_second Error rate per endpoint")
@@ -500,21 +534,29 @@ class MetricsTracker:
         for endpoint, window in self._metrics[MetricType.ERRORS].items():
             stats = window.get_stats()
             if stats["rate"] > 0:
-                lines.append(f'fakeai_errors_per_second{{endpoint="{endpoint}"}} {stats["rate"]:.6f}')
+                lines.append(
+                    f'fakeai_errors_per_second{{endpoint="{endpoint}"}} {stats["rate"]:.6f}'
+                )
 
         # Streaming metrics
         streaming_stats = self.get_streaming_stats()
         lines.append("# HELP fakeai_active_streams Number of currently active streams")
         lines.append("# TYPE fakeai_active_streams gauge")
-        lines.append(f'fakeai_active_streams {streaming_stats.get("active_streams", 0)}')
+        lines.append(
+            f'fakeai_active_streams {streaming_stats.get("active_streams", 0)}'
+        )
 
         lines.append("# HELP fakeai_completed_streams Total completed streams")
         lines.append("# TYPE fakeai_completed_streams gauge")
-        lines.append(f'fakeai_completed_streams {streaming_stats.get("completed_streams", 0)}')
+        lines.append(
+            f'fakeai_completed_streams {streaming_stats.get("completed_streams", 0)}'
+        )
 
         lines.append("# HELP fakeai_failed_streams Total failed streams")
         lines.append("# TYPE fakeai_failed_streams gauge")
-        lines.append(f'fakeai_failed_streams {streaming_stats.get("failed_streams", 0)}')
+        lines.append(
+            f'fakeai_failed_streams {streaming_stats.get("failed_streams", 0)}'
+        )
 
         # TTFT metrics
         ttft = streaming_stats.get("ttft", {})
@@ -528,11 +570,19 @@ class MetricsTracker:
         # Tokens per second streaming metrics
         tps = streaming_stats.get("tokens_per_second", {})
         if tps:
-            lines.append("# HELP fakeai_stream_tokens_per_second Streaming tokens per second")
+            lines.append(
+                "# HELP fakeai_stream_tokens_per_second Streaming tokens per second"
+            )
             lines.append("# TYPE fakeai_stream_tokens_per_second summary")
-            lines.append(f'fakeai_stream_tokens_per_second{{quantile="0.5"}} {tps["p50"]:.6f}')
-            lines.append(f'fakeai_stream_tokens_per_second{{quantile="0.9"}} {tps["p90"]:.6f}')
-            lines.append(f'fakeai_stream_tokens_per_second{{quantile="0.99"}} {tps["p99"]:.6f}')
+            lines.append(
+                f'fakeai_stream_tokens_per_second{{quantile="0.5"}} {tps["p50"]:.6f}'
+            )
+            lines.append(
+                f'fakeai_stream_tokens_per_second{{quantile="0.9"}} {tps["p90"]:.6f}'
+            )
+            lines.append(
+                f'fakeai_stream_tokens_per_second{{quantile="0.99"}} {tps["p99"]:.6f}'
+            )
 
         return "\n".join(lines) + "\n"
 
@@ -550,47 +600,88 @@ class MetricsTracker:
         writer = csv.writer(output)
 
         # Write header
-        writer.writerow([
-            "metric_type", "endpoint", "rate", "avg_latency", "min_latency",
-            "max_latency", "p50_latency", "p90_latency", "p99_latency"
-        ])
+        writer.writerow(
+            [
+                "metric_type",
+                "endpoint",
+                "rate",
+                "avg_latency",
+                "min_latency",
+                "max_latency",
+                "p50_latency",
+                "p90_latency",
+                "p99_latency",
+            ]
+        )
 
         # Write request metrics
         for endpoint, window in self._metrics[MetricType.REQUESTS].items():
             stats = window.get_stats()
-            writer.writerow([
-                "requests", endpoint, stats["rate"],
-                stats["avg"], stats["min"], stats["max"],
-                stats["p50"], stats["p90"], stats["p99"]
-            ])
+            writer.writerow(
+                [
+                    "requests",
+                    endpoint,
+                    stats["rate"],
+                    stats["avg"],
+                    stats["min"],
+                    stats["max"],
+                    stats["p50"],
+                    stats["p90"],
+                    stats["p99"],
+                ]
+            )
 
         # Write response metrics
         for endpoint, window in self._metrics[MetricType.RESPONSES].items():
             stats = window.get_stats()
-            writer.writerow([
-                "responses", endpoint, stats["rate"],
-                stats["avg"], stats["min"], stats["max"],
-                stats["p50"], stats["p90"], stats["p99"]
-            ])
+            writer.writerow(
+                [
+                    "responses",
+                    endpoint,
+                    stats["rate"],
+                    stats["avg"],
+                    stats["min"],
+                    stats["max"],
+                    stats["p50"],
+                    stats["p90"],
+                    stats["p99"],
+                ]
+            )
 
         # Write token metrics
         for endpoint, window in self._metrics[MetricType.TOKENS].items():
             stats = window.get_stats()
-            writer.writerow([
-                "tokens", endpoint, stats["rate"],
-                stats["avg"], stats["min"], stats["max"],
-                stats["p50"], stats["p90"], stats["p99"]
-            ])
+            writer.writerow(
+                [
+                    "tokens",
+                    endpoint,
+                    stats["rate"],
+                    stats["avg"],
+                    stats["min"],
+                    stats["max"],
+                    stats["p50"],
+                    stats["p90"],
+                    stats["p99"],
+                ]
+            )
 
         # Write error metrics
         for endpoint, window in self._metrics[MetricType.ERRORS].items():
             stats = window.get_stats()
             if stats["rate"] > 0:
-                writer.writerow([
-                    "errors", endpoint, stats["rate"],
-                    stats["avg"], stats["min"], stats["max"],
-                    stats["p50"], stats["p90"], stats["p99"]
-                ])
+                writer.writerow(
+                    [
+                        "errors",
+                        endpoint,
+                        stats["rate"],
+                        stats["avg"],
+                        stats["min"],
+                        stats["max"],
+                        stats["p50"],
+                        stats["p90"],
+                        stats["p99"],
+                    ]
+                )
 
         return output.getvalue()
 
@@ -605,12 +696,10 @@ class MetricsTracker:
 
         # Calculate overall health
         total_requests = sum(
-            stats["rate"]
-            for stats in metrics.get("requests", {}).values()
+            stats["rate"] for stats in metrics.get("requests", {}).values()
         )
         total_errors = sum(
-            stats["rate"]
-            for stats in metrics.get("errors", {}).values()
+            stats["rate"] for stats in metrics.get("errors", {}).values()
         )
 
         error_rate = (total_errors / total_requests * 100) if total_requests > 0 else 0
@@ -626,21 +715,35 @@ class MetricsTracker:
         # Calculate average latency
         response_metrics = metrics.get("responses", {})
         if response_metrics:
-            avg_latencies = [stats["avg"] for stats in response_metrics.values() if stats["avg"] > 0]
-            avg_latency = sum(avg_latencies) / len(avg_latencies) if avg_latencies else 0
+            avg_latencies = [
+                stats["avg"] for stats in response_metrics.values() if stats["avg"] > 0
+            ]
+            avg_latency = (
+                sum(avg_latencies) / len(avg_latencies) if avg_latencies else 0
+            )
         else:
             avg_latency = 0
 
         return {
             "status": status,
             "timestamp": time.time(),
-            "uptime_seconds": time.time() - (self._metrics[MetricType.REQUESTS]["/health"].data.get(min(self._metrics[MetricType.REQUESTS]["/health"].data.keys()), 0) if self._metrics[MetricType.REQUESTS].get("/health") and self._metrics[MetricType.REQUESTS]["/health"].data else time.time()),
+            "uptime_seconds": time.time()
+            - (
+                self._metrics[MetricType.REQUESTS]["/health"].data.get(
+                    min(self._metrics[MetricType.REQUESTS]["/health"].data.keys()), 0
+                )
+                if self._metrics[MetricType.REQUESTS].get("/health")
+                and self._metrics[MetricType.REQUESTS]["/health"].data
+                else time.time()
+            ),
             "metrics_summary": {
                 "total_requests_per_second": total_requests,
                 "total_errors_per_second": total_errors,
                 "error_rate_percentage": round(error_rate, 2),
                 "average_latency_seconds": round(avg_latency, 3),
-                "active_streams": metrics.get("streaming_stats", {}).get("active_streams", 0),
+                "active_streams": metrics.get("streaming_stats", {}).get(
+                    "active_streams", 0
+                ),
             },
             "endpoints": {
                 endpoint: {
@@ -650,49 +753,51 @@ class MetricsTracker:
                 }
                 for endpoint, stats in metrics.get("responses", {}).items()
                 if stats["rate"] > 0
-            }
+            },
         }
-    
+
     def _print_metrics_periodically(self) -> None:
         """Print metrics periodically in a background thread."""
         while not self._stop_thread:
             time.sleep(self._print_interval)
             self._print_current_metrics()
-    
+
     def _print_current_metrics(self) -> None:
         """Print the current metrics to the log."""
         metrics = self.get_metrics()
-        
+
         # Only log if we have data
         if not metrics.get("requests") and not metrics.get("responses"):
             return
-        
+
         log_lines = ["SERVER METRICS:"]
-        
+
         # Format requests per second
         if "requests" in metrics:
             for endpoint, stats in metrics["requests"].items():
                 if stats["rate"] > 0:
-                    log_lines.append(f"  Requests/sec [{endpoint}]: {stats['rate']:.2f}")
-        
+                    log_lines.append(
+                        f"  Requests/sec [{endpoint}]: {stats['rate']:.2f}"
+                    )
+
         # Format responses per second
         if "responses" in metrics:
             for endpoint, stats in metrics["responses"].items():
                 if stats["rate"] > 0:
                     log_line = f"  Responses/sec [{endpoint}]: {stats['rate']:.2f}"
-                    
+
                     # Add latency stats if available
                     if "avg" in stats:
                         log_line += f" (avg: {stats['avg'] * 1000:.2f}ms, p99: {stats['p99'] * 1000:.2f}ms)"
-                    
+
                     log_lines.append(log_line)
-        
+
         # Format tokens per second
         if "tokens" in metrics:
             for endpoint, stats in metrics["tokens"].items():
                 if stats["rate"] > 0:
                     log_lines.append(f"  Tokens/sec [{endpoint}]: {stats['rate']:.2f}")
-        
+
         # Format errors per second
         if "errors" in metrics:
             for endpoint, stats in metrics["errors"].items():
@@ -701,22 +806,35 @@ class MetricsTracker:
 
         # Format streaming statistics
         streaming_stats = metrics.get("streaming_stats", {})
-        if streaming_stats.get("active_streams", 0) > 0 or streaming_stats.get("completed_streams", 0) > 0:
-            log_lines.append(f"  Active streams: {streaming_stats.get('active_streams', 0)}")
-            log_lines.append(f"  Completed streams: {streaming_stats.get('completed_streams', 0)}")
-            log_lines.append(f"  Failed streams: {streaming_stats.get('failed_streams', 0)}")
+        if (
+            streaming_stats.get("active_streams", 0) > 0
+            or streaming_stats.get("completed_streams", 0) > 0
+        ):
+            log_lines.append(
+                f"  Active streams: {streaming_stats.get('active_streams', 0)}"
+            )
+            log_lines.append(
+                f"  Completed streams: {streaming_stats.get('completed_streams', 0)}"
+            )
+            log_lines.append(
+                f"  Failed streams: {streaming_stats.get('failed_streams', 0)}"
+            )
 
             ttft = streaming_stats.get("ttft", {})
             if ttft:
-                log_lines.append(f"  TTFT (ms): avg={ttft['avg']*1000:.2f}, p50={ttft['p50']*1000:.2f}, p99={ttft['p99']*1000:.2f}")
+                log_lines.append(
+                    f"  TTFT (ms): avg={ttft['avg']*1000:.2f}, p50={ttft['p50']*1000:.2f}, p99={ttft['p99']*1000:.2f}"
+                )
 
             tps = streaming_stats.get("tokens_per_second", {})
             if tps:
-                log_lines.append(f"  Tokens/sec: avg={tps['avg']:.2f}, p50={tps['p50']:.2f}, p99={tps['p99']:.2f}")
+                log_lines.append(
+                    f"  Tokens/sec: avg={tps['avg']:.2f}, p50={tps['p50']:.2f}, p99={tps['p99']:.2f}"
+                )
 
         if len(log_lines) > 1:  # Only log if we have metrics beyond the header
             logger.info("\n".join(log_lines))
-    
+
     def shutdown(self) -> None:
         """Stop the background thread."""
         self._stop_thread = True

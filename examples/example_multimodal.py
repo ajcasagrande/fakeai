@@ -17,6 +17,7 @@ calculating appropriate token counts for different modalities.
 """
 import asyncio
 import base64
+
 from openai import AsyncOpenAI
 
 # Base URL for FakeAI server
@@ -29,7 +30,7 @@ def create_dummy_image_base64() -> str:
     png_bytes = base64.b64decode(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=="
     )
-    return base64.b64encode(png_bytes).decode('utf-8')
+    return base64.b64encode(png_bytes).decode("utf-8")
 
 
 async def demonstrate_basic_vision():
@@ -55,17 +56,12 @@ async def demonstrate_basic_vision():
             {
                 "role": "user",
                 "content": [
-                    {
-                        "type": "text",
-                        "text": "What do you see in this image?"
-                    },
+                    {"type": "text", "text": "What do you see in this image?"},
                     {
                         "type": "image_url",
-                        "image_url": {
-                            "url": "https://example.com/image.jpg"
-                        }
-                    }
-                ]
+                        "image_url": {"url": "https://example.com/image.jpg"},
+                    },
+                ],
             }
         ],
     )
@@ -109,18 +105,15 @@ async def demonstrate_image_detail_levels():
                 {
                     "role": "user",
                     "content": [
-                        {
-                            "type": "text",
-                            "text": "Describe this image"
-                        },
+                        {"type": "text", "text": "Describe this image"},
                         {
                             "type": "image_url",
                             "image_url": {
                                 "url": "https://example.com/image.jpg",
-                                "detail": detail
-                            }
-                        }
-                    ]
+                                "detail": detail,
+                            },
+                        },
+                    ],
                 }
             ],
         )
@@ -156,23 +149,20 @@ async def demonstrate_multiple_images():
             {
                 "role": "user",
                 "content": [
+                    {"type": "text", "text": "Compare these three images:"},
                     {
-                        "type": "text",
-                        "text": "Compare these three images:"
+                        "type": "image_url",
+                        "image_url": {"url": "https://example.com/image1.jpg"},
                     },
                     {
                         "type": "image_url",
-                        "image_url": {"url": "https://example.com/image1.jpg"}
+                        "image_url": {"url": "https://example.com/image2.jpg"},
                     },
                     {
                         "type": "image_url",
-                        "image_url": {"url": "https://example.com/image2.jpg"}
+                        "image_url": {"url": "https://example.com/image3.jpg"},
                     },
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": "https://example.com/image3.jpg"}
-                    }
-                ]
+                ],
             }
         ],
     )
@@ -209,17 +199,12 @@ async def demonstrate_base64_images():
             {
                 "role": "user",
                 "content": [
-                    {
-                        "type": "text",
-                        "text": "What is this?"
-                    },
+                    {"type": "text", "text": "What is this?"},
                     {
                         "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{image_base64}"
-                        }
-                    }
-                ]
+                        "image_url": {"url": f"data:image/png;base64,{image_base64}"},
+                    },
+                ],
             }
         ],
     )
@@ -255,17 +240,12 @@ async def demonstrate_vision_streaming():
             {
                 "role": "user",
                 "content": [
-                    {
-                        "type": "text",
-                        "text": "Describe this image in detail"
-                    },
+                    {"type": "text", "text": "Describe this image in detail"},
                     {
                         "type": "image_url",
-                        "image_url": {
-                            "url": "https://example.com/landscape.jpg"
-                        }
-                    }
-                ]
+                        "image_url": {"url": "https://example.com/landscape.jpg"},
+                    },
+                ],
             }
         ],
         stream=True,
@@ -298,7 +278,7 @@ async def demonstrate_audio_input():
     print()
 
     # Create dummy audio data (base64-encoded)
-    dummy_audio = base64.b64encode(b"fake audio data").decode('utf-8')
+    dummy_audio = base64.b64encode(b"fake audio data").decode("utf-8")
 
     response = await client.chat.completions.create(
         model="openai/gpt-oss-120b-audio-preview",
@@ -306,18 +286,12 @@ async def demonstrate_audio_input():
             {
                 "role": "user",
                 "content": [
-                    {
-                        "type": "text",
-                        "text": "What does this audio say?"
-                    },
+                    {"type": "text", "text": "What does this audio say?"},
                     {
                         "type": "input_audio",
-                        "input_audio": {
-                            "data": dummy_audio,
-                            "format": "wav"
-                        }
-                    }
-                ]
+                        "input_audio": {"data": dummy_audio, "format": "wav"},
+                    },
+                ],
             }
         ],
     )
@@ -329,8 +303,10 @@ async def demonstrate_audio_input():
     print(f"  Prompt tokens:  {response.usage.prompt_tokens}")
     if response.usage.prompt_tokens_details:
         print(f"  Audio tokens:   {response.usage.prompt_tokens_details.audio_tokens}")
-        text_tokens = (response.usage.prompt_tokens -
-                      response.usage.prompt_tokens_details.audio_tokens)
+        text_tokens = (
+            response.usage.prompt_tokens
+            - response.usage.prompt_tokens_details.audio_tokens
+        )
         print(f"  Text tokens:    {text_tokens}")
     print()
 
@@ -353,16 +329,8 @@ async def demonstrate_audio_output():
     response = await client.chat.completions.create(
         model="openai/gpt-oss-120b-audio-preview",
         modalities=["text", "audio"],
-        audio={
-            "voice": "alloy",
-            "format": "mp3"
-        },
-        messages=[
-            {
-                "role": "user",
-                "content": "Say hello in a friendly voice"
-            }
-        ],
+        audio={"voice": "alloy", "format": "mp3"},
+        messages=[{"role": "user", "content": "Say hello in a friendly voice"}],
     )
 
     print("Response:")
@@ -374,7 +342,9 @@ async def demonstrate_audio_output():
     print()
     print("Token Usage:")
     if response.usage.completion_tokens_details:
-        print(f"  Audio output tokens: {response.usage.completion_tokens_details.audio_tokens}")
+        print(
+            f"  Audio output tokens: {response.usage.completion_tokens_details.audio_tokens}"
+        )
     print()
 
 
@@ -397,15 +367,12 @@ async def demonstrate_vision_conversation():
         {
             "role": "user",
             "content": [
-                {
-                    "type": "text",
-                    "text": "What color is the car in this image?"
-                },
+                {"type": "text", "text": "What color is the car in this image?"},
                 {
                     "type": "image_url",
-                    "image_url": {"url": "https://example.com/car.jpg"}
-                }
-            ]
+                    "image_url": {"url": "https://example.com/car.jpg"},
+                },
+            ],
         }
     ]
 
@@ -419,16 +386,12 @@ async def demonstrate_vision_conversation():
     print()
 
     # Add response to conversation
-    messages.append({
-        "role": "assistant",
-        "content": response.choices[0].message.content
-    })
+    messages.append(
+        {"role": "assistant", "content": response.choices[0].message.content}
+    )
 
     # Turn 2: Follow-up (image still in context)
-    messages.append({
-        "role": "user",
-        "content": "What about the wheels?"
-    })
+    messages.append({"role": "user", "content": "What about the wheels?"})
 
     print("Turn 2: Follow-up question")
     print("-" * 80)
@@ -460,7 +423,7 @@ async def demonstrate_mixed_modalities():
     print("Sending text + image + audio in one request...")
     print()
 
-    dummy_audio = base64.b64encode(b"audio data").decode('utf-8')
+    dummy_audio = base64.b64encode(b"audio data").decode("utf-8")
 
     response = await client.chat.completions.create(
         model="openai/gpt-oss-120b-audio-preview",
@@ -468,22 +431,16 @@ async def demonstrate_mixed_modalities():
             {
                 "role": "user",
                 "content": [
-                    {
-                        "type": "text",
-                        "text": "Compare this image and audio:"
-                    },
+                    {"type": "text", "text": "Compare this image and audio:"},
                     {
                         "type": "image_url",
-                        "image_url": {"url": "https://example.com/scene.jpg"}
+                        "image_url": {"url": "https://example.com/scene.jpg"},
                     },
                     {
                         "type": "input_audio",
-                        "input_audio": {
-                            "data": dummy_audio,
-                            "format": "wav"
-                        }
-                    }
-                ]
+                        "input_audio": {"data": dummy_audio, "format": "wav"},
+                    },
+                ],
             }
         ],
     )
@@ -493,9 +450,13 @@ async def demonstrate_mixed_modalities():
     print("Token Breakdown:")
     print(f"  Total prompt tokens: {response.usage.prompt_tokens}")
     if response.usage.prompt_tokens_details:
-        print(f"  Audio tokens:        {response.usage.prompt_tokens_details.audio_tokens}")
-        other_tokens = (response.usage.prompt_tokens -
-                       response.usage.prompt_tokens_details.audio_tokens)
+        print(
+            f"  Audio tokens:        {response.usage.prompt_tokens_details.audio_tokens}"
+        )
+        other_tokens = (
+            response.usage.prompt_tokens
+            - response.usage.prompt_tokens_details.audio_tokens
+        )
         print(f"  Text + image tokens: {other_tokens}")
     print()
 
@@ -555,7 +516,9 @@ async def main():
         print("Multimodal Capabilities:")
         print()
         print("Vision Models:")
-        print("  • openai/gpt-oss-120b-vision-preview, openai/gpt-oss-120b, openai/gpt-oss-20b")
+        print(
+            "  • openai/gpt-oss-120b-vision-preview, openai/gpt-oss-120b, openai/gpt-oss-20b"
+        )
         print("  • Text + image(s) in messages")
         print("  • Image detail levels: low (~85 tokens), high (~170-765 tokens)")
         print("  • Supports URLs and base64-encoded images")

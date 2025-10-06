@@ -31,8 +31,12 @@ def test_prometheus_export():
     assert isinstance(prometheus_output, str), "Prometheus output should be string"
     assert "# HELP" in prometheus_output, "Should have HELP comments"
     assert "# TYPE" in prometheus_output, "Should have TYPE comments"
-    assert "fakeai_requests_per_second" in prometheus_output, "Should have request metrics"
-    assert "fakeai_responses_per_second" in prometheus_output, "Should have response metrics"
+    assert (
+        "fakeai_requests_per_second" in prometheus_output
+    ), "Should have request metrics"
+    assert (
+        "fakeai_responses_per_second" in prometheus_output
+    ), "Should have response metrics"
     assert "fakeai_tokens_per_second" in prometheus_output, "Should have token metrics"
 
     print("✓ Prometheus export test passed")
@@ -126,9 +130,9 @@ def test_streaming_metrics():
 
 def run_tests():
     """Run all tests."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("FakeAI Metrics Dashboard Tests")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     tests = [
         test_prometheus_export,
@@ -150,17 +154,19 @@ def run_tests():
         except Exception as e:
             print(f"✗ Test error: {e}")
             import traceback
+
             traceback.print_exc()
             failed += 1
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print(f"Results: {passed} passed, {failed} failed")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     return failed == 0
 
 
 if __name__ == "__main__":
     import sys
+
     success = run_tests()
     sys.exit(0 if success else 1)

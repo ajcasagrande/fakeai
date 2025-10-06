@@ -4,6 +4,7 @@ Security hardening module for FakeAI.
 This module provides comprehensive security features including input validation,
 sanitization, API key hashing, and abuse detection.
 """
+
 #  SPDX-License-Identifier: Apache-2.0
 
 import hashlib
@@ -15,7 +16,6 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Callable
-
 
 # Maximum payload sizes (in bytes)
 MAX_REQUEST_SIZE = 10 * 1024 * 1024  # 10 MB
@@ -29,20 +29,15 @@ INJECTION_PATTERNS = [
     r"(?i)(union\s+select|insert\s+into|delete\s+from|drop\s+table|create\s+table)",
     r"(?i)(exec\s*\(|execute\s+immediate|xp_cmdshell)",
     r"(--|;--|\*/|/\*)",
-
     # Command injection patterns
     r"(\||;|\$\(|`|&&|\|\|)",
     r"(?i)(bash|sh|cmd|powershell|eval|system|exec)\s*\(",
-
     # Path traversal patterns
     r"(\.\./|\.\.\\|%2e%2e%2f|%2e%2e\\)",
-
     # Script injection patterns
     r"(?i)(<script|javascript:|onerror=|onload=|<iframe)",
-
     # LDAP injection patterns
     r"(\*\)|&\||!\(|=\*\))",
-
     # XXE patterns
     r"(?i)(<!entity|<!doctype|system\s+['\"])",
 ]
@@ -53,32 +48,38 @@ COMPILED_INJECTION_PATTERNS = [re.compile(pattern) for pattern in INJECTION_PATT
 
 class SecurityException(Exception):
     """Base exception for security violations."""
+
     pass
 
 
 class InputValidationError(SecurityException):
     """Raised when input validation fails."""
+
     pass
 
 
 class InjectionAttackDetected(SecurityException):
     """Raised when potential injection attack is detected."""
+
     pass
 
 
 class PayloadTooLarge(SecurityException):
     """Raised when payload exceeds size limits."""
+
     pass
 
 
 class RateLimitAbuse(SecurityException):
     """Raised when rate limit abuse is detected."""
+
     pass
 
 
 @dataclass
 class ApiKeyInfo:
     """Information about an API key."""
+
     key_hash: str
     key_prefix: str  # First 8 characters for identification
     created_at: datetime
@@ -92,6 +93,7 @@ class ApiKeyInfo:
 @dataclass
 class AbuseRecord:
     """Record of abuse attempts from an IP address."""
+
     failed_auth_attempts: int = 0
     injection_attempts: int = 0
     oversized_payloads: int = 0
@@ -147,10 +149,7 @@ class InputValidator:
                 )
 
         # Remove control characters except newlines, tabs, and carriage returns
-        sanitized = "".join(
-            char for char in value
-            if char >= " " or char in "\n\t\r"
-        )
+        sanitized = "".join(char for char in value if char >= " " or char in "\n\t\r")
 
         return sanitized
 
@@ -158,7 +157,7 @@ class InputValidator:
     def validate_array(
         value: list,
         max_length: int = MAX_ARRAY_LENGTH,
-        item_validator: Callable | None = None
+        item_validator: Callable | None = None,
     ) -> list:
         """
         Validate an array.
@@ -192,7 +191,7 @@ class InputValidator:
         value: dict,
         allowed_keys: set[str] | None = None,
         key_validator: Callable | None = None,
-        value_validator: Callable | None = None
+        value_validator: Callable | None = None,
     ) -> dict:
         """
         Validate a dictionary.
@@ -310,7 +309,7 @@ class ApiKeyManager:
         self,
         api_key: str,
         expires_at: datetime | None = None,
-        metadata: dict[str, Any] | None = None
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """
         Add an API key to the manager.
@@ -342,7 +341,7 @@ class ApiKeyManager:
                 key_prefix=key_prefix,
                 created_at=datetime.now(),
                 expires_at=expires_at,
-                metadata=metadata or {}
+                metadata=metadata or {},
             )
 
             self._keys[key_hash] = info

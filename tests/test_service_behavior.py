@@ -3,6 +3,7 @@ Service behavior tests.
 
 Tests the business logic of FakeAIService, focusing on behavior not implementation.
 """
+
 import pytest
 
 from fakeai.models import (
@@ -34,7 +35,7 @@ class TestChatCompletionBehavior:
         """Response generation should always produce non-empty content."""
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[Message(role=Role.USER, content="Hello")]
+            messages=[Message(role=Role.USER, content="Hello")],
         )
 
         response = await service_no_auth.create_chat_completion(request)
@@ -48,7 +49,7 @@ class TestChatCompletionBehavior:
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
             messages=[Message(role=Role.USER, content="Test")],
-            n=3
+            n=3,
         )
 
         response = await service_no_auth.create_chat_completion(request)
@@ -62,7 +63,7 @@ class TestChatCompletionBehavior:
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
             messages=[Message(role=Role.USER, content="Write a long essay")],
-            max_tokens=5  # Very small limit
+            max_tokens=5,  # Very small limit
         )
 
         response = await service_no_auth.create_chat_completion(request)
@@ -78,8 +79,7 @@ class TestChatCompletionBehavior:
         assert unknown_model not in service_no_auth.models
 
         request = ChatCompletionRequest(
-            model=unknown_model,
-            messages=[Message(role=Role.USER, content="Test")]
+            model=unknown_model, messages=[Message(role=Role.USER, content="Test")]
         )
 
         response = await service_no_auth.create_chat_completion(request)
@@ -92,7 +92,7 @@ class TestChatCompletionBehavior:
         """Usage should contain non-zero token counts."""
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[Message(role=Role.USER, content="Hello world")]
+            messages=[Message(role=Role.USER, content="Hello world")],
         )
 
         response = await service_no_auth.create_chat_completion(request)
@@ -115,7 +115,7 @@ class TestMultiModalContentBehavior:
         """Should handle traditional string content."""
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[Message(role=Role.USER, content="Hello")]
+            messages=[Message(role=Role.USER, content="Hello")],
         )
 
         response = await service_no_auth.create_chat_completion(request)
@@ -135,8 +135,7 @@ class TestMultiModalContentBehavior:
                         TextContent(text="What's in this image?"),
                         ImageContent(
                             image_url=ImageUrl(
-                                url="data:image/png;base64,abc123",
-                                detail="high"
+                                url="data:image/png;base64,abc123", detail="high"
                             )
                         ),
                     ],
@@ -189,14 +188,14 @@ class TestTokenCalculationBehavior:
         """Longer messages should have more tokens."""
         short_request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[Message(role=Role.USER, content="Hi")]
+            messages=[Message(role=Role.USER, content="Hi")],
         )
         long_request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
             messages=[
                 Message(
                     role=Role.USER,
-                    content="This is a much longer message with many more words and tokens that should result in a higher token count when calculated."
+                    content="This is a much longer message with many more words and tokens that should result in a higher token count when calculated.",
                 )
             ],
         )
@@ -211,7 +210,7 @@ class TestTokenCalculationBehavior:
         """total_tokens should always equal prompt_tokens + completion_tokens."""
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[Message(role=Role.USER, content="Test message")]
+            messages=[Message(role=Role.USER, content="Test message")],
         )
 
         response = await service_no_auth.create_chat_completion(request)
@@ -230,9 +229,7 @@ class TestEmbeddingBehavior:
     async def test_embedding_vector_has_correct_dimensions(self, service_no_auth):
         """Embedding vectors should match requested dimensions."""
         request = EmbeddingRequest(
-            model="nomic-ai/nomic-embed-text-v1.5",
-            input="Test text",
-            dimensions=512
+            model="nomic-ai/nomic-embed-text-v1.5", input="Test text", dimensions=512
         )
 
         response = await service_no_auth.create_embedding(request)
@@ -244,8 +241,7 @@ class TestEmbeddingBehavior:
     async def test_embedding_default_dimensions(self, service_no_auth):
         """Should use 1536 dimensions by default."""
         request = EmbeddingRequest(
-            model="sentence-transformers/all-mpnet-base-v2",
-            input="Test text"
+            model="sentence-transformers/all-mpnet-base-v2", input="Test text"
         )
 
         response = await service_no_auth.create_embedding(request)
@@ -257,8 +253,7 @@ class TestEmbeddingBehavior:
         """Batch embeddings should maintain input order via index."""
         inputs = ["first text", "second text", "third text"]
         request = EmbeddingRequest(
-            model="sentence-transformers/all-mpnet-base-v2",
-            input=inputs
+            model="sentence-transformers/all-mpnet-base-v2", input=inputs
         )
 
         response = await service_no_auth.create_embedding(request)
@@ -273,8 +268,12 @@ class TestEmbeddingBehavior:
         """Same input should produce same embedding (deterministic)."""
         text = "Deterministic test text"
 
-        request1 = EmbeddingRequest(model="sentence-transformers/all-mpnet-base-v2", input=text)
-        request2 = EmbeddingRequest(model="sentence-transformers/all-mpnet-base-v2", input=text)
+        request1 = EmbeddingRequest(
+            model="sentence-transformers/all-mpnet-base-v2", input=text
+        )
+        request2 = EmbeddingRequest(
+            model="sentence-transformers/all-mpnet-base-v2", input=text
+        )
 
         response1 = await service_no_auth.create_embedding(request1)
         response2 = await service_no_auth.create_embedding(request2)
@@ -295,7 +294,7 @@ class TestStreamingBehavior:
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
             messages=[Message(role=Role.USER, content="Hello")],
-            stream=True
+            stream=True,
         )
 
         chunks = []
@@ -311,7 +310,7 @@ class TestStreamingBehavior:
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
             messages=[Message(role=Role.USER, content="Test")],
-            stream=True
+            stream=True,
         )
 
         chunks = []
@@ -328,7 +327,7 @@ class TestStreamingBehavior:
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
             messages=[Message(role=Role.USER, content="Test")],
-            stream=True
+            stream=True,
         )
 
         chunks = []
@@ -346,7 +345,7 @@ class TestStreamingBehavior:
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
             messages=[Message(role=Role.USER, content="Test")],
-            stream=True
+            stream=True,
         )
 
         chunks = []
@@ -372,7 +371,9 @@ class TestRankingBehavior:
             passages=[
                 RankingPassage(text="Machine learning is AI"),
                 RankingPassage(text="Python programming"),
-                RankingPassage(text="Deep learning uses neural networks for machine learning"),
+                RankingPassage(
+                    text="Deep learning uses neural networks for machine learning"
+                ),
             ],
         )
 
@@ -385,9 +386,7 @@ class TestRankingBehavior:
     @pytest.mark.asyncio
     async def test_all_passages_ranked(self, service_no_auth):
         """All input passages should appear in rankings."""
-        passages = [
-            RankingPassage(text=f"Passage {i}") for i in range(10)
-        ]
+        passages = [RankingPassage(text=f"Passage {i}") for i in range(10)]
         request = RankingRequest(
             model="nvidia/model",
             query=RankingQuery(text="test"),
@@ -528,7 +527,7 @@ class TestImageGenerationBehavior:
         request = ImageGenerationRequest(
             model="stabilityai/stable-diffusion-xl-base-1.0",
             prompt="A futuristic city",
-            n=3
+            n=3,
         )
 
         response = await service_no_auth.generate_images(request)
@@ -541,7 +540,7 @@ class TestImageGenerationBehavior:
         request = ImageGenerationRequest(
             model="stabilityai/stable-diffusion-2-1",
             prompt="Test image",
-            response_format="url"
+            response_format="url",
         )
 
         response = await service_no_auth.generate_images(request)
@@ -555,7 +554,7 @@ class TestImageGenerationBehavior:
         request = ImageGenerationRequest(
             model="stabilityai/stable-diffusion-2-1",
             prompt="Test image",
-            response_format="b64_json"
+            response_format="b64_json",
         )
 
         response = await service_no_auth.generate_images(request)

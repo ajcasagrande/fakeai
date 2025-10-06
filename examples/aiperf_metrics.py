@@ -6,20 +6,26 @@ This script gets metrics from the FakeAI server and formats them for AIPerf.
 It can be used to export metrics in a format compatible with AIPerf benchmarking tool.
 """
 
-import json
-import requests
-import time
 import argparse
+import asyncio
+import json
 import sys
-from typing import Dict, Any
+import time
+from typing import Any, Dict
+
+import aiohttp
 
 
-def get_metrics(url="http://localhost:8000") -> Dict[str, Any]:
+async def get_metrics(url="http://localhost:8000") -> Dict[str, Any]:
     """Get metrics from the FakeAI server."""
     try:
-        response = requests.get(f"{url}/metrics")
-        return response.json()
-    except requests.RequestException as e:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{url}/metrics") as response:
+                return await response.json()
+    except aiohttp.ClientConnectorError as e:
+        print(f"Error getting metrics: {e}")
+        return {}
+    except asyncio.TimeoutError as e:
         print(f"Error getting metrics: {e}")
         return {}
 
@@ -35,7 +41,7 @@ def format_aiperf_metrics(metrics: Dict[str, Any]) -> Dict[str, Any]:
         "time_to_second_token": 0.0,
         "inter_token_latency": 0.0,
         "output_token_throughput_per_user": 0.0,
-        "average_response_time": 0.0
+        "average_response_time": 0.0,
     }
 
     # Extract requests per second
@@ -75,20 +81,26 @@ def format_aiperf_metrics(metrics: Dict[str, Any]) -> Dict[str, Any]:
 
         # Calculate output token throughput per user
         if result["responses_per_second"] > 0:
-            result["output_token_throughput_per_user"] = result["tokens_per_second"] / result["responses_per_second"]
+            result["output_token_throughput_per_user"] = (
+                result["tokens_per_second"] / result["responses_per_second"]
+            )
 
     return result
 
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description="AIPerf Metrics Exporter for FakeAI")
-    parser.add_argument("--url", default="http://localhost:8000", help="FakeAI server URL")
+    parser.add_argument(
+        "--url", default="http://localhost:8000", help="FakeAI server URL"
+    )
     parser.add_argument("--output", default="-", help="Output file (- for stdout)")
-    parser.add_argument("--format", default="json", choices=["json", "csv"], help="Output format")
+    parser.add_argument(
+        "--format", default="json", choices=["json", "csv"], help="Output format"
+    )
     args = parser.parse_args()
 
     # Get metrics
-    metrics = get_metrics(args.url)
+    metrics = await get_metrics(args.url)
     if not metrics:
         print("Error: No metrics available", file=sys.stderr)
         sys.exit(1)
@@ -113,4 +125,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

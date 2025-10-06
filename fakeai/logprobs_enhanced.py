@@ -9,6 +9,7 @@ Key features:
 - Realistic gaps between alternatives
 - UTF-8 byte arrays for Chat API
 """
+
 #  SPDX-License-Identifier: Apache-2.0
 
 import hashlib
@@ -25,10 +26,7 @@ from fakeai.models import (
 
 
 def estimate_token_confidence(
-    token: str,
-    position: int,
-    context_hash: int,
-    temperature: float = 1.0
+    token: str, position: int, context_hash: int, temperature: float = 1.0
 ) -> str:
     """
     Estimate confidence level for a token based on multiple factors.
@@ -48,9 +46,38 @@ def estimate_token_confidence(
 
     # Common words/tokens tend to have higher confidence
     common_patterns = [
-        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-        "of", "with", "from", "by", "as", "is", "are", "was", "were", "be",
-        ".", ",", "!", "?", ":", ";", '"', "'", "(", ")", "-"
+        "the",
+        "a",
+        "an",
+        "and",
+        "or",
+        "but",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "from",
+        "by",
+        "as",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        ".",
+        ",",
+        "!",
+        "?",
+        ":",
+        ";",
+        '"',
+        "'",
+        "(",
+        ")",
+        "-",
     ]
 
     # Base confidence based on token properties
@@ -97,7 +124,7 @@ def generate_realistic_top_logprobs(
     context_hash: int,
     token_logprob: float,
     top_k: int = 5,
-    temperature: float = 1.0
+    temperature: float = 1.0,
 ) -> list[dict[str, Any]]:
     """
     Generate realistic top-k alternative tokens with proper logprob gaps.
@@ -145,19 +172,13 @@ def generate_realistic_top_logprobs(
         # Generate alternative token
         alt_token = generate_alternative_token(token, i, context_hash, rng)
 
-        alternatives.append({
-            "token": alt_token,
-            "logprob": current_logprob
-        })
+        alternatives.append({"token": alt_token, "logprob": current_logprob})
 
     return alternatives
 
 
 def generate_alternative_token(
-    original_token: str,
-    alt_index: int,
-    context_hash: int,
-    rng: random.Random
+    original_token: str, alt_index: int, context_hash: int, rng: random.Random
 ) -> str:
     """
     Generate a plausible alternative token.
@@ -183,7 +204,9 @@ def generate_alternative_token(
     }
 
     # If we have predefined alternatives, use them
-    if original_token.lower() in common_alternatives and alt_index < len(common_alternatives[original_token.lower()]):
+    if original_token.lower() in common_alternatives and alt_index < len(
+        common_alternatives[original_token.lower()]
+    ):
         alternatives_list = common_alternatives[original_token.lower()]
         return alternatives_list[alt_index]
 
@@ -199,7 +222,7 @@ def generate_alternative_token(
         elif alt_index == 1:
             # Shorter variant
             if len(original_token) > 3:
-                return original_token[:len(original_token)-1]
+                return original_token[: len(original_token) - 1]
             else:
                 return original_token + "s"
         else:
@@ -245,7 +268,7 @@ def create_chat_logprobs(
     text: str,
     tokens: list[str],
     top_logprobs: int | None = None,
-    temperature: float = 1.0
+    temperature: float = 1.0,
 ) -> ChatLogprobs | None:
     """
     Generate ChatLogprobs for the Chat API.
@@ -270,7 +293,9 @@ def create_chat_logprobs(
 
     for position, token in enumerate(tokens):
         # Generate logprob for this token based on confidence
-        confidence = estimate_token_confidence(token, position, context_hash, temperature)
+        confidence = estimate_token_confidence(
+            token, position, context_hash, temperature
+        )
 
         # Map confidence to logprob range
         if confidence == "high":
@@ -296,7 +321,7 @@ def create_chat_logprobs(
             context_hash,
             token_logprob,
             top_k=min(top_logprobs, 5),  # API supports 0-20, we'll do up to 5
-            temperature=temperature
+            temperature=temperature,
         )
 
         # Convert to TopLogprob objects
@@ -304,7 +329,7 @@ def create_chat_logprobs(
             TopLogprob(
                 token=alt["token"],
                 logprob=alt["logprob"],
-                bytes=token_to_bytes(alt["token"])
+                bytes=token_to_bytes(alt["token"]),
             )
             for alt in alternatives_data
         ]
@@ -315,7 +340,7 @@ def create_chat_logprobs(
                 token=token,
                 logprob=token_logprob,
                 bytes=token_to_bytes(token),
-                top_logprobs=top_logprobs_list
+                top_logprobs=top_logprobs_list,
             )
         )
 
@@ -323,10 +348,7 @@ def create_chat_logprobs(
 
 
 def create_completion_logprobs(
-    text: str,
-    tokens: list[str],
-    logprobs: int | None = None,
-    temperature: float = 1.0
+    text: str, tokens: list[str], logprobs: int | None = None, temperature: float = 1.0
 ) -> LogProbs | None:
     """
     Generate LogProbs for the Completions API (legacy format).
@@ -359,7 +381,9 @@ def create_completion_logprobs(
         current_offset += len(token)
 
         # Generate logprob for this token
-        confidence = estimate_token_confidence(token, position, context_hash, temperature)
+        confidence = estimate_token_confidence(
+            token, position, context_hash, temperature
+        )
 
         # Map confidence to logprob range
         if confidence == "high":
@@ -384,7 +408,7 @@ def create_completion_logprobs(
             context_hash,
             token_logprob,
             top_k=min(logprobs, 5),
-            temperature=temperature
+            temperature=temperature,
         )
 
         # Convert to dict format (legacy API format)
@@ -398,5 +422,5 @@ def create_completion_logprobs(
         tokens=tokens,
         token_logprobs=token_logprobs,
         top_logprobs=top_logprobs_list,
-        text_offset=text_offset
+        text_offset=text_offset,
     )

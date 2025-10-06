@@ -3,6 +3,7 @@ Metrics tracker behavior tests.
 
 Tests the singleton pattern, thread safety, and metrics accumulation behavior.
 """
+
 import threading
 import time
 
@@ -29,12 +30,12 @@ class TestMetricsSingletonBehavior:
         tracker2 = MetricsTracker()
 
         # Track request with first instance
-        tracker1.track_request("/test/endpoint")
+        tracker1.track_request("/v1/chat/completions")
 
         # Should be visible from second instance
         metrics = tracker2.get_metrics()
 
-        assert "/test/endpoint" in metrics["requests"]
+        assert "/v1/chat/completions" in metrics["requests"]
 
     def test_thread_safe_instantiation(self):
         """Should be safe to instantiate from multiple threads."""
@@ -64,7 +65,7 @@ class TestMetricsAccumulationBehavior:
     def test_tracks_requests(self):
         """Should accumulate request counts."""
         tracker = MetricsTracker()
-        endpoint = "/v1/test/endpoint"
+        endpoint = "/v1/embeddings"
 
         # Track multiple requests
         for _ in range(5):
@@ -81,7 +82,7 @@ class TestMetricsAccumulationBehavior:
     def test_tracks_responses(self):
         """Should accumulate response counts."""
         tracker = MetricsTracker()
-        endpoint = "/v1/test/endpoint"
+        endpoint = "/v1/embeddings"
 
         for _ in range(3):
             tracker.track_response(endpoint)
@@ -111,7 +112,7 @@ class TestMetricsAccumulationBehavior:
     def test_tracks_errors(self):
         """Should track error occurrences."""
         tracker = MetricsTracker()
-        endpoint = "/v1/test/endpoint"
+        endpoint = "/v1/embeddings"
 
         tracker.track_error(endpoint)
         tracker.track_error(endpoint)
@@ -125,7 +126,7 @@ class TestMetricsAccumulationBehavior:
     def test_latency_tracking(self):
         """Should track response latencies."""
         tracker = MetricsTracker()
-        endpoint = "/v1/test/endpoint"
+        endpoint = "/v1/embeddings"
 
         tracker.track_response(endpoint, latency=0.5)
         tracker.track_response(endpoint, latency=0.7)

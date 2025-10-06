@@ -4,21 +4,24 @@ Comprehensive tests for NVIDIA Dynamo advanced features.
 Tests KVBM, SLA-based planner, disaggregated router, prefill queue,
 and dynamic endpoint registry.
 """
-import pytest
+
 import time
+
+import pytest
+
 from fakeai.dynamo_advanced import (
-    KVBlockManager,
-    MemoryTier,
     BlockState,
-    SLABasedPlanner,
-    SLATarget,
-    LoadPredictor,
-    WorkerAllocation,
     DisaggregatedRouter,
-    PrefillQueue,
-    PrefillQueueItem,
     DynamicEndpointRegistry,
     DynamoSystem,
+    KVBlockManager,
+    LoadPredictor,
+    MemoryTier,
+    PrefillQueue,
+    PrefillQueueItem,
+    SLABasedPlanner,
+    SLATarget,
+    WorkerAllocation,
 )
 
 
@@ -133,7 +136,9 @@ class TestSLABasedPlanner:
 
         # Record some requests
         for i in range(10):
-            planner.record_request_metrics(ttft_ms=150.0, itl_ms=20.0, request_count=5 + i)
+            planner.record_request_metrics(
+                ttft_ms=150.0, itl_ms=20.0, request_count=5 + i
+            )
 
         predicted = planner.predict_load()
 
@@ -146,7 +151,9 @@ class TestSLABasedPlanner:
 
         # Simulate increasing load trend
         for i in range(15):
-            planner.record_request_metrics(ttft_ms=150.0, itl_ms=20.0, request_count=10 + i * 2)
+            planner.record_request_metrics(
+                ttft_ms=150.0, itl_ms=20.0, request_count=10 + i * 2
+            )
 
         predicted = planner.predict_load()
 
@@ -173,7 +180,9 @@ class TestSLABasedPlanner:
         planner = SLABasedPlanner(SLATarget(ttft_ms=500.0, itl_ms=50.0))
 
         # Set current allocation
-        planner.current_allocation = WorkerAllocation(prefill_workers=2, decode_workers=3)
+        planner.current_allocation = WorkerAllocation(
+            prefill_workers=2, decode_workers=3
+        )
 
         # Record low load
         for _ in range(5):
@@ -341,7 +350,9 @@ class TestDynamicEndpointRegistry:
         """Test endpoint health status updates."""
         registry = DynamicEndpointRegistry()
 
-        ep_id = registry.register_endpoint("http://worker-1:8000", "openai/gpt-oss-120b")
+        ep_id = registry.register_endpoint(
+            "http://worker-1:8000", "openai/gpt-oss-120b"
+        )
 
         # Update health
         registry.update_health(ep_id, "degraded")
@@ -354,7 +365,9 @@ class TestDynamicEndpointRegistry:
         """Test endpoint request metrics."""
         registry = DynamicEndpointRegistry()
 
-        ep_id = registry.register_endpoint("http://worker-1:8000", "openai/gpt-oss-120b")
+        ep_id = registry.register_endpoint(
+            "http://worker-1:8000", "openai/gpt-oss-120b"
+        )
 
         # Record successful requests
         for i in range(10):
@@ -448,7 +461,9 @@ class TestDynamoSystem:
         dynamo = DynamoSystem()
 
         # Process request
-        result = dynamo.process_request("req-1", input_length=256, model="openai/gpt-oss-120b")
+        result = dynamo.process_request(
+            "req-1", input_length=256, model="openai/gpt-oss-120b"
+        )
 
         # Check blocks were allocated
         assert len(result["blocks"]) > 0
@@ -461,7 +476,9 @@ class TestDynamoSystem:
         """Test system works with disaggregation disabled."""
         dynamo = DynamoSystem(enable_disaggregation=False)
 
-        result = dynamo.process_request("req-1", input_length=2000, model="openai/gpt-oss-120b")
+        result = dynamo.process_request(
+            "req-1", input_length=2000, model="openai/gpt-oss-120b"
+        )
 
         # Should use local even for long input
         assert result["decision"]["use_remote_prefill"] is False
@@ -473,7 +490,9 @@ class TestDynamoSystem:
 
         # Process several requests
         for i in range(10):
-            dynamo.process_request(f"req-{i}", input_length=100 + i * 100, model="openai/gpt-oss-120b")
+            dynamo.process_request(
+                f"req-{i}", input_length=100 + i * 100, model="openai/gpt-oss-120b"
+            )
 
         stats = dynamo.get_comprehensive_stats()
 
@@ -489,14 +508,10 @@ class TestDynamoSystem:
 
         # Register endpoints
         ep1 = dynamo.endpoint_registry.register_endpoint(
-            "http://prefill-worker-1:8000",
-            "openai/gpt-oss-120b",
-            "vllm"
+            "http://prefill-worker-1:8000", "openai/gpt-oss-120b", "vllm"
         )
         ep2 = dynamo.endpoint_registry.register_endpoint(
-            "http://decode-worker-1:8000",
-            "openai/gpt-oss-120b",
-            "vllm"
+            "http://decode-worker-1:8000", "openai/gpt-oss-120b", "vllm"
         )
 
         stats = dynamo.get_comprehensive_stats()
@@ -514,8 +529,12 @@ class TestIntegration:
         dynamo = DynamoSystem(sla_target=sla, enable_disaggregation=True)
 
         # Register workers
-        dynamo.endpoint_registry.register_endpoint("http://prefill:8000", "openai/gpt-oss-120b", "vllm")
-        dynamo.endpoint_registry.register_endpoint("http://decode:8000", "openai/gpt-oss-120b", "vllm")
+        dynamo.endpoint_registry.register_endpoint(
+            "http://prefill:8000", "openai/gpt-oss-120b", "vllm"
+        )
+        dynamo.endpoint_registry.register_endpoint(
+            "http://decode:8000", "openai/gpt-oss-120b", "vllm"
+        )
 
         # Process request
         result = dynamo.process_request(

@@ -10,16 +10,18 @@ Tests cover:
 - MoE model support
 - Streaming with usage statistics
 """
+
 import pytest
+
 from fakeai import AppConfig
 from fakeai.fakeai_service import FakeAIService
 from fakeai.models import (
     ChatCompletionRequest,
     Message,
-    Role,
-    PredictionContent,
-    StreamOptions,
     ModerationRequest,
+    PredictionContent,
+    Role,
+    StreamOptions,
 )
 
 
@@ -53,7 +55,10 @@ class TestKVCacheReuse:
         # First request
         request1 = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[Message(role=Role.SYSTEM, content=prompt), Message(role=Role.USER, content="Q1")],
+            messages=[
+                Message(role=Role.SYSTEM, content=prompt),
+                Message(role=Role.USER, content="Q1"),
+            ],
         )
         response1 = await service.create_chat_completion(request1)
         cached1 = response1.usage.prompt_tokens_details.cached_tokens
@@ -61,7 +66,10 @@ class TestKVCacheReuse:
         # Second request with same system prompt
         request2 = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[Message(role=Role.SYSTEM, content=prompt), Message(role=Role.USER, content="Q2")],
+            messages=[
+                Message(role=Role.SYSTEM, content=prompt),
+                Message(role=Role.USER, content="Q2"),
+            ],
         )
         response2 = await service.create_chat_completion(request2)
         cached2 = response2.usage.prompt_tokens_details.cached_tokens
@@ -130,9 +138,7 @@ class TestModeration:
         config = AppConfig(response_delay=0.0)
         service = FakeAIService(config)
 
-        request = ModerationRequest(
-            input=["Hello", "I want to kill", "How are you?"]
-        )
+        request = ModerationRequest(input=["Hello", "I want to kill", "How are you?"])
         response = await service.create_moderation(request)
 
         assert len(response.results) == 3
@@ -221,8 +227,7 @@ class TestPredictedOutputs:
             model="openai/gpt-oss-120b",
             messages=[Message(role=Role.USER, content="Refactor this code")],
             prediction=PredictionContent(
-                type="content",
-                content="result = [item.upper() for item in items]"
+                type="content", content="result = [item.upper() for item in items]"
             ),
         )
 
@@ -312,14 +317,18 @@ class TestMoEModels:
         config = AppConfig(response_delay=0.0)
         service = FakeAIService(config)
 
-        # MoE models
+        # MoE models (base names)
         assert service._is_moe_model("mixtral-8x7b") is True
         assert service._is_moe_model("gpt-oss-120b") is True
         assert service._is_moe_model("deepseek-v3") is True
 
+        # MoE models (with provider prefix)
+        assert service._is_moe_model("openai/gpt-oss-120b") is True  # GPT-OSS is MoE
+        assert service._is_moe_model("mistral/mixtral-8x7b") is True
+
         # Non-MoE models
-        assert service._is_moe_model("openai/gpt-oss-120b") is False
         assert service._is_moe_model("meta-llama/Llama-3.1-8B-Instruct") is False
+        assert service._is_moe_model("openai/gpt-4") is False
 
 
 class TestStreamingWithUsage:

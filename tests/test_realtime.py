@@ -4,6 +4,7 @@ Tests for the Realtime WebSocket API.
 This module tests the WebSocket-based Realtime API for bidirectional streaming
 conversations with audio and text support, voice activity detection, and function calling.
 """
+
 #  SPDX-License-Identifier: Apache-2.0
 
 import asyncio
@@ -31,35 +32,44 @@ def client():
 
 def test_realtime_websocket_connection(client):
     """Test basic WebSocket connection."""
-    with client.websocket_connect("/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01") as websocket:
+    with client.websocket_connect(
+        "/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01"
+    ) as websocket:
         # Should receive session.created event
         data = websocket.receive_text()
         event = json.loads(data)
 
         assert event["type"] == "session.created"
         assert "session" in event
-        assert event["session"]["model"] == "openai/gpt-oss-120b-realtime-preview-2024-10-01"
+        assert (
+            event["session"]["model"]
+            == "openai/gpt-oss-120b-realtime-preview-2024-10-01"
+        )
         assert "id" in event["session"]
         assert event["session"]["object"] == "realtime.session"
 
 
 def test_realtime_session_update(client):
     """Test session configuration update."""
-    with client.websocket_connect("/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01") as websocket:
+    with client.websocket_connect(
+        "/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01"
+    ) as websocket:
         # Receive session.created
         session_created = json.loads(websocket.receive_text())
         assert session_created["type"] == "session.created"
 
         # Send session.update
-        websocket.send_json({
-            "type": "session.update",
-            "session": {
-                "modalities": ["text", "audio"],
-                "instructions": "You are a helpful assistant.",
-                "voice": "alloy",
-                "temperature": 0.8,
+        websocket.send_json(
+            {
+                "type": "session.update",
+                "session": {
+                    "modalities": ["text", "audio"],
+                    "instructions": "You are a helpful assistant.",
+                    "voice": "alloy",
+                    "temperature": 0.8,
+                },
             }
-        })
+        )
 
         # Receive session.updated
         data = websocket.receive_text()
@@ -73,7 +83,9 @@ def test_realtime_session_update(client):
 
 def test_realtime_audio_buffer_append(client):
     """Test appending audio to the input buffer."""
-    with client.websocket_connect("/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01") as websocket:
+    with client.websocket_connect(
+        "/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01"
+    ) as websocket:
         # Receive session.created
         session_created = json.loads(websocket.receive_text())
         assert session_created["type"] == "session.created"
@@ -82,10 +94,12 @@ def test_realtime_audio_buffer_append(client):
         fake_audio = base64.b64encode(b"fake audio data chunk 1").decode("utf-8")
 
         for i in range(5):
-            websocket.send_json({
-                "type": "input_audio_buffer.append",
-                "audio": fake_audio + str(i),
-            })
+            websocket.send_json(
+                {
+                    "type": "input_audio_buffer.append",
+                    "audio": fake_audio + str(i),
+                }
+            )
 
             # After 3 chunks, should detect speech
             if i >= 2:
@@ -99,7 +113,9 @@ def test_realtime_audio_buffer_append(client):
 
 def test_realtime_audio_buffer_commit(client):
     """Test committing audio buffer and creating conversation item."""
-    with client.websocket_connect("/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01") as websocket:
+    with client.websocket_connect(
+        "/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01"
+    ) as websocket:
         # Receive session.created
         session_created = json.loads(websocket.receive_text())
         assert session_created["type"] == "session.created"
@@ -107,19 +123,23 @@ def test_realtime_audio_buffer_commit(client):
         # Append audio chunks
         fake_audio = base64.b64encode(b"fake audio data").decode("utf-8")
         for i in range(4):
-            websocket.send_json({
-                "type": "input_audio_buffer.append",
-                "audio": fake_audio,
-            })
+            websocket.send_json(
+                {
+                    "type": "input_audio_buffer.append",
+                    "audio": fake_audio,
+                }
+            )
 
         # Speech started should be received
         speech_started = json.loads(websocket.receive_text())
         assert speech_started["type"] == "input_audio_buffer.speech_started"
 
         # Commit the audio buffer
-        websocket.send_json({
-            "type": "input_audio_buffer.commit",
-        })
+        websocket.send_json(
+            {
+                "type": "input_audio_buffer.commit",
+            }
+        )
 
         # Should receive multiple events
         events = []
@@ -134,7 +154,9 @@ def test_realtime_audio_buffer_commit(client):
         assert "conversation.item.created" in event_types
 
         # Check conversation item
-        item_created = next(e for e in events if e["type"] == "conversation.item.created")
+        item_created = next(
+            e for e in events if e["type"] == "conversation.item.created"
+        )
         assert item_created["item"]["type"] == "message"
         assert item_created["item"]["role"] == "user"
         assert len(item_created["item"]["content"]) > 0
@@ -143,22 +165,28 @@ def test_realtime_audio_buffer_commit(client):
 
 def test_realtime_audio_buffer_clear(client):
     """Test clearing the audio buffer."""
-    with client.websocket_connect("/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01") as websocket:
+    with client.websocket_connect(
+        "/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01"
+    ) as websocket:
         # Receive session.created
         session_created = json.loads(websocket.receive_text())
         assert session_created["type"] == "session.created"
 
         # Append audio
         fake_audio = base64.b64encode(b"fake audio data").decode("utf-8")
-        websocket.send_json({
-            "type": "input_audio_buffer.append",
-            "audio": fake_audio,
-        })
+        websocket.send_json(
+            {
+                "type": "input_audio_buffer.append",
+                "audio": fake_audio,
+            }
+        )
 
         # Clear the buffer
-        websocket.send_json({
-            "type": "input_audio_buffer.clear",
-        })
+        websocket.send_json(
+            {
+                "type": "input_audio_buffer.clear",
+            }
+        )
 
         # Should receive cleared event
         data = websocket.receive_text()
@@ -168,25 +196,29 @@ def test_realtime_audio_buffer_clear(client):
 
 def test_realtime_conversation_item_create(client):
     """Test creating a conversation item."""
-    with client.websocket_connect("/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01") as websocket:
+    with client.websocket_connect(
+        "/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01"
+    ) as websocket:
         # Receive session.created
         session_created = json.loads(websocket.receive_text())
         assert session_created["type"] == "session.created"
 
         # Create a text message item
-        websocket.send_json({
-            "type": "conversation.item.create",
-            "item": {
-                "type": "message",
-                "role": "user",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": "Hello, how are you?",
-                    }
-                ],
-            },
-        })
+        websocket.send_json(
+            {
+                "type": "conversation.item.create",
+                "item": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": "Hello, how are you?",
+                        }
+                    ],
+                },
+            }
+        )
 
         # Should receive item.created event
         data = websocket.receive_text()
@@ -202,49 +234,57 @@ def test_realtime_conversation_item_create(client):
 
 def test_realtime_response_create_text(client):
     """Test creating a response with text modality."""
-    with client.websocket_connect("/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01") as websocket:
+    with client.websocket_connect(
+        "/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01"
+    ) as websocket:
         # Receive session.created
         session_created = json.loads(websocket.receive_text())
         assert session_created["type"] == "session.created"
 
         # Update session to text-only
-        websocket.send_json({
-            "type": "session.update",
-            "session": {
-                "modalities": ["text"],
+        websocket.send_json(
+            {
+                "type": "session.update",
+                "session": {
+                    "modalities": ["text"],
+                },
             }
-        })
+        )
 
         # Receive session.updated
         session_updated = json.loads(websocket.receive_text())
         assert session_updated["type"] == "session.updated"
 
         # Create a conversation item
-        websocket.send_json({
-            "type": "conversation.item.create",
-            "item": {
-                "type": "message",
-                "role": "user",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": "Tell me a joke.",
-                    }
-                ],
-            },
-        })
+        websocket.send_json(
+            {
+                "type": "conversation.item.create",
+                "item": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": "Tell me a joke.",
+                        }
+                    ],
+                },
+            }
+        )
 
         # Receive item.created
         item_created = json.loads(websocket.receive_text())
         assert item_created["type"] == "conversation.item.created"
 
         # Request response
-        websocket.send_json({
-            "type": "response.create",
-            "response": {
-                "modalities": ["text"],
-            },
-        })
+        websocket.send_json(
+            {
+                "type": "response.create",
+                "response": {
+                    "modalities": ["text"],
+                },
+            }
+        )
 
         # Collect response events
         events = []
@@ -277,49 +317,57 @@ def test_realtime_response_create_text(client):
 
 def test_realtime_response_create_audio(client):
     """Test creating a response with audio modality."""
-    with client.websocket_connect("/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01") as websocket:
+    with client.websocket_connect(
+        "/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01"
+    ) as websocket:
         # Receive session.created
         session_created = json.loads(websocket.receive_text())
         assert session_created["type"] == "session.created"
 
         # Update session to audio-only
-        websocket.send_json({
-            "type": "session.update",
-            "session": {
-                "modalities": ["audio"],
+        websocket.send_json(
+            {
+                "type": "session.update",
+                "session": {
+                    "modalities": ["audio"],
+                },
             }
-        })
+        )
 
         # Receive session.updated
         session_updated = json.loads(websocket.receive_text())
         assert session_updated["type"] == "session.updated"
 
         # Create a conversation item
-        websocket.send_json({
-            "type": "conversation.item.create",
-            "item": {
-                "type": "message",
-                "role": "user",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": "Say hello.",
-                    }
-                ],
-            },
-        })
+        websocket.send_json(
+            {
+                "type": "conversation.item.create",
+                "item": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": "Say hello.",
+                        }
+                    ],
+                },
+            }
+        )
 
         # Receive item.created
         item_created = json.loads(websocket.receive_text())
         assert item_created["type"] == "conversation.item.created"
 
         # Request response
-        websocket.send_json({
-            "type": "response.create",
-            "response": {
-                "modalities": ["audio"],
-            },
-        })
+        websocket.send_json(
+            {
+                "type": "response.create",
+                "response": {
+                    "modalities": ["audio"],
+                },
+            }
+        )
 
         # Collect response events
         events = []
@@ -359,43 +407,51 @@ def test_realtime_response_create_audio(client):
 
 def test_realtime_response_cancel(client):
     """Test cancelling a response in progress."""
-    with client.websocket_connect("/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01") as websocket:
+    with client.websocket_connect(
+        "/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01"
+    ) as websocket:
         # Receive session.created
         session_created = json.loads(websocket.receive_text())
         assert session_created["type"] == "session.created"
 
         # Create a conversation item
-        websocket.send_json({
-            "type": "conversation.item.create",
-            "item": {
-                "type": "message",
-                "role": "user",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": "Tell me a long story.",
-                    }
-                ],
-            },
-        })
+        websocket.send_json(
+            {
+                "type": "conversation.item.create",
+                "item": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": "Tell me a long story.",
+                        }
+                    ],
+                },
+            }
+        )
 
         # Receive item.created
         item_created = json.loads(websocket.receive_text())
         assert item_created["type"] == "conversation.item.created"
 
         # Request response
-        websocket.send_json({
-            "type": "response.create",
-        })
+        websocket.send_json(
+            {
+                "type": "response.create",
+            }
+        )
 
         # Wait for response to start
         response_created = json.loads(websocket.receive_text())
         assert response_created["type"] == "response.created"
 
         # Cancel the response
-        websocket.send_json({
-            "type": "response.cancel",
-        })
+        websocket.send_json(
+            {
+                "type": "response.cancel",
+            }
+        )
 
         # Should receive cancelled event
         data = websocket.receive_text()
@@ -405,15 +461,19 @@ def test_realtime_response_cancel(client):
 
 def test_realtime_error_unknown_event(client):
     """Test error handling for unknown event types."""
-    with client.websocket_connect("/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01") as websocket:
+    with client.websocket_connect(
+        "/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01"
+    ) as websocket:
         # Receive session.created
         session_created = json.loads(websocket.receive_text())
         assert session_created["type"] == "session.created"
 
         # Send unknown event type
-        websocket.send_json({
-            "type": "unknown.event.type",
-        })
+        websocket.send_json(
+            {
+                "type": "unknown.event.type",
+            }
+        )
 
         # Should receive error event
         data = websocket.receive_text()
@@ -426,7 +486,9 @@ def test_realtime_error_unknown_event(client):
 
 def test_realtime_error_invalid_json(client):
     """Test error handling for invalid JSON."""
-    with client.websocket_connect("/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01") as websocket:
+    with client.websocket_connect(
+        "/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01"
+    ) as websocket:
         # Receive session.created
         session_created = json.loads(websocket.receive_text())
         assert session_created["type"] == "session.created"
@@ -445,23 +507,27 @@ def test_realtime_error_invalid_json(client):
 
 def test_realtime_vad_simulation(client):
     """Test voice activity detection simulation."""
-    with client.websocket_connect("/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01") as websocket:
+    with client.websocket_connect(
+        "/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01"
+    ) as websocket:
         # Receive session.created
         session_created = json.loads(websocket.receive_text())
         assert session_created["type"] == "session.created"
 
         # Enable VAD in session
-        websocket.send_json({
-            "type": "session.update",
-            "session": {
-                "turn_detection": {
-                    "type": "server_vad",
-                    "threshold": 0.5,
-                    "prefix_padding_ms": 300,
-                    "silence_duration_ms": 500,
+        websocket.send_json(
+            {
+                "type": "session.update",
+                "session": {
+                    "turn_detection": {
+                        "type": "server_vad",
+                        "threshold": 0.5,
+                        "prefix_padding_ms": 300,
+                        "silence_duration_ms": 500,
+                    },
                 },
-            },
-        })
+            }
+        )
 
         # Receive session.updated
         session_updated = json.loads(websocket.receive_text())
@@ -470,10 +536,12 @@ def test_realtime_vad_simulation(client):
         # Send audio chunks to trigger VAD
         fake_audio = base64.b64encode(b"fake audio with speech").decode("utf-8")
         for i in range(5):
-            websocket.send_json({
-                "type": "input_audio_buffer.append",
-                "audio": fake_audio + str(i),
-            })
+            websocket.send_json(
+                {
+                    "type": "input_audio_buffer.append",
+                    "audio": fake_audio + str(i),
+                }
+            )
 
             # After a few chunks, VAD should detect speech
             if i >= 2:
@@ -487,46 +555,54 @@ def test_realtime_vad_simulation(client):
 
 def test_realtime_multimodal_response(client):
     """Test response with both text and audio modalities."""
-    with client.websocket_connect("/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01") as websocket:
+    with client.websocket_connect(
+        "/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01"
+    ) as websocket:
         # Receive session.created
         session_created = json.loads(websocket.receive_text())
         assert session_created["type"] == "session.created"
 
         # Update session to both modalities
-        websocket.send_json({
-            "type": "session.update",
-            "session": {
-                "modalities": ["text", "audio"],
+        websocket.send_json(
+            {
+                "type": "session.update",
+                "session": {
+                    "modalities": ["text", "audio"],
+                },
             }
-        })
+        )
 
         # Receive session.updated
         session_updated = json.loads(websocket.receive_text())
         assert session_updated["type"] == "session.updated"
 
         # Create a conversation item
-        websocket.send_json({
-            "type": "conversation.item.create",
-            "item": {
-                "type": "message",
-                "role": "user",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": "Hello!",
-                    }
-                ],
-            },
-        })
+        websocket.send_json(
+            {
+                "type": "conversation.item.create",
+                "item": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": "Hello!",
+                        }
+                    ],
+                },
+            }
+        )
 
         # Receive item.created
         item_created = json.loads(websocket.receive_text())
         assert item_created["type"] == "conversation.item.created"
 
         # Request response
-        websocket.send_json({
-            "type": "response.create",
-        })
+        websocket.send_json(
+            {
+                "type": "response.create",
+            }
+        )
 
         # Collect response events
         events = []
@@ -547,41 +623,49 @@ def test_realtime_multimodal_response(client):
 
         # Check response has both content types
         response_done = next(e for e in events if e["type"] == "response.done")
-        content_types = [c["type"] for c in response_done["response"]["output"][0]["content"]]
+        content_types = [
+            c["type"] for c in response_done["response"]["output"][0]["content"]
+        ]
         assert "text" in content_types
         assert "audio" in content_types
 
 
 def test_realtime_rate_limits(client):
     """Test rate limit information in events."""
-    with client.websocket_connect("/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01") as websocket:
+    with client.websocket_connect(
+        "/v1/realtime?model=openai/gpt-oss-120b-realtime-preview-2024-10-01"
+    ) as websocket:
         # Receive session.created
         session_created = json.loads(websocket.receive_text())
         assert session_created["type"] == "session.created"
 
         # Create a conversation item
-        websocket.send_json({
-            "type": "conversation.item.create",
-            "item": {
-                "type": "message",
-                "role": "user",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": "Hello!",
-                    }
-                ],
-            },
-        })
+        websocket.send_json(
+            {
+                "type": "conversation.item.create",
+                "item": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": "Hello!",
+                        }
+                    ],
+                },
+            }
+        )
 
         # Receive item.created
         item_created = json.loads(websocket.receive_text())
         assert item_created["type"] == "conversation.item.created"
 
         # Request response
-        websocket.send_json({
-            "type": "response.create",
-        })
+        websocket.send_json(
+            {
+                "type": "response.create",
+            }
+        )
 
         # Collect events until rate_limits.updated
         events = []

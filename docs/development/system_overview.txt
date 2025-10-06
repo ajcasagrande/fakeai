@@ -1,0 +1,252 @@
+================================================================================
+                       FAKEAI 3.0 - SYSTEM OVERVIEW
+                  OpenAI-Compatible API Simulation Server
+================================================================================
+
+                                  CLIENT
+                                    |
+                                    | HTTP/HTTPS/WebSocket
+                                    v
+        +----------------------------------------------------------+
+        |                    FASTAPI APPLICATION                   |
+        |                        (app.py)                          |
+        +----------------------------------------------------------+
+                                    |
+                    +---------------+---------------+
+                    |                               |
+                    v                               v
+        +----------------------+        +------------------------+
+        |  CORS MIDDLEWARE     |        |  REQUEST MIDDLEWARE    |
+        |  - Cross-origin      |        |  - Logging             |
+        |  - Credentials       |        |  - Rate Limiting       |
+        |  - Headers           |        |  - Metrics Tracking    |
+        +----------------------+        +------------------------+
+                                    |
+                    +---------------+---------------+
+                    |                               |
+                    v                               v
+        +----------------------+        +------------------------+
+        |  SECURITY LAYER      |        |   INPUT VALIDATION     |
+        |  - API Key Auth      |        |   - Payload Size       |
+        |  - Key Hashing       |        |   - Injection Detection|
+        |  - Abuse Detection   |        |   - Input Sanitization |
+        |  - IP Banning        |        +------------------------+
+        +----------------------+
+                                    |
+                                    v
+        +----------------------------------------------------------+
+        |                  ROUTE HANDLERS (50+ Endpoints)          |
+        |                                                          |
+        |  OpenAI API:           NVIDIA NIM:       Other APIs:    |
+        |  - /v1/chat/...        - /v1/ranking     - /rag/api/... |
+        |  - /v1/completions     - /v1/text/...    - /health      |
+        |  - /v1/embeddings      Azure Compatible  - /metrics     |
+        |  - /v1/images/...                        - /dashboard   |
+        |  - /v1/audio/...       Organization:     - /dcgm/...    |
+        |  - /v1/moderations     - /v1/org/users   - /dynamo/...  |
+        |  - /v1/batches         - /v1/org/proj    - /kv-cache/...|
+        |  - /v1/files           - Service Accts                  |
+        |  - /v1/models          Fine-Tuning:      Realtime:      |
+        |  - /v1/responses       - Jobs            - WebSocket    |
+        |  - /v1/vector_stores   - Checkpoints     - Audio/Text   |
+        +----------------------------------------------------------+
+                                    |
+                    +---------------+---------------+
+                    |               |               |
+                    v               v               v
+        +------------------+ +------------------+ +------------------+
+        | FAKEAI SERVICE   | | SPECIALIZED      | | METRICS SYSTEMS  |
+        | (Core Logic)     | | SERVICES         | | (18 Trackers)    |
+        |                  | |                  | |                  |
+        | - Model Registry | | - Audio Service  | | - MetricsTracker |
+        | - KV Cache       | | - Batch Service  | | - ModelMetrics   |
+        | - Smart Router   | | - Embedding Svc  | | - StreamingMtx   |
+        | - Cost Tracker   | | - File Service   | | - DynamoMetrics  |
+        | - DCGM Simulator | | - Image Gen Svc  | | - DCGMMetrics    |
+        | - Vector Store   | | - Moderation Svc | | - BatchMetrics   |
+        | - RAG Engine     | |                  | | - ErrorMetrics   |
+        | - Fine-Tuning    | | Shared Utils:    | | - CostTracker    |
+        | - Realtime API   | | - Tokens         | | - RateLimiter    |
+        | - Tool Calling   | | - Text Gen       | | - LatencyHist    |
+        | - Structured Out | | - Audio Gen      | | - MetricsAggr    |
+        +------------------+ | - Embeddings     | | - MetricsPersis  |
+                             +------------------+ | - MetricsStream  |
+                                                  +------------------+
+                                    |
+                    +---------------+---------------+
+                    |               |               |
+                    v               v               v
+        +------------------+ +------------------+ +------------------+
+        | STREAMING        | | RESPONSE         | | STORAGE          |
+        | GENERATORS       | | FORMATTERS       | | BACKENDS         |
+        |                  | |                  | |                  |
+        | - Chat Stream    | | - SSE Format     | | - In-Memory      |
+        | - Completion     | | - JSONL Format   | | - File Manager   |
+        | - Audio Stream   | | - Text Format    | | - Vector Store   |
+        | - Realtime       | | - WebSocket      | | - Image Store    |
+        +------------------+ +------------------+ +------------------+
+                                    |
+                                    v
+        +----------------------------------------------------------+
+        |                   RESPONSE GENERATION                    |
+        |                                                          |
+        |  - Faker-based realistic content                        |
+        |  - Configurable delays (0.05-0.2s per token)           |
+        |  - Token counting (word + punctuation based)            |
+        |  - Usage tracking (prompt/completion/total)             |
+        |  - Streaming with chunk timing                          |
+        |  - Multi-modal content support                          |
+        |  - Tool calling simulation                              |
+        |  - Function execution                                   |
+        |  - Structured JSON output                               |
+        |  - Reasoning content (O1/R1 models)                     |
+        +----------------------------------------------------------+
+                                    |
+                                    v
+                                RESPONSE
+                    (JSON / SSE Stream / Binary / WebSocket)
+
+
+================================================================================
+                              DATA FLOW SUMMARY
+================================================================================
+
+Request Flow:
+  1. Client sends HTTP/WebSocket request
+  2. CORS middleware processes origin/headers
+  3. Request middleware logs and rate limits
+  4. Security layer validates API key and checks abuse patterns
+  5. Input validator checks payload size and injection patterns
+  6. Route handler parses request and validates schema (Pydantic)
+  7. FakeAI service or specialized service processes request
+  8. Response generator creates realistic simulated data
+  9. Metrics systems track request/response/tokens/errors
+  10. Response formatter converts to appropriate format
+  11. Middleware adds rate limit headers
+  12. Response returned to client
+
+Metrics Collection:
+  - Every request tracked by endpoint
+  - Latency measured (start to finish)
+  - Tokens counted (prompt + completion)
+  - Errors logged with details
+  - Streaming stats (TTFT, tokens/sec)
+  - Per-model metrics aggregated
+  - Cost calculated from usage
+  - Rate limits enforced and tracked
+  - KV cache hits/misses recorded
+  - GPU metrics simulated (DCGM)
+
+================================================================================
+                           KEY COMPONENTS BREAKDOWN
+================================================================================
+
+SECURITY LAYER:
+  - ApiKeyManager: Secure key storage with bcrypt hashing
+  - AbuseDetector: Failed auth tracking, IP banning
+  - InputValidator: Payload size limits, injection detection
+  - RateLimiter: Tiered rate limiting (RPM/TPM)
+
+METRICS SYSTEMS (18 Total):
+  1. MetricsTracker - Core request/response/token metrics
+  2. ModelMetricsTracker - Per-model performance tracking
+  3. StreamingMetrics - TTFT, tokens/sec for streaming
+  4. DynamoMetrics - AI-Dynamo LLM inference metrics
+  5. DCGMMetrics - GPU utilization simulation
+  6. BatchMetrics - Batch processing statistics
+  7. ErrorMetrics - Error tracking and analysis
+  8. RateLimiterMetrics - Throttling and quota stats
+  9. CostTracker - Usage cost estimation
+  10. LatencyHistograms - Latency distribution tracking
+  11. MetricsAggregator - Cross-metric aggregation
+  12. MetricsPersistence - Metrics storage and export
+  13. MetricsStreamer - Real-time WebSocket streaming
+  14. LatencyProfiles - Latency profiling by model
+  15. ModelMetrics - Model-specific stats
+  16. SmartRouterMetrics - KV cache routing stats
+  17. VectorStoreMetrics - Vector store performance
+  18. FineTuningMetrics - Fine-tuning job tracking
+
+SPECIALIZED SERVICES (7 Total):
+  1. AudioService - TTS generation
+  2. BatchService - Batch job processing
+  3. EmbeddingService - Vector embeddings
+  4. FileService - File upload/management
+  5. ImageGenerationService - Image creation
+  6. ModerationService - Content safety
+  7. (FakeAIService handles rest)
+
+STORAGE BACKENDS:
+  - In-memory dictionaries for fast access
+  - FileManager for uploaded files
+  - VectorStoreEngine for embeddings
+  - ImageGenerator for generated images
+  - All data volatile (no persistence)
+
+ADVANCED FEATURES:
+  - KV Cache: Radix tree prefix matching for cache reuse
+  - Smart Router: AI-Dynamo style intelligent routing
+  - Tool Calling: Function calling simulation
+  - Structured Outputs: JSON schema validation
+  - Reasoning Models: OpenAI O1/DeepSeek R1 support
+  - Multi-modal: Text, images, audio, video
+  - Realtime API: Bidirectional WebSocket streaming
+  - Fine-tuning: Job simulation with events
+  - Vector Stores: Embedding storage and retrieval
+
+================================================================================
+                          EXPORT FORMATS SUPPORTED
+================================================================================
+
+Metrics Exports:
+  - JSON (GET /metrics)
+  - Prometheus (GET /metrics/prometheus)
+  - CSV (GET /metrics/csv)
+  - WebSocket Stream (WS /metrics/stream)
+
+Specialized Metrics:
+  - Per-Model JSON (GET /metrics/by-model)
+  - Per-Model Prometheus (GET /metrics/by-model/prometheus)
+  - DCGM Prometheus (GET /dcgm/metrics)
+  - Dynamo Prometheus (GET /dynamo/metrics)
+  - KV Cache JSON (GET /kv-cache/metrics)
+  - Rate Limits JSON (GET /metrics/rate-limits)
+
+Response Formats:
+  - JSON (application/json)
+  - Server-Sent Events (text/event-stream)
+  - Binary (audio/*, image/*)
+  - WebSocket (bidirectional)
+  - JSONL (batch output)
+
+================================================================================
+                            SCALABILITY NOTES
+================================================================================
+
+Thread-Safe Components:
+  - MetricsTracker: Singleton with threading.Lock
+  - RateLimiter: Lock-protected rate tracking
+  - FileManager: Thread-safe file operations
+  - All metrics windows use numpy for performance
+
+Async-First Design:
+  - All route handlers use async/await
+  - Service methods are async
+  - Streaming uses async generators
+  - WebSocket handlers fully async
+
+Performance Optimizations:
+  - Numpy-based metrics windows (vectorized operations)
+  - LRU caching for model lookups
+  - Radix tree for O(n) prefix matching
+  - Efficient token hashing for cache keys
+  - Background threads for metrics reporting
+
+Memory Management:
+  - Sliding windows with automatic cleanup
+  - Max samples limits (100K per window)
+  - Image retention policies
+  - Deque-based bounded queues
+  - Automatic old data eviction
+
+================================================================================

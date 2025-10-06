@@ -15,6 +15,7 @@ reasoning models released under Apache 2.0 license (Aug 2025).
 They use mixture-of-experts architecture and show their reasoning process.
 """
 import asyncio
+
 from openai import AsyncOpenAI
 
 # Base URL for FakeAI server
@@ -42,7 +43,10 @@ async def demonstrate_basic_reasoning():
     response = await client.chat.completions.create(
         model="gpt-oss-120b",
         messages=[
-            {"role": "user", "content": "What is the sum of the first 10 prime numbers?"}
+            {
+                "role": "user",
+                "content": "What is the sum of the first 10 prime numbers?",
+            }
         ],
     )
 
@@ -58,9 +62,13 @@ async def demonstrate_basic_reasoning():
     print(f"  Prompt tokens:     {response.usage.prompt_tokens}")
     print(f"  Completion tokens: {response.usage.completion_tokens}")
     if response.usage.completion_tokens_details:
-        print(f"  Reasoning tokens:  {response.usage.completion_tokens_details.reasoning_tokens}")
-        actual_content_tokens = (response.usage.completion_tokens -
-                                response.usage.completion_tokens_details.reasoning_tokens)
+        print(
+            f"  Reasoning tokens:  {response.usage.completion_tokens_details.reasoning_tokens}"
+        )
+        actual_content_tokens = (
+            response.usage.completion_tokens
+            - response.usage.completion_tokens_details.reasoning_tokens
+        )
         print(f"  Content tokens:    {actual_content_tokens}")
     print()
 
@@ -94,7 +102,9 @@ async def compare_reasoning_vs_regular():
     print("Answer (no reasoning shown):")
     print(response.choices[0].message.content)
     print()
-    print(f"Has reasoning_content: {response.choices[0].message.reasoning_content is not None}")
+    print(
+        f"Has reasoning_content: {response.choices[0].message.reasoning_content is not None}"
+    )
     print()
 
     # Test with reasoning model
@@ -138,9 +148,7 @@ async def demonstrate_streaming_reasoning():
 
     stream = await client.chat.completions.create(
         model="gpt-oss-20b",
-        messages=[
-            {"role": "user", "content": "Explain how binary search works"}
-        ],
+        messages=[{"role": "user", "content": "Explain how binary search works"}],
         stream=True,
     )
 
@@ -185,7 +193,9 @@ async def demonstrate_o1_models():
         base_url=BASE_URL,
     )
 
-    print("O1 models (deepseek-ai/DeepSeek-R1, deepseek-ai/DeepSeek-R1, deepseek-ai/DeepSeek-R1-Distill-Qwen-32B) also support reasoning.")
+    print(
+        "O1 models (deepseek-ai/DeepSeek-R1, deepseek-ai/DeepSeek-R1, deepseek-ai/DeepSeek-R1-Distill-Qwen-32B) also support reasoning."
+    )
     print("These are the original reasoning models before GPT-OSS.")
     print()
 
@@ -197,16 +207,16 @@ async def demonstrate_o1_models():
 
         response = await client.chat.completions.create(
             model=model,
-            messages=[
-                {"role": "user", "content": "What is 15% of 80?"}
-            ],
+            messages=[{"role": "user", "content": "What is 15% of 80?"}],
         )
 
         print("Reasoning:", response.choices[0].message.reasoning_content[:100] + "...")
         print("Answer:", response.choices[0].message.content[:100] + "...")
 
         if response.usage.completion_tokens_details:
-            print(f"Reasoning tokens: {response.usage.completion_tokens_details.reasoning_tokens}")
+            print(
+                f"Reasoning tokens: {response.usage.completion_tokens_details.reasoning_tokens}"
+            )
 
         print()
 
@@ -235,9 +245,7 @@ At what time will the trains meet?"""
 
     response = await client.chat.completions.create(
         model="gpt-oss-120b",
-        messages=[
-            {"role": "user", "content": problem}
-        ],
+        messages=[{"role": "user", "content": problem}],
     )
 
     print("REASONING (step-by-step thinking):")
@@ -264,7 +272,10 @@ async def demonstrate_reasoning_conversation():
     )
 
     messages = [
-        {"role": "user", "content": "I have $100. I spend 40% on groceries. How much do I have left?"}
+        {
+            "role": "user",
+            "content": "I have $100. I spend 40% on groceries. How much do I have left?",
+        }
     ]
 
     print("Turn 1:")
@@ -281,16 +292,20 @@ async def demonstrate_reasoning_conversation():
     print()
 
     # Add to conversation
-    messages.append({
-        "role": "assistant",
-        "content": response.choices[0].message.content,
-        "reasoning_content": response.choices[0].message.reasoning_content
-    })
+    messages.append(
+        {
+            "role": "assistant",
+            "content": response.choices[0].message.content,
+            "reasoning_content": response.choices[0].message.reasoning_content,
+        }
+    )
 
-    messages.append({
-        "role": "user",
-        "content": "Now I spend half of what's left on entertainment. How much remains?"
-    })
+    messages.append(
+        {
+            "role": "user",
+            "content": "Now I spend half of what's left on entertainment. How much remains?",
+        }
+    )
 
     print("Turn 2:")
     print(messages[-1]["content"])
@@ -329,12 +344,12 @@ async def demonstrate_reasoning_with_tools():
                     "properties": {
                         "expression": {
                             "type": "string",
-                            "description": "The mathematical expression to evaluate"
+                            "description": "The mathematical expression to evaluate",
                         }
                     },
-                    "required": ["expression"]
-                }
-            }
+                    "required": ["expression"],
+                },
+            },
         }
     ]
 
@@ -422,7 +437,9 @@ async def main():
         print()
         print("O1 Family (Legacy):")
         print("  • deepseek-ai/DeepSeek-R1 - Preview of O1 capabilities")
-        print("  • deepseek-ai/DeepSeek-R1-Distill-Qwen-32B    - Smaller, faster O1 model")
+        print(
+            "  • deepseek-ai/DeepSeek-R1-Distill-Qwen-32B    - Smaller, faster O1 model"
+        )
         print("  • deepseek-ai/DeepSeek-R1         - Full O1 model")
         print()
         print("Key Features:")

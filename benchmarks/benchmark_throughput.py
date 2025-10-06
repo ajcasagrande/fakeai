@@ -47,7 +47,10 @@ class ThroughputBenchmark:
         self.results: list[ThroughputResult] = []
 
     async def _make_request(
-        self, client: httpx.AsyncClient, payload: dict[str, Any], streaming: bool = False
+        self,
+        client: httpx.AsyncClient,
+        payload: dict[str, Any],
+        streaming: bool = False,
     ) -> tuple[float, int]:
         """
         Make a single request and measure latency.
@@ -116,7 +119,9 @@ class ThroughputBenchmark:
         """
         print(f"\n{'='*70}")
         print(f"Running: {test_name}")
-        print(f"Requests: {num_requests}, Concurrent: {concurrent_limit}, Streaming: {streaming}")
+        print(
+            f"Requests: {num_requests}, Concurrent: {concurrent_limit}, Streaming: {streaming}"
+        )
         print(f"{'='*70}")
 
         latencies = []
@@ -256,21 +261,25 @@ class ThroughputBenchmark:
             report += "| Metric | Non-Streaming | Streaming | Difference |\n"
             report += "|--------|---------------|-----------|------------|\n"
 
-            avg_non_stream_rps = sum(r.requests_per_second for r in non_streaming_results) / len(
-                non_streaming_results
-            )
-            avg_stream_rps = sum(r.requests_per_second for r in streaming_results) / len(
-                streaming_results
-            )
-            diff_rps = ((avg_stream_rps - avg_non_stream_rps) / avg_non_stream_rps * 100)
+            avg_non_stream_rps = sum(
+                r.requests_per_second for r in non_streaming_results
+            ) / len(non_streaming_results)
+            avg_stream_rps = sum(
+                r.requests_per_second for r in streaming_results
+            ) / len(streaming_results)
+            diff_rps = (avg_stream_rps - avg_non_stream_rps) / avg_non_stream_rps * 100
 
-            avg_non_stream_latency = sum(r.avg_latency for r in non_streaming_results) / len(
-                non_streaming_results
-            )
+            avg_non_stream_latency = sum(
+                r.avg_latency for r in non_streaming_results
+            ) / len(non_streaming_results)
             avg_stream_latency = sum(r.avg_latency for r in streaming_results) / len(
                 streaming_results
             )
-            diff_latency = ((avg_stream_latency - avg_non_stream_latency) / avg_non_stream_latency * 100)
+            diff_latency = (
+                (avg_stream_latency - avg_non_stream_latency)
+                / avg_non_stream_latency
+                * 100
+            )
 
             report += (
                 f"| Avg RPS | {avg_non_stream_rps:.2f} | {avg_stream_rps:.2f} | "
@@ -284,7 +293,9 @@ class ThroughputBenchmark:
         return report
 
 
-async def run_all_benchmarks(base_url: str = "http://localhost:8000", api_key: str = "test"):
+async def run_all_benchmarks(
+    base_url: str = "http://localhost:8000", api_key: str = "test"
+):
     """Run all throughput benchmarks."""
     benchmark = ThroughputBenchmark(base_url, api_key)
 
@@ -299,7 +310,10 @@ async def run_all_benchmarks(base_url: str = "http://localhost:8000", api_key: s
         "model": "openai/gpt-oss-120b",
         "messages": [
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "Write a short story about a robot learning to code."},
+            {
+                "role": "user",
+                "content": "Write a short story about a robot learning to code.",
+            },
         ],
         "max_tokens": 200,
     }

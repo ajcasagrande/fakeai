@@ -1,0 +1,446 @@
+================================================================================
+                    FAKEAI 3.0 - REQUEST FLOW DIAGRAM
+                Complete Lifecycle of an API Request
+================================================================================
+
+                              CLIENT
+                                │
+                                │ POST /v1/chat/completions
+                                │ Authorization: Bearer sk-xxx
+                                │ Content-Type: application/json
+                                │
+                                v
+            ┌───────────────────────────────────────────────┐
+            │         FASTAPI APPLICATION                   │
+            │         Uvicorn ASGI Server                   │
+            └───────────────────────────────────────────────┘
+                                │
+                                │ Step 1: CORS Middleware
+                                v
+            ┌───────────────────────────────────────────────┐
+            │  CORS MIDDLEWARE                              │
+            │  - Check origin                               │
+            │  - Validate headers                           │
+            │  - Allow credentials                          │
+            └───────────────────────────────────────────────┘
+                                │
+                                │ Step 2: Request Middleware
+                                v
+            ┌───────────────────────────────────────────────┐
+            │  REQUEST LOGGING MIDDLEWARE (log_requests)    │
+            │  - Generate request_id                        │
+            │  - Extract endpoint & client IP               │
+            │  - Log request start                          │
+            │  - Start timer                                │
+            │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+            │  metrics_tracker.track_request(endpoint)      │
+            └───────────────────────────────────────────────┘
+                                │
+                                │ Step 3: Security Checks
+                                v
+            ┌───────────────────────────────────────────────┐
+            │  ABUSE DETECTION                              │
+            │  - Check if IP is banned                      │
+            │  - Return 403 if banned                       │
+            │  - Track ban time                             │
+            └───────────────────────────────────────────────┘
+                                │
+                                │ Step 4: Input Validation
+                                v
+            ┌───────────────────────────────────────────────┐
+            │  INPUT VALIDATION                             │
+            │  - Read request body                          │
+            │  - Check payload size (max_request_size)      │
+            │  - Detect injection attacks                   │
+            │  - Sanitize inputs                            │
+            │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+            │  If payload too large → 413 Error             │
+            │  If injection detected → 400 Error            │
+            └───────────────────────────────────────────────┘
+                                │
+                                │ Step 5: Rate Limiting
+                                v
+            ┌───────────────────────────────────────────────┐
+            │  RATE LIMITER                                 │
+            │  - Extract API key                            │
+            │  - Estimate token count                       │
+            │  - Check RPM/TPM limits                       │
+            │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+            │  rate_limiter.check_rate_limit(key, tokens)   │
+            │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+            │  If exceeded → 429 Error + Retry-After        │
+            └───────────────────────────────────────────────┘
+                                │
+                                │ Step 6: Route Handling
+                                v
+            ┌───────────────────────────────────────────────┐
+            │  ROUTE HANDLER (@app.post)                    │
+            │  - Match endpoint pattern                     │
+            │  - Call verify_api_key dependency             │
+            │  - Parse request body                         │
+            └───────────────────────────────────────────────┘
+                                │
+                                │ Step 7: API Key Verification
+                                v
+            ┌───────────────────────────────────────────────┐
+            │  API KEY VERIFICATION (verify_api_key)        │
+            │  - Extract Authorization header               │
+            │  - Strip "Bearer " prefix                     │
+            │  - Hash and compare (if hashing enabled)      │
+            │  - Plain comparison (if legacy mode)          │
+            │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+            │  api_key_manager.verify_key(api_key)          │
+            │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+            │  If invalid → 401 Error                       │
+            │  abuse_detector.record_failed_auth(ip)        │
+            └───────────────────────────────────────────────┘
+                                │
+                                │ Step 8: Pydantic Validation
+                                v
+            ┌───────────────────────────────────────────────┐
+            │  PYDANTIC MODEL VALIDATION                    │
+            │  - Parse JSON to ChatCompletionRequest        │
+            │  - Validate all fields                        │
+            │  - Check required fields                      │
+            │  - Validate types and constraints             │
+            │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+            │  If validation fails → 422 Error              │
+            └───────────────────────────────────────────────┘
+                                │
+                                │ Step 9: Service Invocation
+                                v
+            ┌───────────────────────────────────────────────┐
+            │  FAKEAI SERVICE                               │
+            │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+            │  fakeai_service.create_chat_completion(req)   │
+            └───────────────────────────────────────────────┘
+                                │
+                ┌───────────────┴───────────────┐
+                │                               │
+                v                               v
+    ┌──────────────────────┐      ┌──────────────────────┐
+    │  NON-STREAMING PATH  │      │   STREAMING PATH     │
+    └──────────────────────┘      └──────────────────────┘
+                │                               │
+                │                               │
+    See below for detailed flow    See streaming_architecture.txt
+
+
+================================================================================
+                    NON-STREAMING REQUEST FLOW (DETAILED)
+================================================================================
+
+Step 10: Model & Context Validation
+    ┌───────────────────────────────────────────────────────┐
+    │  MODEL VALIDATION                                     │
+    │  - Check if model exists                              │
+    │  - Auto-create if missing (_ensure_model_exists)      │
+    │  - Load model capabilities                            │
+    │  - Validate context window                            │
+    │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+    │  model_registry.get_model(model_id)                   │
+    │  context_validator.validate_context(messages)         │
+    └───────────────────────────────────────────────────────┘
+                                │
+                                v
+Step 11: Message Processing
+    ┌───────────────────────────────────────────────────────┐
+    │  EXTRACT TEXT CONTENT                                 │
+    │  - Parse multi-modal content                          │
+    │  - Extract text from messages                         │
+    │  - Handle images, audio, video                        │
+    │  - Build conversation context                         │
+    │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+    │  _extract_text_content(msg.content)                   │
+    └───────────────────────────────────────────────────────┘
+                                │
+                                v
+Step 12: Token Counting
+    ┌───────────────────────────────────────────────────────┐
+    │  CALCULATE PROMPT TOKENS                              │
+    │  - Count words in prompt                              │
+    │  - Add punctuation count                              │
+    │  - Include system messages                            │
+    │  - Sum all message tokens                             │
+    │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+    │  prompt_tokens = calculate_token_count(prompt_text)   │
+    └───────────────────────────────────────────────────────┘
+                                │
+                                v
+Step 13: KV Cache Lookup (Optional)
+    ┌───────────────────────────────────────────────────────┐
+    │  KV CACHE & SMART ROUTING                             │
+    │  - Tokenize prompt for cache key                      │
+    │  - Search radix tree for prefix match                 │
+    │  - Calculate cache benefit score                      │
+    │  - Route to worker with best cache overlap            │
+    │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+    │  tokens = tokenize_for_cache(prompt_text)             │
+    │  worker_id, matched_tokens, matched_blocks =          │
+    │      kv_cache_router.route_request(tokens)            │
+    │  kv_cache_metrics.record_cache_lookup(...)            │
+    └───────────────────────────────────────────────────────┘
+                                │
+                                v
+Step 14: Response Generation
+    ┌───────────────────────────────────────────────────────┐
+    │  GENERATE RESPONSE                                    │
+    │  - Use Faker for realistic content                    │
+    │  - Generate reasoning (if O1/R1 model)                │
+    │  - Apply response delay (simulate processing)         │
+    │  - Calculate completion tokens                        │
+    │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+    │  response_text = llm_generator.generate(prompt)       │
+    │  completion_tokens = calculate_token_count(response)  │
+    │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+    │  if _is_reasoning_model(model):                       │
+    │      reasoning = _generate_simulated_reasoning(...)   │
+    └───────────────────────────────────────────────────────┘
+                                │
+                                v
+Step 15: Tool Calling (If Requested)
+    ┌───────────────────────────────────────────────────────┐
+    │  TOOL CALLING SIMULATION                              │
+    │  - Detect if tools requested                          │
+    │  - Select appropriate tool                            │
+    │  - Generate tool call arguments                       │
+    │  - Simulate tool execution                            │
+    │  - Generate final response with tool results          │
+    │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+    │  if request.tools:                                    │
+    │      tool_calls = tool_calling.generate_calls(...)    │
+    └───────────────────────────────────────────────────────┘
+                                │
+                                v
+Step 16: Structured Output (If Requested)
+    ┌───────────────────────────────────────────────────────┐
+    │  STRUCTURED OUTPUT GENERATION                         │
+    │  - Parse JSON schema                                  │
+    │  - Generate conforming JSON                           │
+    │  - Validate against schema                            │
+    │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+    │  if request.response_format == "json_schema":         │
+    │      response = structured_outputs.generate(...)      │
+    └───────────────────────────────────────────────────────┘
+                                │
+                                v
+Step 17: Cost Calculation
+    ┌───────────────────────────────────────────────────────┐
+    │  CALCULATE COST                                       │
+    │  - Get model pricing from registry                    │
+    │  - Calculate prompt cost (tokens × price_per_1M)      │
+    │  - Calculate completion cost                          │
+    │  - Track in cost tracker                              │
+    │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+    │  cost = cost_tracker.calculate_cost(                  │
+    │      model, prompt_tokens, completion_tokens)         │
+    └───────────────────────────────────────────────────────┘
+                                │
+                                v
+Step 18: Build Response Object
+    ┌───────────────────────────────────────────────────────┐
+    │  CONSTRUCT CHAT COMPLETION RESPONSE                   │
+    │  - Create response ID                                 │
+    │  - Set created timestamp                              │
+    │  - Build choices array                                │
+    │  - Add message with content                           │
+    │  - Add usage statistics                               │
+    │  - Include system_fingerprint                         │
+    │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+    │  response = ChatCompletionResponse(                   │
+    │      id=f"chatcmpl-{uuid.uuid4().hex}",              │
+    │      choices=[ChatCompletionChoice(...)],            │
+    │      usage=CompletionUsage(...)                      │
+    │  )                                                    │
+    └───────────────────────────────────────────────────────┘
+                                │
+                                v
+Step 19: Update KV Cache
+    ┌───────────────────────────────────────────────────────┐
+    │  UPDATE KV CACHE                                      │
+    │  - Complete request on worker                         │
+    │  - Add output tokens to cache                         │
+    │  - Update radix tree                                  │
+    │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+    │  kv_cache_router.complete_request(                    │
+    │      worker_id, input_tokens, output_tokens)          │
+    └───────────────────────────────────────────────────────┘
+                                │
+                                v
+Step 20: Track Metrics
+    ┌───────────────────────────────────────────────────────┐
+    │  RECORD METRICS                                       │
+    │  - Calculate total latency                            │
+    │  - Track response                                     │
+    │  - Track tokens                                       │
+    │  - Record per-model stats                             │
+    │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+    │  latency_ms = (time.time() - start_time) * 1000       │
+    │  metrics_tracker.track_response(endpoint, latency)    │
+    │  metrics_tracker.track_tokens(endpoint, total_tokens) │
+    │  model_metrics_tracker.track_request(                 │
+    │      model, endpoint, prompt_tokens,                  │
+    │      completion_tokens, latency_ms, user, error=False)│
+    └───────────────────────────────────────────────────────┘
+                                │
+                                v
+Step 21: Add Rate Limit Headers
+    ┌───────────────────────────────────────────────────────┐
+    │  RESPONSE HEADERS                                     │
+    │  - X-RateLimit-Limit-Requests                         │
+    │  - X-RateLimit-Limit-Tokens                           │
+    │  - X-RateLimit-Remaining-Requests                     │
+    │  - X-RateLimit-Remaining-Tokens                       │
+    │  - X-RateLimit-Reset-Requests                         │
+    │  - X-RateLimit-Reset-Tokens                           │
+    └───────────────────────────────────────────────────────┘
+                                │
+                                v
+Step 22: Return Response
+    ┌───────────────────────────────────────────────────────┐
+    │  HTTP RESPONSE                                        │
+    │  Status: 200 OK                                       │
+    │  Content-Type: application/json                       │
+    │  Body: ChatCompletionResponse JSON                    │
+    └───────────────────────────────────────────────────────┘
+                                │
+                                v
+                            CLIENT
+
+
+================================================================================
+                        ERROR HANDLING FLOW
+================================================================================
+
+At ANY step, if an error occurs:
+
+    ┌───────────────────────────────────────────────────────┐
+    │  ERROR HANDLER                                        │
+    │  - Catch exception                                    │
+    │  - Log error with stack trace                         │
+    │  - Track in metrics                                   │
+    │  - Track in error metrics                             │
+    │  - Determine HTTP status code                         │
+    │  - Build error response                               │
+    │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+    │  metrics_tracker.track_error(endpoint)                │
+    │  error_metrics.record_error(                          │
+    │      error_type, endpoint, message, stack_trace)      │
+    └───────────────────────────────────────────────────────┘
+                                │
+                                v
+    ┌───────────────────────────────────────────────────────┐
+    │  ERROR RESPONSE                                       │
+    │  {                                                    │
+    │    "error": {                                         │
+    │      "message": "...",                                │
+    │      "type": "invalid_request_error",                 │
+    │      "code": "...",                                   │
+    │      "param": null                                    │
+    │    }                                                  │
+    │  }                                                    │
+    └───────────────────────────────────────────────────────┘
+                                │
+                                v
+                            CLIENT
+
+
+Common Error Scenarios:
+
+1. Authentication Failure (401)
+   - Invalid API key
+   - Missing Authorization header
+   - Abuse detection triggers
+
+2. Rate Limit Exceeded (429)
+   - RPM limit hit
+   - TPM limit hit
+   - Includes Retry-After header
+
+3. Payload Too Large (413)
+   - Request body exceeds max_request_size
+   - Abuse detection records event
+
+4. Injection Attack Detected (400)
+   - SQL injection patterns
+   - XSS patterns
+   - Command injection patterns
+
+5. Validation Error (422)
+   - Invalid request format
+   - Missing required fields
+   - Type mismatches
+
+6. Server Error (500)
+   - Unexpected exceptions
+   - Service failures
+   - Internal bugs
+
+
+================================================================================
+                        METRICS COLLECTION POINTS
+================================================================================
+
+Throughout the request lifecycle:
+
+┌──────────────┬─────────────────────────────────────────────────────────┐
+│ Step         │ Metrics Collected                                       │
+├──────────────┼─────────────────────────────────────────────────────────┤
+│ 2. Middleware│ Request count, endpoint, timestamp                      │
+│ 3. Abuse     │ IP checks, ban records, failed auth attempts            │
+│ 4. Validation│ Payload size, injection attempts                        │
+│ 5. Rate Limit│ RPM/TPM consumption, throttle events, quota usage       │
+│ 7. Auth      │ Key usage, verification time, failures                  │
+│ 13. KV Cache │ Cache lookups, hits, misses, prefix length              │
+│ 14. Response │ Generation time, token count                            │
+│ 17. Cost     │ Cost per request, cumulative cost                       │
+│ 20. Metrics  │ Latency, tokens/sec, error rate, per-model stats        │
+└──────────────┴─────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                        PERFORMANCE CHARACTERISTICS
+================================================================================
+
+Typical Latencies (Non-Streaming):
+  - Middleware overhead: ~1-2ms
+  - Auth & validation: ~2-5ms
+  - Service processing: ~10-50ms
+  - Response generation: 50-200ms (with simulated delay)
+  - Total: 60-260ms
+
+Simulated Delays:
+  - Per-token delay: 0.05-0.2 seconds (configurable)
+  - Allows realistic testing of downstream systems
+  - Mimics real LLM inference latency
+
+Throughput:
+  - Limited by rate limiter (if enabled)
+  - Otherwise: hundreds of requests/sec
+  - Async design allows high concurrency
+  - Metrics tracking is non-blocking
+
+
+================================================================================
+                        CONCURRENCY MODEL
+================================================================================
+
+Async/Await Throughout:
+  - All route handlers are async
+  - All service methods are async
+  - Streaming uses async generators
+  - WebSocket handlers fully async
+
+Thread Safety:
+  - Metrics use threading.Lock
+  - Rate limiter uses locks
+  - Abuse detector uses locks
+  - In-memory storage uses locks
+
+No Blocking Operations:
+  - All I/O is async
+  - Simulated delays use asyncio.sleep
+  - Background tasks in separate threads
+
+
+================================================================================

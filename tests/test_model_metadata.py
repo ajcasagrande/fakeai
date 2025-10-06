@@ -3,6 +3,7 @@ Comprehensive tests for model metadata system.
 
 Tests model capabilities, pricing information, and feature validation.
 """
+
 import pytest
 
 
@@ -14,10 +15,18 @@ class TestModelMetadata:
         """All pre-defined models should have complete metadata."""
         for model_id, model in service_no_auth.models.items():
             assert model.context_window > 0, f"{model_id} has invalid context_window"
-            assert model.max_output_tokens >= 0, f"{model_id} has invalid max_output_tokens"
-            assert isinstance(model.supports_vision, bool), f"{model_id} has invalid supports_vision"
-            assert isinstance(model.supports_audio, bool), f"{model_id} has invalid supports_audio"
-            assert isinstance(model.supports_tools, bool), f"{model_id} has invalid supports_tools"
+            assert (
+                model.max_output_tokens >= 0
+            ), f"{model_id} has invalid max_output_tokens"
+            assert isinstance(
+                model.supports_vision, bool
+            ), f"{model_id} has invalid supports_vision"
+            assert isinstance(
+                model.supports_audio, bool
+            ), f"{model_id} has invalid supports_audio"
+            assert isinstance(
+                model.supports_tools, bool
+            ), f"{model_id} has invalid supports_tools"
 
     def test_gpt4o_supports_vision_and_audio(self, service_no_auth):
         """GPT-4o should support vision and audio."""
@@ -56,7 +65,11 @@ class TestModelMetadata:
 
     def test_embedding_models_no_tools(self, service_no_auth):
         """Embedding models should not support tool calling."""
-        for model_id in ["sentence-transformers/all-mpnet-base-v2", "nomic-ai/nomic-embed-text-v1.5", "BAAI/bge-m3"]:
+        for model_id in [
+            "sentence-transformers/all-mpnet-base-v2",
+            "nomic-ai/nomic-embed-text-v1.5",
+            "BAAI/bge-m3",
+        ]:
             model = service_no_auth.models[model_id]
             assert model.supports_tools is False
             assert model.max_output_tokens == 0
@@ -71,7 +84,10 @@ class TestModelMetadata:
 
     def test_models_have_correct_context_windows(self, service_no_auth):
         """Models should have accurate context window sizes."""
-        assert service_no_auth.models["meta-llama/Llama-3.1-8B-Instruct"].context_window == 16385
+        assert (
+            service_no_auth.models["meta-llama/Llama-3.1-8B-Instruct"].context_window
+            == 16385
+        )
         assert service_no_auth.models["openai/gpt-oss-120b"].context_window == 128000
         assert service_no_auth.models["claude-3-opus"].context_window == 200000
         assert service_no_auth.models["gemini-1.5-pro"].context_window == 2000000
@@ -98,18 +114,36 @@ class TestGetModelCapability:
 
     def test_check_vision_capability(self, service_no_auth):
         """Should correctly check vision capability."""
-        assert service_no_auth.get_model_capability("openai/gpt-oss-120b", "vision") is True
-        assert service_no_auth.get_model_capability("meta-llama/Llama-3.1-8B-Instruct", "vision") is False
+        assert (
+            service_no_auth.get_model_capability("openai/gpt-oss-120b", "vision")
+            is True
+        )
+        assert (
+            service_no_auth.get_model_capability(
+                "meta-llama/Llama-3.1-8B-Instruct", "vision"
+            )
+            is False
+        )
 
     def test_check_audio_capability(self, service_no_auth):
         """Should correctly check audio capability."""
-        assert service_no_auth.get_model_capability("openai/gpt-oss-120b", "audio") is True
-        assert service_no_auth.get_model_capability("openai/gpt-oss-120b", "audio") is False
+        assert (
+            service_no_auth.get_model_capability("openai/gpt-oss-120b", "audio") is True
+        )
+        assert (
+            service_no_auth.get_model_capability("openai/gpt-oss-120b", "audio")
+            is False
+        )
 
     def test_check_tools_capability(self, service_no_auth):
         """Should correctly check tools capability."""
-        assert service_no_auth.get_model_capability("openai/gpt-oss-120b", "tools") is True
-        assert service_no_auth.get_model_capability("deepseek-ai/DeepSeek-R1", "tools") is False
+        assert (
+            service_no_auth.get_model_capability("openai/gpt-oss-120b", "tools") is True
+        )
+        assert (
+            service_no_auth.get_model_capability("deepseek-ai/DeepSeek-R1", "tools")
+            is False
+        )
 
     def test_invalid_capability_raises_error(self, service_no_auth):
         """Invalid capability name should raise ValueError."""
@@ -155,7 +189,9 @@ class TestGetModelPricing:
 
     def test_no_pricing_for_image_models(self, service_no_auth):
         """Image models should have None pricing (priced per image)."""
-        pricing = service_no_auth.get_model_pricing("stabilityai/stable-diffusion-xl-base-1.0")
+        pricing = service_no_auth.get_model_pricing(
+            "stabilityai/stable-diffusion-xl-base-1.0"
+        )
         assert pricing is None
 
     def test_auto_creates_model(self, service_no_auth):
@@ -179,7 +215,9 @@ class TestValidateModelFeature:
     def test_raises_error_for_unsupported_vision(self, service_no_auth):
         """Should raise error if model doesn't support vision."""
         with pytest.raises(ValueError, match="does not support vision"):
-            service_no_auth.validate_model_feature("meta-llama/Llama-3.1-8B-Instruct", "vision")
+            service_no_auth.validate_model_feature(
+                "meta-llama/Llama-3.1-8B-Instruct", "vision"
+            )
 
     def test_raises_error_for_unsupported_audio(self, service_no_auth):
         """Should raise error if model doesn't support audio."""
@@ -194,7 +232,9 @@ class TestValidateModelFeature:
     def test_custom_feature_name_in_error(self, service_no_auth):
         """Should use custom feature name in error message."""
         with pytest.raises(ValueError, match="does not support image inputs"):
-            service_no_auth.validate_model_feature("meta-llama/Llama-3.1-8B-Instruct", "vision", "image inputs")
+            service_no_auth.validate_model_feature(
+                "meta-llama/Llama-3.1-8B-Instruct", "vision", "image inputs"
+            )
 
 
 @pytest.mark.integration
@@ -236,7 +276,9 @@ class TestCapabilitiesEndpoint:
 
     def test_gpt35_capabilities(self, client_no_auth):
         """GPT-3.5-turbo should have correct capabilities."""
-        response = client_no_auth.get("/v1/models/meta-llama/Llama-3.1-8B-Instruct/capabilities")
+        response = client_no_auth.get(
+            "/v1/models/meta-llama/Llama-3.1-8B-Instruct/capabilities"
+        )
         data = response.json()
 
         assert data["context_window"] == 16385
@@ -295,7 +337,9 @@ class TestCapabilitiesEndpoint:
 
     def test_embedding_model_capabilities(self, client_no_auth):
         """Embedding models should have zero output tokens."""
-        response = client_no_auth.get("/v1/models/sentence-transformers/all-mpnet-base-v2/capabilities")
+        response = client_no_auth.get(
+            "/v1/models/sentence-transformers/all-mpnet-base-v2/capabilities"
+        )
         data = response.json()
 
         assert data["max_output_tokens"] == 0
@@ -361,7 +405,13 @@ class TestModelCount:
 
     def test_has_reasoning_models(self, service_no_auth):
         """Should have reasoning models."""
-        reasoning_models = ["deepseek-ai/DeepSeek-R1", "deepseek-ai/DeepSeek-R1", "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B", "gpt-oss-120b", "gpt-oss-20b"]
+        reasoning_models = [
+            "deepseek-ai/DeepSeek-R1",
+            "deepseek-ai/DeepSeek-R1",
+            "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
+            "gpt-oss-120b",
+            "gpt-oss-20b",
+        ]
         for model in reasoning_models:
             assert model in service_no_auth.models
 
@@ -407,7 +457,10 @@ class TestModelCount:
 
     def test_has_image_models(self, service_no_auth):
         """Should have image generation models."""
-        image_models = ["stabilityai/stable-diffusion-2-1", "stabilityai/stable-diffusion-xl-base-1.0"]
+        image_models = [
+            "stabilityai/stable-diffusion-2-1",
+            "stabilityai/stable-diffusion-xl-base-1.0",
+        ]
         for model in image_models:
             assert model in service_no_auth.models
 

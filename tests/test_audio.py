@@ -4,12 +4,23 @@ Tests for audio input/output functionality in chat completions.
 Tests audio transcription, audio generation, token accounting,
 and modalities parameter handling.
 """
+
 #  SPDX-License-Identifier: Apache-2.0
 
 import base64
+
 import pytest
 
 from fakeai import AppConfig
+from fakeai.audio import (
+    calculate_audio_input_tokens,
+    estimate_audio_duration,
+    estimate_audio_tokens,
+    extract_audio_from_content,
+    extract_text_from_audio,
+    generate_audio_output,
+    transcribe_audio_input,
+)
 from fakeai.fakeai_service import FakeAIService
 from fakeai.models import (
     AudioConfig,
@@ -19,15 +30,6 @@ from fakeai.models import (
     Message,
     Role,
     TextContent,
-)
-from fakeai.audio import (
-    estimate_audio_tokens,
-    estimate_audio_duration,
-    extract_audio_from_content,
-    transcribe_audio_input,
-    generate_audio_output,
-    calculate_audio_input_tokens,
-    extract_text_from_audio,
 )
 from fakeai.utils import generate_wav_audio
 
@@ -63,7 +65,7 @@ class TestAudioUtilities:
     def test_transcribe_audio_input_mp3(self):
         """Test audio transcription for MP3 format."""
         # Simulate small MP3 file
-        audio_bytes = b'\xFF\xFB\x90\x00' * 100
+        audio_bytes = b"\xff\xfb\x90\x00" * 100
         transcript = transcribe_audio_input(audio_bytes, "mp3")
 
         assert isinstance(transcript, str)
@@ -81,12 +83,9 @@ class TestAudioUtilities:
                     {"type": "text", "text": "Please listen to this"},
                     {
                         "type": "input_audio",
-                        "input_audio": {
-                            "data": audio_b64,
-                            "format": "wav"
-                        }
-                    }
-                ]
+                        "input_audio": {"data": audio_b64, "format": "wav"},
+                    },
+                ],
             )
         ]
 
@@ -108,9 +107,9 @@ class TestAudioUtilities:
                     TextContent(type="text", text="Listen"),
                     InputAudioContent(
                         type="input_audio",
-                        input_audio=InputAudio(data=audio_b64, format="wav")
-                    )
-                ]
+                        input_audio=InputAudio(data=audio_b64, format="wav"),
+                    ),
+                ],
             )
         ]
 
@@ -146,9 +145,9 @@ class TestAudioUtilities:
                 content=[
                     InputAudioContent(
                         type="input_audio",
-                        input_audio=InputAudio(data=audio_b64, format="wav")
+                        input_audio=InputAudio(data=audio_b64, format="wav"),
                     )
-                ]
+                ],
             )
         ]
 
@@ -167,9 +166,9 @@ class TestAudioUtilities:
                 content=[
                     InputAudioContent(
                         type="input_audio",
-                        input_audio=InputAudio(data=audio_b64, format="wav")
+                        input_audio=InputAudio(data=audio_b64, format="wav"),
                     )
-                ]
+                ],
             )
         ]
 
@@ -200,9 +199,9 @@ class TestAudioInputProcessing:
                         TextContent(type="text", text="What did I say?"),
                         InputAudioContent(
                             type="input_audio",
-                            input_audio=InputAudio(data=audio_b64, format="wav")
-                        )
-                    ]
+                            input_audio=InputAudio(data=audio_b64, format="wav"),
+                        ),
+                    ],
                 )
             ],
             max_tokens=50,
@@ -237,9 +236,9 @@ class TestAudioInputProcessing:
                     content=[
                         InputAudioContent(
                             type="input_audio",
-                            input_audio=InputAudio(data=audio_b64, format="wav")
+                            input_audio=InputAudio(data=audio_b64, format="wav"),
                         )
-                    ]
+                    ],
                 )
             ],
             max_tokens=20,
@@ -272,14 +271,14 @@ class TestAudioInputProcessing:
                     content=[
                         InputAudioContent(
                             type="input_audio",
-                            input_audio=InputAudio(data=audio1_b64, format="wav")
+                            input_audio=InputAudio(data=audio1_b64, format="wav"),
                         ),
                         TextContent(type="text", text="And also this:"),
                         InputAudioContent(
                             type="input_audio",
-                            input_audio=InputAudio(data=audio2_b64, format="wav")
-                        )
-                    ]
+                            input_audio=InputAudio(data=audio2_b64, format="wav"),
+                        ),
+                    ],
                 )
             ],
             max_tokens=50,
@@ -302,9 +301,7 @@ class TestAudioOutputGeneration:
 
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[
-                Message(role=Role.USER, content="Say hello")
-            ],
+            messages=[Message(role=Role.USER, content="Say hello")],
             audio=AudioConfig(voice="alloy", format="mp3"),
             modalities=["text", "audio"],
             max_tokens=50,
@@ -340,9 +337,7 @@ class TestAudioOutputGeneration:
         for voice in voices:
             request = ChatCompletionRequest(
                 model="openai/gpt-oss-120b",
-                messages=[
-                    Message(role=Role.USER, content="Hello")
-                ],
+                messages=[Message(role=Role.USER, content="Hello")],
                 audio=AudioConfig(voice=voice, format="mp3"),
                 max_tokens=20,
             )
@@ -363,9 +358,7 @@ class TestAudioOutputGeneration:
         for audio_format in formats:
             request = ChatCompletionRequest(
                 model="openai/gpt-oss-120b",
-                messages=[
-                    Message(role=Role.USER, content="Test")
-                ],
+                messages=[Message(role=Role.USER, content="Test")],
                 audio=AudioConfig(voice="alloy", format=audio_format),
                 max_tokens=20,
             )
@@ -384,9 +377,7 @@ class TestAudioOutputGeneration:
 
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[
-                Message(role=Role.USER, content="Generate a long response")
-            ],
+            messages=[Message(role=Role.USER, content="Generate a long response")],
             audio=AudioConfig(voice="alloy", format="mp3"),
             max_tokens=100,
         )
@@ -415,9 +406,7 @@ class TestModalitiesParameter:
 
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[
-                Message(role=Role.USER, content="Hello")
-            ],
+            messages=[Message(role=Role.USER, content="Hello")],
             audio=AudioConfig(voice="alloy", format="mp3"),
             modalities=["text"],  # Only text requested
             max_tokens=20,
@@ -427,8 +416,10 @@ class TestModalitiesParameter:
 
         # Should not have audio output
         assert response.choices[0].message.audio is None
-        assert response.usage.completion_tokens_details is None or \
-               response.usage.completion_tokens_details.audio_tokens == 0
+        assert (
+            response.usage.completion_tokens_details is None
+            or response.usage.completion_tokens_details.audio_tokens == 0
+        )
 
     @pytest.mark.asyncio
     async def test_text_and_audio_modalities(self):
@@ -438,9 +429,7 @@ class TestModalitiesParameter:
 
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[
-                Message(role=Role.USER, content="Hello")
-            ],
+            messages=[Message(role=Role.USER, content="Hello")],
             audio=AudioConfig(voice="alloy", format="mp3"),
             modalities=["text", "audio"],
             max_tokens=20,
@@ -460,9 +449,7 @@ class TestModalitiesParameter:
 
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[
-                Message(role=Role.USER, content="Hello")
-            ],
+            messages=[Message(role=Role.USER, content="Hello")],
             # No audio config provided
             modalities=["text", "audio"],
             max_tokens=20,
@@ -495,9 +482,9 @@ class TestAudioInputAndOutput:
                     content=[
                         InputAudioContent(
                             type="input_audio",
-                            input_audio=InputAudio(data=audio_b64, format="wav")
+                            input_audio=InputAudio(data=audio_b64, format="wav"),
                         )
-                    ]
+                    ],
                 )
             ],
             audio=AudioConfig(voice="echo", format="mp3"),
@@ -533,9 +520,9 @@ class TestAudioInputAndOutput:
                         TextContent(type="text", text="Listen to this:"),
                         InputAudioContent(
                             type="input_audio",
-                            input_audio=InputAudio(data=audio_b64, format="wav")
-                        )
-                    ]
+                            input_audio=InputAudio(data=audio_b64, format="wav"),
+                        ),
+                    ],
                 )
             ],
             audio=AudioConfig(voice="alloy", format="mp3"),
@@ -559,15 +546,12 @@ class TestAudioInputAndOutput:
                         TextContent(type="text", text="Listen to this:"),
                         InputAudioContent(
                             type="input_audio",
-                            input_audio=InputAudio(data=audio_b64, format="wav")
-                        )
-                    ]
+                            input_audio=InputAudio(data=audio_b64, format="wav"),
+                        ),
+                    ],
                 ),
                 response1.choices[0].message,
-                Message(
-                    role=Role.USER,
-                    content="Can you repeat that?"
-                )
+                Message(role=Role.USER, content="Can you repeat that?"),
             ],
             audio=AudioConfig(voice="alloy", format="mp3"),
             max_tokens=50,

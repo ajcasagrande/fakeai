@@ -11,7 +11,7 @@ with open("fakeai/fakeai_service.py", "r") as f:
     content = f.read()
 
 # Find and replace the new_model function and model initialization
-pattern = r'        def new_model\(model_id: str\) -> Model:.*?self\.models = \{[^}]+\}'
+pattern = r"        def new_model\(model_id: str\) -> Model:.*?self\.models = \{[^}]+\}"
 
 replacement = '''        def new_model(
             model_id: str,

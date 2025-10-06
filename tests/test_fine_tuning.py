@@ -4,9 +4,11 @@ Fine-Tuning API tests.
 Tests the complete fine-tuning workflow including job creation,
 status progression, event streaming, and checkpoints.
 """
-import pytest
+
 import asyncio
 import time
+
+import pytest
 
 
 @pytest.mark.integration
@@ -203,7 +205,9 @@ class TestFineTuningAPI:
         # Auto values should be resolved to integers/floats
         assert isinstance(data["hyperparameters"]["n_epochs"], int)
         assert isinstance(data["hyperparameters"]["batch_size"], int)
-        assert isinstance(data["hyperparameters"]["learning_rate_multiplier"], (int, float))
+        assert isinstance(
+            data["hyperparameters"]["learning_rate_multiplier"], (int, float)
+        )
 
 
 @pytest.mark.integration
@@ -269,8 +273,12 @@ class TestFineTuningEvents:
         content = response.text
 
         # Should contain metrics-related information
-        assert ("loss" in content.lower() or "step" in content.lower() or
-                "accuracy" in content.lower() or "metrics" in content.lower())
+        assert (
+            "loss" in content.lower()
+            or "step" in content.lower()
+            or "accuracy" in content.lower()
+            or "metrics" in content.lower()
+        )
 
 
 @pytest.mark.integration

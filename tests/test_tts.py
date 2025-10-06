@@ -7,13 +7,15 @@ Tests the /v1/audio/speech endpoint with various configurations including:
 - Speed parameter
 - Integration with OpenAI client
 """
+
 #  SPDX-License-Identifier: Apache-2.0
 
 import pytest
+
 from fakeai import AppConfig
 from fakeai.fakeai_service import FakeAIService
 from fakeai.models import SpeechRequest
-from fakeai.utils import generate_simulated_audio, estimate_audio_duration
+from fakeai.utils import estimate_audio_duration, generate_simulated_audio
 
 
 class TestAudioGeneration:
@@ -50,37 +52,28 @@ class TestAudioGeneration:
     def test_generate_wav_audio(self):
         """Test WAV audio generation."""
         audio_bytes = generate_simulated_audio(
-            text="Hello world",
-            voice="alloy",
-            response_format="wav",
-            speed=1.0
+            text="Hello world", voice="alloy", response_format="wav", speed=1.0
         )
 
         # WAV should have RIFF header
-        assert audio_bytes[:4] == b'RIFF'
-        assert audio_bytes[8:12] == b'WAVE'
+        assert audio_bytes[:4] == b"RIFF"
+        assert audio_bytes[8:12] == b"WAVE"
         assert len(audio_bytes) > 100  # Should have substantial data
 
     def test_generate_mp3_audio(self):
         """Test MP3 audio generation."""
         audio_bytes = generate_simulated_audio(
-            text="Hello world",
-            voice="alloy",
-            response_format="mp3",
-            speed=1.0
+            text="Hello world", voice="alloy", response_format="mp3", speed=1.0
         )
 
         # MP3 should have ID3 header
-        assert audio_bytes[:3] == b'ID3'
+        assert audio_bytes[:3] == b"ID3"
         assert len(audio_bytes) > 100  # Should have substantial data
 
     def test_generate_pcm_audio(self):
         """Test PCM audio generation."""
         audio_bytes = generate_simulated_audio(
-            text="Hello world",
-            voice="alloy",
-            response_format="pcm",
-            speed=1.0
+            text="Hello world", voice="alloy", response_format="pcm", speed=1.0
         )
 
         # PCM is raw audio data
@@ -90,7 +83,9 @@ class TestAudioGeneration:
     def test_audio_duration_scales_with_text_length(self):
         """Test that longer text produces longer audio."""
         short_text = "Hello"
-        long_text = "Hello world, this is a much longer text that should produce longer audio."
+        long_text = (
+            "Hello world, this is a much longer text that should produce longer audio."
+        )
 
         short_audio = generate_simulated_audio(short_text, "alloy", "wav", 1.0)
         long_audio = generate_simulated_audio(long_text, "alloy", "wav", 1.0)
@@ -108,11 +103,7 @@ class TestSpeechService:
         config = AppConfig(response_delay=0.0)
         service = FakeAIService(config)
 
-        request = SpeechRequest(
-            model="tts-1",
-            input="Hello, world!",
-            voice="alloy"
-        )
+        request = SpeechRequest(model="tts-1", input="Hello, world!", voice="alloy")
 
         audio_bytes = await service.create_speech(request)
 
@@ -128,11 +119,7 @@ class TestSpeechService:
         voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer", "marin", "cedar"]
 
         for voice in voices:
-            request = SpeechRequest(
-                model="tts-1",
-                input="Testing voice.",
-                voice=voice
-            )
+            request = SpeechRequest(model="tts-1", input="Testing voice.", voice=voice)
 
             audio_bytes = await service.create_speech(request)
             assert isinstance(audio_bytes, bytes)
@@ -151,7 +138,7 @@ class TestSpeechService:
                 model="tts-1",
                 input="Testing format.",
                 voice="alloy",
-                response_format=audio_format
+                response_format=audio_format,
             )
 
             audio_bytes = await service.create_speech(request)
@@ -174,7 +161,7 @@ class TestSpeechService:
                 input=text,
                 voice="alloy",
                 response_format="mp3",
-                speed=speed
+                speed=speed,
             )
 
             audio_bytes = await service.create_speech(request)
@@ -190,11 +177,7 @@ class TestSpeechService:
         models = ["tts-1", "tts-1-hd"]
 
         for model in models:
-            request = SpeechRequest(
-                model=model,
-                input="Testing model.",
-                voice="alloy"
-            )
+            request = SpeechRequest(model=model, input="Testing model.", voice="alloy")
 
             audio_bytes = await service.create_speech(request)
             assert isinstance(audio_bytes, bytes)
@@ -210,10 +193,7 @@ class TestSpeechService:
         long_text = "Hello world! " * 300  # ~3900 characters
 
         request = SpeechRequest(
-            model="tts-1",
-            input=long_text,
-            voice="alloy",
-            response_format="mp3"
+            model="tts-1", input=long_text, voice="alloy", response_format="mp3"
         )
 
         audio_bytes = await service.create_speech(request)
@@ -229,11 +209,7 @@ class TestSpeechEndpoint:
         """Test basic speech endpoint."""
         response = client_no_auth.post(
             "/v1/audio/speech",
-            json={
-                "model": "tts-1",
-                "input": "Hello, world!",
-                "voice": "alloy"
-            }
+            json={"model": "tts-1", "input": "Hello, world!", "voice": "alloy"},
         )
 
         assert response.status_code == 200
@@ -249,8 +225,8 @@ class TestSpeechEndpoint:
                 "model": "tts-1",
                 "input": "Testing WAV format.",
                 "voice": "alloy",
-                "response_format": "wav"
-            }
+                "response_format": "wav",
+            },
         )
 
         assert response.status_code == 200
@@ -259,8 +235,8 @@ class TestSpeechEndpoint:
 
         # Verify WAV header
         content = response.content
-        assert content[:4] == b'RIFF'
-        assert content[8:12] == b'WAVE'
+        assert content[:4] == b"RIFF"
+        assert content[8:12] == b"WAVE"
 
     @pytest.mark.asyncio
     async def test_speech_endpoint_opus_format(self, client_no_auth):
@@ -271,8 +247,8 @@ class TestSpeechEndpoint:
                 "model": "tts-1",
                 "input": "Testing OPUS format.",
                 "voice": "echo",
-                "response_format": "opus"
-            }
+                "response_format": "opus",
+            },
         )
 
         assert response.status_code == 200
@@ -290,8 +266,8 @@ class TestSpeechEndpoint:
                 json={
                     "model": "tts-1",
                     "input": f"Testing voice {voice}.",
-                    "voice": voice
-                }
+                    "voice": voice,
+                },
             )
 
             assert response.status_code == 200
@@ -309,8 +285,8 @@ class TestSpeechEndpoint:
                     "model": "tts-1",
                     "input": "Testing speed parameter.",
                     "voice": "alloy",
-                    "speed": speed
-                }
+                    "speed": speed,
+                },
             )
 
             assert response.status_code == 200
@@ -325,8 +301,8 @@ class TestSpeechEndpoint:
                 "model": "tts-1",
                 "input": "Testing headers.",
                 "voice": "alloy",
-                "response_format": "mp3"
-            }
+                "response_format": "mp3",
+            },
         )
 
         assert response.status_code == 200
@@ -341,9 +317,10 @@ class TestOpenAIClientIntegration:
     def test_openai_client_speech_basic(self):
         """Test basic speech generation with OpenAI client."""
         pytest.importorskip("openai")
-        from openai import OpenAI
-        import tempfile
         import os
+        import tempfile
+
+        from openai import OpenAI
 
         client = OpenAI(
             api_key="test-key",
@@ -354,7 +331,7 @@ class TestOpenAIClientIntegration:
         response = client.audio.speech.create(
             model="tts-1",
             voice="alloy",
-            input="The quick brown fox jumped over the lazy dog."
+            input="The quick brown fox jumped over the lazy dog.",
         )
 
         # Save to temporary file
@@ -368,9 +345,9 @@ class TestOpenAIClientIntegration:
             assert os.path.getsize(temp_path) > 0
 
             # Verify it's valid audio data (has MP3 header)
-            with open(temp_path, 'rb') as f:
+            with open(temp_path, "rb") as f:
                 data = f.read(3)
-                assert data == b'ID3'
+                assert data == b"ID3"
         finally:
             # Cleanup
             os.unlink(temp_path)
@@ -379,8 +356,9 @@ class TestOpenAIClientIntegration:
     def test_openai_client_speech_streaming(self):
         """Test streaming speech generation with OpenAI client."""
         pytest.importorskip("openai")
-        from openai import OpenAI
         import io
+
+        from openai import OpenAI
 
         client = OpenAI(
             api_key="test-key",
@@ -391,7 +369,7 @@ class TestOpenAIClientIntegration:
         response = client.audio.speech.create(
             model="tts-1-hd",
             voice="shimmer",
-            input="Testing streaming audio generation."
+            input="Testing streaming audio generation.",
         )
 
         # Collect streamed data
@@ -421,7 +399,7 @@ class TestOpenAIClientIntegration:
                 model="tts-1",
                 voice="alloy",
                 input=f"Testing {audio_format} format.",
-                response_format=audio_format
+                response_format=audio_format,
             )
 
             assert response.content is not None
@@ -435,12 +413,7 @@ class TestEdgeCases:
     async def test_empty_input(self, client_no_auth):
         """Test with empty input text."""
         response = client_no_auth.post(
-            "/v1/audio/speech",
-            json={
-                "model": "tts-1",
-                "input": "",
-                "voice": "alloy"
-            }
+            "/v1/audio/speech", json={"model": "tts-1", "input": "", "voice": "alloy"}
         )
 
         # Should still return valid audio (silent or minimal)
@@ -452,11 +425,7 @@ class TestEdgeCases:
         """Test with single word input."""
         response = client_no_auth.post(
             "/v1/audio/speech",
-            json={
-                "model": "tts-1",
-                "input": "Hello",
-                "voice": "alloy"
-            }
+            json={"model": "tts-1", "input": "Hello", "voice": "alloy"},
         )
 
         assert response.status_code == 200
@@ -470,8 +439,8 @@ class TestEdgeCases:
             json={
                 "model": "tts-1",
                 "input": "Hello! How are you? I'm fine, thanks. #Testing @mentions.",
-                "voice": "alloy"
-            }
+                "voice": "alloy",
+            },
         )
 
         assert response.status_code == 200
@@ -485,8 +454,8 @@ class TestEdgeCases:
             json={
                 "model": "tts-1",
                 "input": "Hello 世界! Bonjour 🌍 Привет",
-                "voice": "alloy"
-            }
+                "voice": "alloy",
+            },
         )
 
         assert response.status_code == 200
@@ -502,8 +471,8 @@ class TestEdgeCases:
                 "model": "tts-1",
                 "input": "Testing minimum speed.",
                 "voice": "alloy",
-                "speed": 0.25
-            }
+                "speed": 0.25,
+            },
         )
         assert response.status_code == 200
 
@@ -514,7 +483,7 @@ class TestEdgeCases:
                 "model": "tts-1",
                 "input": "Testing maximum speed.",
                 "voice": "alloy",
-                "speed": 4.0
-            }
+                "speed": 4.0,
+            },
         )
         assert response.status_code == 200

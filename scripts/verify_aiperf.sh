@@ -19,7 +19,6 @@ aiperf profile \
   --model deepseek-ai/DeepSeek-R1 \
   --url http://localhost:8000 \
   --endpoint-type chat \
-  --service-kind openai \
   --streaming \
   --concurrency 100 \
   --request-count 1000 \

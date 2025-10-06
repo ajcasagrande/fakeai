@@ -12,11 +12,11 @@ This example shows:
 
 import asyncio
 import base64
-import sys
 import os
+import sys
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from fakeai import AppConfig
 from fakeai.fakeai_service import FakeAIService
@@ -55,9 +55,9 @@ async def example_audio_input():
                     TextContent(type="text", text="I'm sending you audio:"),
                     InputAudioContent(
                         type="input_audio",
-                        input_audio=InputAudio(data=audio_b64, format="wav")
-                    )
-                ]
+                        input_audio=InputAudio(data=audio_b64, format="wav"),
+                    ),
+                ],
             )
         ],
         max_tokens=50,
@@ -85,9 +85,7 @@ async def example_audio_output():
     # Create request with audio output
     request = ChatCompletionRequest(
         model="openai/gpt-oss-120b",
-        messages=[
-            Message(role=Role.USER, content="Say hello in a friendly way")
-        ],
+        messages=[Message(role=Role.USER, content="Say hello in a friendly way")],
         audio=AudioConfig(voice="alloy", format="mp3"),
         modalities=["text", "audio"],
         max_tokens=50,
@@ -112,7 +110,9 @@ async def example_audio_output():
     print(f"\nToken Usage:")
     print(f"  Completion tokens: {response.usage.completion_tokens}")
     if response.usage.completion_tokens_details:
-        print(f"  Audio output tokens: {response.usage.completion_tokens_details.audio_tokens}")
+        print(
+            f"  Audio output tokens: {response.usage.completion_tokens_details.audio_tokens}"
+        )
 
 
 async def example_audio_voices():
@@ -129,9 +129,7 @@ async def example_audio_voices():
     for voice in voices:
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[
-                Message(role=Role.USER, content="Hello")
-            ],
+            messages=[Message(role=Role.USER, content="Hello")],
             audio=AudioConfig(voice=voice, format="mp3"),
             max_tokens=20,
         )
@@ -166,9 +164,9 @@ async def example_audio_input_and_output():
                     TextContent(type="text", text="Please respond to this audio:"),
                     InputAudioContent(
                         type="input_audio",
-                        input_audio=InputAudio(data=audio_b64, format="wav")
-                    )
-                ]
+                        input_audio=InputAudio(data=audio_b64, format="wav"),
+                    ),
+                ],
             )
         ],
         audio=AudioConfig(voice="echo", format="mp3"),
@@ -184,7 +182,9 @@ async def example_audio_input_and_output():
     print(f"  Input audio tokens: {response.usage.prompt_tokens_details.audio_tokens}")
     print(f"  Prompt tokens: {response.usage.prompt_tokens}")
     if response.usage.completion_tokens_details:
-        print(f"  Output audio tokens: {response.usage.completion_tokens_details.audio_tokens}")
+        print(
+            f"  Output audio tokens: {response.usage.completion_tokens_details.audio_tokens}"
+        )
     print(f"  Completion tokens: {response.usage.completion_tokens}")
     print(f"  Total tokens: {response.usage.total_tokens}")
 

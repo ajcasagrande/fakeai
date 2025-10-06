@@ -13,6 +13,7 @@ import sys
 # Install uvloop as the default event loop BEFORE any asyncio imports
 try:
     import uvloop
+
     uvloop.install()
     print("✓ uvloop installed - using ultra-fast event loop (2-4x faster)")
 except ImportError:
@@ -21,6 +22,7 @@ except ImportError:
 
 # Now import uvicorn and app
 import uvicorn
+
 from fakeai.app import app
 from fakeai.config import AppConfig
 

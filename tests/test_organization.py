@@ -6,17 +6,18 @@ including user management, invites, projects, project users, and service account
 """
 
 import pytest
+
 from fakeai import AppConfig
 from fakeai.fakeai_service import FakeAIService
 from fakeai.models import (
-    CreateOrganizationUserRequest,
-    ModifyOrganizationUserRequest,
     CreateOrganizationInviteRequest,
     CreateOrganizationProjectRequest,
-    ModifyOrganizationProjectRequest,
+    CreateOrganizationUserRequest,
     CreateProjectUserRequest,
-    ModifyProjectUserRequest,
     CreateServiceAccountRequest,
+    ModifyOrganizationProjectRequest,
+    ModifyOrganizationUserRequest,
+    ModifyProjectUserRequest,
     OrganizationRole,
     ProjectRole,
     ServiceAccountRole,

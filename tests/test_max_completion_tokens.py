@@ -4,7 +4,9 @@ Tests for max_completion_tokens parameter handling.
 Validates that both max_tokens and max_completion_tokens are respected,
 and that max_completion_tokens takes precedence when both are provided.
 """
+
 import pytest
+
 from fakeai import AppConfig
 from fakeai.fakeai_service import FakeAIService
 from fakeai.models import ChatCompletionRequest, Message, Role
@@ -22,14 +24,15 @@ class TestMaxCompletionTokens:
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
             messages=[Message(role=Role.USER, content="Test")],
-            max_tokens=50
+            max_tokens=50,
         )
 
         response = await service.create_chat_completion(request)
 
         # Response should be limited by max_tokens
-        assert response.usage.completion_tokens <= 50, \
-            f"Completion tokens {response.usage.completion_tokens} should be <= 50"
+        assert (
+            response.usage.completion_tokens <= 50
+        ), f"Completion tokens {response.usage.completion_tokens} should be <= 50"
 
     @pytest.mark.asyncio
     async def test_max_completion_tokens_respected(self):
@@ -40,14 +43,15 @@ class TestMaxCompletionTokens:
         request = ChatCompletionRequest(
             model="deepseek-ai/DeepSeek-R1",
             messages=[Message(role=Role.USER, content="Test")],
-            max_completion_tokens=30
+            max_completion_tokens=30,
         )
 
         response = await service.create_chat_completion(request)
 
         # Response should be limited by max_completion_tokens
-        assert response.usage.completion_tokens <= 30, \
-            f"Completion tokens {response.usage.completion_tokens} should be <= 30"
+        assert (
+            response.usage.completion_tokens <= 30
+        ), f"Completion tokens {response.usage.completion_tokens} should be <= 30"
 
     @pytest.mark.asyncio
     async def test_max_completion_tokens_takes_precedence(self):
@@ -59,14 +63,15 @@ class TestMaxCompletionTokens:
             model="deepseek-ai/DeepSeek-R1",
             messages=[Message(role=Role.USER, content="Test")],
             max_tokens=100,
-            max_completion_tokens=25  # Should use this one
+            max_completion_tokens=25,  # Should use this one
         )
 
         response = await service.create_chat_completion(request)
 
         # Should respect max_completion_tokens (25), not max_tokens (100)
-        assert response.usage.completion_tokens <= 25, \
-            f"Completion tokens {response.usage.completion_tokens} should respect max_completion_tokens=25"
+        assert (
+            response.usage.completion_tokens <= 25
+        ), f"Completion tokens {response.usage.completion_tokens} should respect max_completion_tokens=25"
 
     @pytest.mark.asyncio
     async def test_default_when_neither_provided(self):
@@ -76,7 +81,7 @@ class TestMaxCompletionTokens:
 
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
-            messages=[Message(role=Role.USER, content="Test")]
+            messages=[Message(role=Role.USER, content="Test")],
         )
 
         response = await service.create_chat_completion(request)
@@ -94,7 +99,7 @@ class TestMaxCompletionTokens:
             model="deepseek-ai/DeepSeek-R1",
             messages=[Message(role=Role.USER, content="Test")],
             max_completion_tokens=20,
-            stream=True
+            stream=True,
         )
 
         token_count = 0
@@ -104,8 +109,7 @@ class TestMaxCompletionTokens:
                 token_count += 1
 
         # Should not exceed max_completion_tokens
-        assert token_count <= 20, \
-            f"Streamed {token_count} tokens, should be <= 20"
+        assert token_count <= 20, f"Streamed {token_count} tokens, should be <= 20"
 
     @pytest.mark.asyncio
     async def test_finish_reason_length_when_limit_hit(self):
@@ -117,15 +121,16 @@ class TestMaxCompletionTokens:
         request = ChatCompletionRequest(
             model="openai/gpt-oss-120b",
             messages=[Message(role=Role.USER, content="Generate long text")],
-            max_completion_tokens=5
+            max_completion_tokens=5,
         )
 
         response = await service.create_chat_completion(request)
 
         # Finish reason should be "length" if limit was reached
         if response.usage.completion_tokens >= 5:
-            assert response.choices[0].finish_reason == "length", \
-                "Finish reason should be 'length' when token limit hit"
+            assert (
+                response.choices[0].finish_reason == "length"
+            ), "Finish reason should be 'length' when token limit hit"
 
     def test_get_effective_max_tokens_helper(self):
         """Test the helper function directly."""
@@ -162,7 +167,7 @@ class TestMaxCompletionTokens:
         request = ChatCompletionRequest(
             model="deepseek-ai/DeepSeek-R1",
             messages=[Message(role=Role.USER, content="Test")],
-            max_completion_tokens=10000  # Very large
+            max_completion_tokens=10000,  # Very large
         )
 
         response = await service.create_chat_completion(request)

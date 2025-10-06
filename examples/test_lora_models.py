@@ -10,6 +10,7 @@ Examples:
 - ft:meta-llama/Llama-3.1-8B-Instruct:custom::adapter-123
 """
 import asyncio
+
 from fakeai import AppConfig
 from fakeai.fakeai_service import FakeAIService
 from fakeai.models import ChatCompletionRequest, Message, Role

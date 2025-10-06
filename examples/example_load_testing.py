@@ -16,12 +16,13 @@ Perfect for testing your application's behavior under load
 before deploying to production.
 """
 import asyncio
-import time
 import statistics
+import time
 from dataclasses import dataclass, field
 from typing import List
-from openai import AsyncOpenAI
+
 import httpx
+from openai import AsyncOpenAI
 
 # Base URL for FakeAI server
 BASE_URL = "http://localhost:8000"
@@ -30,6 +31,7 @@ BASE_URL = "http://localhost:8000"
 @dataclass
 class LoadTestResult:
     """Results from a load test run."""
+
     total_requests: int
     successful_requests: int
     failed_requests: int
@@ -226,8 +228,10 @@ async def demonstrate_concurrency_scaling():
             concurrency=concurrency,
         )
 
-        print(f"{concurrency:<15} {result.total_time_seconds:<12.2f} "
-              f"{result.requests_per_second:<12.2f} {result.avg_latency_ms:<20.2f}")
+        print(
+            f"{concurrency:<15} {result.total_time_seconds:<12.2f} "
+            f"{result.requests_per_second:<12.2f} {result.avg_latency_ms:<20.2f}"
+        )
 
     print()
     print("Observations:")
@@ -284,15 +288,19 @@ async def demonstrate_streaming_vs_nonstreaming():
     print()
     print("Results:")
     print("-" * 80)
-    print(f"Non-streaming: {non_streaming_time:.2f}s ({num_requests/non_streaming_time:.2f} RPS)")
-    print(f"Streaming:     {streaming_time:.2f}s ({num_requests/streaming_time:.2f} RPS)")
+    print(
+        f"Non-streaming: {non_streaming_time:.2f}s ({num_requests/non_streaming_time:.2f} RPS)"
+    )
+    print(
+        f"Streaming:     {streaming_time:.2f}s ({num_requests/streaming_time:.2f} RPS)"
+    )
     print()
 
     if streaming_time < non_streaming_time:
-        diff = ((non_streaming_time - streaming_time) / non_streaming_time * 100)
+        diff = (non_streaming_time - streaming_time) / non_streaming_time * 100
         print(f"Streaming is {diff:.1f}% faster (time to first token)")
     else:
-        diff = ((streaming_time - non_streaming_time) / streaming_time * 100)
+        diff = (streaming_time - non_streaming_time) / streaming_time * 100
         print(f"Non-streaming is {diff:.1f}% faster (total completion time)")
 
     print()
@@ -318,7 +326,7 @@ async def demonstrate_cache_performance():
             model="openai/gpt-oss-120b",
             messages=[
                 {"role": "system", "content": f"System message {i}"},
-                {"role": "user", "content": "Hello"}
+                {"role": "user", "content": "Hello"},
             ],
         )
         tasks.append(task)
@@ -349,7 +357,7 @@ async def demonstrate_cache_performance():
             model="openai/gpt-oss-120b",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": f"Question {i}"}
+                {"role": "user", "content": f"Question {i}"},
             ],
         )
         tasks.append(task)
@@ -368,7 +376,9 @@ async def demonstrate_cache_performance():
     print(f"Cached tokens: {cached_tokens_sum}")
     print()
 
-    improvement = ((no_cache_time - cache_time) / no_cache_time * 100) if no_cache_time > 0 else 0
+    improvement = (
+        ((no_cache_time - cache_time) / no_cache_time * 100) if no_cache_time > 0 else 0
+    )
     print(f"Performance improvement with cache: {improvement:.1f}%")
     print()
 
@@ -481,7 +491,9 @@ async def run_benchmark_suite():
         {"name": "Heavy load", "requests": 200, "concurrency": 20},
     ]
 
-    print(f"{'Benchmark':<20} {'Requests':<12} {'RPS':<12} {'P95 (ms)':<12} {'P99 (ms)':<12}")
+    print(
+        f"{'Benchmark':<20} {'Requests':<12} {'RPS':<12} {'P95 (ms)':<12} {'P99 (ms)':<12}"
+    )
     print("-" * 80)
 
     for config in benchmark_configs:
@@ -490,9 +502,11 @@ async def run_benchmark_suite():
             concurrency=config["concurrency"],
         )
 
-        print(f"{config['name']:<20} {result.successful_requests:<12} "
-              f"{result.requests_per_second:<12.2f} "
-              f"{result.p95_latency_ms:<12.2f} {result.p99_latency_ms:<12.2f}")
+        print(
+            f"{config['name']:<20} {result.successful_requests:<12} "
+            f"{result.requests_per_second:<12.2f} "
+            f"{result.p95_latency_ms:<12.2f} {result.p99_latency_ms:<12.2f}"
+        )
 
     print()
 

@@ -4,6 +4,7 @@ Audio utilities for FakeAI chat completions.
 This module provides utilities for handling audio input/output in chat completions,
 including token estimation, content extraction, and audio generation.
 """
+
 #  SPDX-License-Identifier: Apache-2.0
 
 import base64
@@ -155,9 +156,7 @@ def transcribe_audio_input(audio_bytes: bytes, audio_format: str) -> str:
 
 
 def generate_audio_output(
-    text: str,
-    voice: str = "alloy",
-    audio_format: str = "mp3"
+    text: str, voice: str = "alloy", audio_format: str = "mp3"
 ) -> dict[str, Any]:
     """
     Generate simulated audio output for chat completion response.
@@ -173,7 +172,7 @@ def generate_audio_output(
     Returns:
         Dictionary containing audio output data
     """
-    from fakeai.utils import generate_simulated_audio, estimate_audio_duration
+    from fakeai.utils import estimate_audio_duration, generate_simulated_audio
 
     # Generate audio bytes
     audio_bytes = generate_simulated_audio(

@@ -4,7 +4,9 @@ Test CLI and configuration integration.
 Tests that CLI arguments properly override environment variables
 and that all configuration options work correctly together.
 """
+
 import json
+
 import pytest
 
 from fakeai.config import AppConfig
@@ -296,8 +298,17 @@ class TestConfigurationEdgeCases:
     def test_all_valid_audio_voices(self):
         """Test all valid audio voice options."""
         valid_voices = [
-            "alloy", "ash", "ballad", "coral", "echo", "fable",
-            "onyx", "nova", "shimmer", "sage", "verse"
+            "alloy",
+            "ash",
+            "ballad",
+            "coral",
+            "echo",
+            "fable",
+            "onyx",
+            "nova",
+            "shimmer",
+            "sage",
+            "verse",
         ]
 
         for voice in valid_voices:

@@ -4,6 +4,7 @@ JSON Schema validation and generation for FakeAI structured outputs.
 This module provides validation and generation capabilities for OpenAI's
 structured outputs feature, supporting strict schema compliance.
 """
+
 #  SPDX-License-Identifier: Apache-2.0
 
 import random

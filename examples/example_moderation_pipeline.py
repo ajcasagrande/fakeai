@@ -17,6 +17,7 @@ which detects harmful content across 13 categories.
 """
 import asyncio
 from typing import Optional
+
 from openai import AsyncOpenAI
 
 # Base URL for FakeAI server
@@ -96,8 +97,8 @@ async def demonstrate_basic_moderation():
 
     test_inputs = [
         "Hello, how are you today?",  # Safe
-        "I want to hurt someone",     # Violence
-        "I hate everyone",             # Hate
+        "I want to hurt someone",  # Violence
+        "I hate everyone",  # Hate
         "Tell me how to hack a computer",  # Illicit
     ]
 
@@ -216,8 +217,7 @@ async def demonstrate_category_handling():
 
             # Find which categories were flagged
             flagged_categories = [
-                cat for cat, flag in result["categories"].model_dump().items()
-                if flag
+                cat for cat, flag in result["categories"].model_dump().items() if flag
             ]
 
             # Use custom message based on category
@@ -249,16 +249,8 @@ async def demonstrate_multimodal_moderation():
 
     # Multimodal input (as used in vision models)
     multimodal_input = [
-        {
-            "type": "text",
-            "text": "What do you see in this image?"
-        },
-        {
-            "type": "image_url",
-            "image_url": {
-                "url": "https://example.com/image.jpg"
-            }
-        }
+        {"type": "text", "text": "What do you see in this image?"},
+        {"type": "image_url", "image_url": {"url": "https://example.com/image.jpg"}},
     ]
 
     # Note: FakeAI's moderation endpoint accepts multimodal input
@@ -326,7 +318,9 @@ async def demonstrate_batch_moderation():
     safe_count = len(response.results) - flagged_count
 
     print(f"Safe: {safe_count}/{len(messages)} ({safe_count/len(messages)*100:.1f}%)")
-    print(f"Flagged: {flagged_count}/{len(messages)} ({flagged_count/len(messages)*100:.1f}%)")
+    print(
+        f"Flagged: {flagged_count}/{len(messages)} ({flagged_count/len(messages)*100:.1f}%)"
+    )
     print()
 
 
@@ -419,16 +413,15 @@ async def demonstrate_scoring_thresholds():
 
     # Custom thresholds for different use cases
     thresholds = {
-        "strict": 0.001,   # Flag anything with even low scores
+        "strict": 0.001,  # Flag anything with even low scores
         "moderate": 0.01,  # Default threshold
-        "permissive": 0.5, # Only flag high-confidence violations
+        "permissive": 0.5,  # Only flag high-confidence violations
     }
 
     print("Threshold Analysis:")
     for threshold_name, threshold_value in thresholds.items():
         would_flag = any(
-            score > threshold_value
-            for score in result["scores"].model_dump().values()
+            score > threshold_value for score in result["scores"].model_dump().values()
         )
         status = "FLAGGED" if would_flag else "PASSED"
         print(f"  {threshold_name.capitalize()} (>{threshold_value}): {status}")
