@@ -39,7 +39,9 @@ class Embedding(BaseModel):
     object: Literal["embedding"] = Field(
         default="embedding", description="The object type."
     )
-    embedding: list[float] = Field(description="The embedding vector.")
+    embedding: list[float] | str = Field(
+        description="The embedding vector (list of floats or base64 string)."
+    )
     index: int = Field(description="The index of the embedding.")
 
 

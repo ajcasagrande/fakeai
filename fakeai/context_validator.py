@@ -6,6 +6,21 @@ Validates that prompt tokens + max_tokens doesn't exceed model context windows.
 
 from typing import Any
 
+
+class ContextLengthExceededError(Exception):
+    """Exception raised when context length is exceeded."""
+
+    def __init__(self, message: str, error_dict: dict[str, Any]):
+        """
+        Initialize the exception.
+
+        Args:
+            message: Error message
+            error_dict: Full error response dict
+        """
+        super().__init__(message)
+        self.error_dict = error_dict
+
 # Model context windows (in tokens)
 MODEL_CONTEXT_WINDOWS = {
     "gpt-4": 8192,

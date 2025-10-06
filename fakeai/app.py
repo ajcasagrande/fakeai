@@ -35,6 +35,8 @@ from fakeai.metrics import MetricsTracker
 from fakeai.metrics_streaming import MetricsStreamer
 from fakeai.model_metrics import ModelMetricsTracker
 from fakeai.models import (
+    Assistant,
+    AssistantList,
     ArchiveOrganizationProjectResponse,
     AudioSpeechesUsageResponse,
     AudioTranscriptionsUsageResponse,
@@ -47,6 +49,10 @@ from fakeai.models import (
     CompletionsUsageResponse,
     CostsResponse,
     CreateBatchRequest,
+    CreateAssistantRequest,
+    CreateMessageRequest,
+    CreateRunRequest,
+    CreateThreadRequest,
     CreateOrganizationInviteRequest,
     CreateOrganizationProjectRequest,
     CreateOrganizationUserRequest,
@@ -69,10 +75,14 @@ from fakeai.models import (
     FineTuningJob,
     FineTuningJobList,
     FineTuningJobRequest,
+    MessageList,
     ImageGenerationRequest,
     ImageGenerationResponse,
     ImagesUsageResponse,
     ModelCapabilitiesResponse,
+    ModifyAssistantRequest,
+    ModifyRunRequest,
+    ModifyThreadRequest,
     ModelListResponse,
     ModerationRequest,
     ModerationResponse,
@@ -81,12 +91,20 @@ from fakeai.models import (
     ModifyProjectUserRequest,
     ModifyVectorStoreRequest,
     OrganizationInvite,
+    Run,
+    RunList,
+    RunStatus,
+    RunStep,
+    RunStepList,
     OrganizationInviteListResponse,
     OrganizationProject,
     OrganizationProjectListResponse,
     OrganizationUser,
     OrganizationUserListResponse,
     ProjectUser,
+    Thread,
+    ThreadMessage,
+    Usage,
     ProjectUserListResponse,
     RankingRequest,
     RankingResponse,
@@ -139,6 +157,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Exception handler for context length exceeded errors
+from fakeai.context_validator import ContextLengthExceededError
+
+
+@app.exception_handler(ContextLengthExceededError)
+async def context_length_exceeded_handler(request: Request, exc: ContextLengthExceededError):
+    """Handle context length exceeded errors with proper OpenAI-compatible format."""
+    return JSONResponse(
+        status_code=400,
+        content=exc.error_dict,
+    )
+
 
 # Initialize security components
 api_key_manager = ApiKeyManager()
@@ -316,55 +347,57 @@ async def log_requests(request: Request, call_next):
 
     # Check rate limits if enabled
     rate_limit_headers = {}
-    if config.rate_limit_enabled and config.require_api_key:
+    if config.rate_limit_enabled:
         # Extract API key from Authorization header
         auth_header = request.headers.get("Authorization", "")
         api_key = auth_header[7:] if auth_header.startswith("Bearer ") else auth_header
 
-        if api_key and api_key in config.api_keys:
-            # Estimate token count from request body for chat/completions endpoints
-            estimated_tokens = 0
-            if endpoint in [
-                "/v1/chat/completions",
-                "/v1/completions",
-                "/v1/embeddings",
-            ]:
-                try:
-                    body = await request.body()
-                    # Store body for later use since it can only be read once
-                    request._body = body
+        # Use API key if available, otherwise use default key for rate limiting
+        effective_api_key = api_key if api_key else "anonymous"
 
-                    # Rough estimate: 1 token per 4 characters
-                    estimated_tokens = max(100, len(body) // 4)
-                except Exception:
-                    estimated_tokens = 100  # Default estimate
+        # Estimate token count from request body for chat/completions endpoints
+        estimated_tokens = 0
+        if endpoint in [
+            "/v1/chat/completions",
+            "/v1/completions",
+            "/v1/embeddings",
+        ]:
+            try:
+                body = await request.body()
+                # Store body for later use since it can only be read once
+                request._body = body
 
-            # Check rate limits
-            allowed, retry_after, rate_limit_headers = rate_limiter.check_rate_limit(
-                api_key, estimated_tokens
+                # Rough estimate: 1 token per 4 characters
+                estimated_tokens = max(100, len(body) // 4)
+            except Exception:
+                estimated_tokens = 100  # Default estimate
+
+        # Check rate limits
+        allowed, retry_after, rate_limit_headers = rate_limiter.check_rate_limit(
+            effective_api_key, estimated_tokens
+        )
+
+        if not allowed:
+            # Record rate limit violation for abuse detection
+            if config.enable_abuse_detection:
+                abuse_detector.record_rate_limit_violation(client_ip)
+
+            # Return 429 with rate limit headers
+            return JSONResponse(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                content=ErrorResponse(
+                    error=ErrorDetail(
+                        code="rate_limit_exceeded",
+                        message="Rate limit exceeded. Please retry after the specified time.",
+                        param=None,
+                        type="rate_limit_error",
+                    )
+                ).model_dump(),
+                headers={
+                    **rate_limit_headers,
+                    "Retry-After": retry_after,
+                },
             )
-
-            if not allowed:
-                # Record rate limit violation for abuse detection
-                if config.enable_abuse_detection:
-                    abuse_detector.record_rate_limit_violation(client_ip)
-
-                # Return 429 with rate limit headers
-                return JSONResponse(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    content=ErrorResponse(
-                        error=ErrorDetail(
-                            code="rate_limit_exceeded",
-                            message="Rate limit exceeded. Please retry after the specified time.",
-                            param=None,
-                            type="rate_limit_error",
-                        )
-                    ).model_dump(),
-                    headers={
-                        **rate_limit_headers,
-                        "Retry-After": retry_after,
-                    },
-                )
 
     # Process the request
     try:
@@ -1897,3 +1930,850 @@ async def list_vector_store_files_in_batch(
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+# ==============================================================================
+# ASSISTANTS API
+# ==============================================================================
+
+# In-memory storage for assistants, threads, messages, and runs
+assistants_storage: dict[str, Assistant] = {}
+threads_storage: dict[str, dict] = {}
+messages_storage: dict[str, list[ThreadMessage]] = {}
+runs_storage: dict[str, dict[str, Run]] = {}
+run_steps_storage: dict[str, dict[str, list[RunStep]]] = {}
+
+
+def _generate_assistant_id() -> str:
+    """Generate a unique assistant ID."""
+    import uuid
+    return f"asst_{uuid.uuid4().hex}"
+
+
+def _generate_thread_id() -> str:
+    """Generate a unique thread ID."""
+    import uuid
+    return f"thread_{uuid.uuid4().hex}"
+
+
+def _generate_message_id() -> str:
+    """Generate a unique message ID."""
+    import uuid
+    return f"msg_{uuid.uuid4().hex}"
+
+
+def _generate_run_id() -> str:
+    """Generate a unique run ID."""
+    import uuid
+    return f"run_{uuid.uuid4().hex}"
+
+
+def _generate_step_id() -> str:
+    """Generate a unique step ID."""
+    import uuid
+    return f"step_{uuid.uuid4().hex}"
+
+
+# Assistants CRUD endpoints
+@app.post("/v1/assistants", dependencies=[Depends(verify_api_key)])
+async def create_assistant(request: CreateAssistantRequest) -> Assistant:
+    """Create a new assistant."""
+    assistant_id = _generate_assistant_id()
+    created_at = int(time.time())
+
+    assistant = Assistant(
+        id=assistant_id,
+        created_at=created_at,
+        name=request.name,
+        description=request.description,
+        model=request.model,
+        instructions=request.instructions,
+        tools=request.tools,
+        tool_resources=request.tool_resources,
+        metadata=request.metadata,
+        temperature=request.temperature,
+        top_p=request.top_p,
+        response_format=request.response_format,
+    )
+
+    assistants_storage[assistant_id] = assistant
+    return assistant
+
+
+@app.get("/v1/assistants", dependencies=[Depends(verify_api_key)])
+async def list_assistants(
+    limit: int = Query(default=20, ge=1, le=100),
+    order: str = Query(default="desc"),
+    after: str | None = Query(default=None),
+    before: str | None = Query(default=None),
+) -> AssistantList:
+    """List assistants with pagination."""
+    assistants = list(assistants_storage.values())
+
+    # Sort by created_at
+    assistants.sort(key=lambda a: a.created_at, reverse=(order == "desc"))
+
+    # Apply pagination
+    if after:
+        try:
+            after_idx = next(i for i, a in enumerate(assistants) if a.id == after)
+            assistants = assistants[after_idx + 1:]
+        except StopIteration:
+            pass
+
+    if before:
+        try:
+            before_idx = next(i for i, a in enumerate(assistants) if a.id == before)
+            assistants = assistants[:before_idx]
+        except StopIteration:
+            pass
+
+    # Limit results
+    has_more = len(assistants) > limit
+    assistants = assistants[:limit]
+
+    return AssistantList(
+        data=assistants,
+        first_id=assistants[0].id if assistants else None,
+        last_id=assistants[-1].id if assistants else None,
+        has_more=has_more,
+    )
+
+
+@app.get("/v1/assistants/{assistant_id}", dependencies=[Depends(verify_api_key)])
+async def retrieve_assistant(assistant_id: str) -> Assistant:
+    """Retrieve a specific assistant."""
+    if assistant_id not in assistants_storage:
+        raise HTTPException(status_code=404, detail=f"Assistant {assistant_id} not found")
+    return assistants_storage[assistant_id]
+
+
+@app.post("/v1/assistants/{assistant_id}", dependencies=[Depends(verify_api_key)])
+async def modify_assistant(
+    assistant_id: str, request: ModifyAssistantRequest
+) -> Assistant:
+    """Modify an existing assistant."""
+    if assistant_id not in assistants_storage:
+        raise HTTPException(status_code=404, detail=f"Assistant {assistant_id} not found")
+
+    assistant = assistants_storage[assistant_id]
+
+    # Update fields if provided
+    if request.model is not None:
+        assistant.model = request.model
+    if request.name is not None:
+        assistant.name = request.name
+    if request.description is not None:
+        assistant.description = request.description
+    if request.instructions is not None:
+        assistant.instructions = request.instructions
+    if request.tools is not None:
+        assistant.tools = request.tools
+    if request.tool_resources is not None:
+        assistant.tool_resources = request.tool_resources
+    if request.metadata is not None:
+        assistant.metadata = request.metadata
+    if request.temperature is not None:
+        assistant.temperature = request.temperature
+    if request.top_p is not None:
+        assistant.top_p = request.top_p
+    if request.response_format is not None:
+        assistant.response_format = request.response_format
+
+    return assistant
+
+
+@app.delete("/v1/assistants/{assistant_id}", dependencies=[Depends(verify_api_key)])
+async def delete_assistant(assistant_id: str) -> dict:
+    """Delete an assistant."""
+    if assistant_id not in assistants_storage:
+        raise HTTPException(status_code=404, detail=f"Assistant {assistant_id} not found")
+
+    del assistants_storage[assistant_id]
+
+    return {
+        "id": assistant_id,
+        "object": "assistant.deleted",
+        "deleted": True,
+    }
+
+
+# Threads endpoints
+@app.post("/v1/threads", dependencies=[Depends(verify_api_key)])
+async def create_thread(request: CreateThreadRequest) -> Thread:
+    """Create a new thread."""
+    thread_id = _generate_thread_id()
+    created_at = int(time.time())
+
+    thread = Thread(
+        id=thread_id,
+        created_at=created_at,
+        metadata=request.metadata,
+        tool_resources=request.tool_resources,
+    )
+
+    threads_storage[thread_id] = thread.model_dump()
+    messages_storage[thread_id] = []
+
+    # Create initial messages if provided
+    if request.messages:
+        for msg_data in request.messages:
+            message_id = _generate_message_id()
+            content = msg_data.get("content", "")
+
+            # Convert string content to content array format
+            if isinstance(content, str):
+                content_array = [{"type": "text", "text": {"value": content}}]
+            else:
+                content_array = content
+
+            message = ThreadMessage(
+                id=message_id,
+                created_at=int(time.time()),
+                thread_id=thread_id,
+                role=msg_data.get("role", "user"),
+                content=content_array,
+                metadata=msg_data.get("metadata", {}),
+            )
+            messages_storage[thread_id].append(message)
+
+    return thread
+
+
+@app.get("/v1/threads/{thread_id}", dependencies=[Depends(verify_api_key)])
+async def retrieve_thread(thread_id: str) -> Thread:
+    """Retrieve a specific thread."""
+    if thread_id not in threads_storage:
+        raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found")
+    return Thread(**threads_storage[thread_id])
+
+
+@app.post("/v1/threads/{thread_id}", dependencies=[Depends(verify_api_key)])
+async def modify_thread(thread_id: str, request: ModifyThreadRequest) -> Thread:
+    """Modify a thread."""
+    if thread_id not in threads_storage:
+        raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found")
+
+    thread_data = threads_storage[thread_id]
+
+    if request.metadata is not None:
+        thread_data["metadata"] = request.metadata
+    if request.tool_resources is not None:
+        thread_data["tool_resources"] = request.tool_resources
+
+    return Thread(**thread_data)
+
+
+@app.delete("/v1/threads/{thread_id}", dependencies=[Depends(verify_api_key)])
+async def delete_thread(thread_id: str) -> dict:
+    """Delete a thread."""
+    if thread_id not in threads_storage:
+        raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found")
+
+    del threads_storage[thread_id]
+    if thread_id in messages_storage:
+        del messages_storage[thread_id]
+    if thread_id in runs_storage:
+        del runs_storage[thread_id]
+    if thread_id in run_steps_storage:
+        del run_steps_storage[thread_id]
+
+    return {
+        "id": thread_id,
+        "object": "thread.deleted",
+        "deleted": True,
+    }
+
+
+# Messages endpoints
+@app.post("/v1/threads/{thread_id}/messages", dependencies=[Depends(verify_api_key)])
+async def create_message(thread_id: str, request: CreateMessageRequest) -> ThreadMessage:
+    """Create a message in a thread."""
+    if thread_id not in threads_storage:
+        raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found")
+
+    message_id = _generate_message_id()
+    created_at = int(time.time())
+
+    # Convert string content to content array format
+    if isinstance(request.content, str):
+        content_array = [{"type": "text", "text": {"value": request.content}}]
+    else:
+        content_array = request.content
+
+    message = ThreadMessage(
+        id=message_id,
+        created_at=created_at,
+        thread_id=thread_id,
+        role=request.role,
+        content=content_array,
+        attachments=request.attachments,
+        metadata=request.metadata,
+    )
+
+    if thread_id not in messages_storage:
+        messages_storage[thread_id] = []
+
+    messages_storage[thread_id].append(message)
+
+    return message
+
+
+@app.get("/v1/threads/{thread_id}/messages", dependencies=[Depends(verify_api_key)])
+async def list_messages(
+    thread_id: str,
+    limit: int = Query(default=20, ge=1, le=100),
+    order: str = Query(default="desc"),
+    after: str | None = Query(default=None),
+    before: str | None = Query(default=None),
+) -> MessageList:
+    """List messages in a thread."""
+    if thread_id not in threads_storage:
+        raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found")
+
+    messages = messages_storage.get(thread_id, [])
+
+    # Sort by created_at
+    messages = sorted(messages, key=lambda m: m.created_at, reverse=(order == "desc"))
+
+    # Apply pagination
+    if after:
+        try:
+            after_idx = next(i for i, m in enumerate(messages) if m.id == after)
+            messages = messages[after_idx + 1:]
+        except StopIteration:
+            pass
+
+    if before:
+        try:
+            before_idx = next(i for i, m in enumerate(messages) if m.id == before)
+            messages = messages[:before_idx]
+        except StopIteration:
+            pass
+
+    # Limit results
+    has_more = len(messages) > limit
+    messages = messages[:limit]
+
+    return MessageList(
+        data=messages,
+        first_id=messages[0].id if messages else None,
+        last_id=messages[-1].id if messages else None,
+        has_more=has_more,
+    )
+
+
+@app.get(
+    "/v1/threads/{thread_id}/messages/{message_id}",
+    dependencies=[Depends(verify_api_key)],
+)
+async def retrieve_message(thread_id: str, message_id: str) -> ThreadMessage:
+    """Retrieve a specific message."""
+    if thread_id not in threads_storage:
+        raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found")
+
+    messages = messages_storage.get(thread_id, [])
+    message = next((m for m in messages if m.id == message_id), None)
+
+    if not message:
+        raise HTTPException(status_code=404, detail=f"Message {message_id} not found")
+
+    return message
+
+
+@app.post(
+    "/v1/threads/{thread_id}/messages/{message_id}",
+    dependencies=[Depends(verify_api_key)],
+)
+async def modify_message(
+    thread_id: str, message_id: str, request: dict
+) -> ThreadMessage:
+    """Modify a message (only metadata)."""
+    if thread_id not in threads_storage:
+        raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found")
+
+    messages = messages_storage.get(thread_id, [])
+    message = next((m for m in messages if m.id == message_id), None)
+
+    if not message:
+        raise HTTPException(status_code=404, detail=f"Message {message_id} not found")
+
+    # Only metadata can be modified
+    if "metadata" in request:
+        message.metadata = request["metadata"]
+
+    return message
+
+
+# Runs endpoints
+@app.post("/v1/threads/{thread_id}/runs", dependencies=[Depends(verify_api_key)], response_model=None)
+async def create_run(thread_id: str, request: CreateRunRequest):
+    """Create a run."""
+    if thread_id not in threads_storage:
+        raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found")
+
+    if request.assistant_id not in assistants_storage:
+        raise HTTPException(
+            status_code=404, detail=f"Assistant {request.assistant_id} not found"
+        )
+
+    assistant = assistants_storage[request.assistant_id]
+    run_id = _generate_run_id()
+    created_at = int(time.time())
+
+    # Determine model and instructions
+    model = request.model or assistant.model
+    instructions = request.instructions or assistant.instructions
+    tools = request.tools if request.tools is not None else assistant.tools
+
+    run = Run(
+        id=run_id,
+        created_at=created_at,
+        thread_id=thread_id,
+        assistant_id=request.assistant_id,
+        status=RunStatus.QUEUED,
+        model=model,
+        instructions=instructions,
+        tools=tools,
+        metadata=request.metadata,
+        temperature=request.temperature or assistant.temperature,
+        top_p=request.top_p or assistant.top_p,
+        max_prompt_tokens=request.max_prompt_tokens,
+        max_completion_tokens=request.max_completion_tokens,
+        truncation_strategy=request.truncation_strategy,
+        tool_choice=request.tool_choice,
+        parallel_tool_calls=request.parallel_tool_calls,
+        response_format=request.response_format or assistant.response_format,
+    )
+
+    if thread_id not in runs_storage:
+        runs_storage[thread_id] = {}
+
+    runs_storage[thread_id][run_id] = run
+
+    # Initialize run steps storage
+    if thread_id not in run_steps_storage:
+        run_steps_storage[thread_id] = {}
+    if run_id not in run_steps_storage[thread_id]:
+        run_steps_storage[thread_id][run_id] = []
+
+    # Handle streaming
+    if request.stream:
+        async def generate_run_stream():
+            # Send initial event
+            yield f"event: thread.run.created\ndata: {run.model_dump_json()}\n\n"
+
+            # Simulate status progression
+            import asyncio
+
+            # Update to in_progress
+            await asyncio.sleep(0.1)
+            run.status = RunStatus.IN_PROGRESS
+            run.started_at = int(time.time())
+            yield f"event: thread.run.in_progress\ndata: {run.model_dump_json()}\n\n"
+
+            # Create a message step
+            step_id = _generate_step_id()
+            step = RunStep(
+                id=step_id,
+                created_at=int(time.time()),
+                run_id=run_id,
+                assistant_id=request.assistant_id,
+                thread_id=thread_id,
+                type="message_creation",
+                status="in_progress",
+                step_details={
+                    "type": "message_creation",
+                    "message_creation": {"message_id": _generate_message_id()},
+                },
+            )
+
+            run_steps_storage[thread_id][run_id].append(step)
+
+            yield f"event: thread.run.step.created\ndata: {step.model_dump_json()}\n\n"
+
+            # Generate assistant message
+            await asyncio.sleep(0.2)
+            assistant_message = ThreadMessage(
+                id=_generate_message_id(),
+                created_at=int(time.time()),
+                thread_id=thread_id,
+                role="assistant",
+                content=[
+                    {
+                        "type": "text",
+                        "text": {
+                            "value": "I'm an AI assistant. I can help you with various tasks."
+                        },
+                    }
+                ],
+                assistant_id=request.assistant_id,
+                run_id=run_id,
+            )
+            messages_storage[thread_id].append(assistant_message)
+
+            # Complete the step
+            step.status = "completed"
+            step.completed_at = int(time.time())
+            yield f"event: thread.run.step.completed\ndata: {step.model_dump_json()}\n\n"
+
+            # Complete the run
+            await asyncio.sleep(0.1)
+            run.status = RunStatus.COMPLETED
+            run.completed_at = int(time.time())
+            run.usage = Usage(
+                prompt_tokens=50,
+                completion_tokens=20,
+                total_tokens=70,
+            )
+            yield f"event: thread.run.completed\ndata: {run.model_dump_json()}\n\n"
+            yield f"data: [DONE]\n\n"
+
+        return StreamingResponse(
+            generate_run_stream(),
+            media_type="text/event-stream",
+        )
+
+    # Non-streaming: simulate async processing
+    import asyncio
+    import uuid
+
+    async def process_run():
+        await asyncio.sleep(0.5)
+
+        # Update status to in_progress
+        run.status = RunStatus.IN_PROGRESS
+        run.started_at = int(time.time())
+
+        # Create a message step
+        step_id = _generate_step_id()
+        step = RunStep(
+            id=step_id,
+            created_at=int(time.time()),
+            run_id=run_id,
+            assistant_id=request.assistant_id,
+            thread_id=thread_id,
+            type="message_creation",
+            status="in_progress",
+            step_details={
+                "type": "message_creation",
+                "message_creation": {"message_id": _generate_message_id()},
+            },
+        )
+
+        run_steps_storage[thread_id][run_id].append(step)
+
+        # Check if any function tools are present
+        has_function_tools = any(
+            tool.get("type") == "function" for tool in tools
+        )
+
+        if has_function_tools and random.random() < 0.3:  # 30% chance to require action
+            # Simulate requiring tool call
+            tool_call_id = f"call_{uuid.uuid4().hex}"
+            function_tool = next(
+                (t for t in tools if t.get("type") == "function"), None
+            )
+
+            run.status = RunStatus.REQUIRES_ACTION
+            run.required_action = {
+                "type": "submit_tool_outputs",
+                "submit_tool_outputs": {
+                    "tool_calls": [
+                        {
+                            "id": tool_call_id,
+                            "type": "function",
+                            "function": {
+                                "name": function_tool["function"]["name"],
+                                "arguments": '{"location": "San Francisco"}',
+                            },
+                        }
+                    ]
+                },
+            }
+        else:
+            # Generate assistant message
+            await asyncio.sleep(0.3)
+            assistant_message = ThreadMessage(
+                id=_generate_message_id(),
+                created_at=int(time.time()),
+                thread_id=thread_id,
+                role="assistant",
+                content=[
+                    {
+                        "type": "text",
+                        "text": {
+                            "value": "I'm an AI assistant. I can help you with various tasks."
+                        },
+                    }
+                ],
+                assistant_id=request.assistant_id,
+                run_id=run_id,
+            )
+            messages_storage[thread_id].append(assistant_message)
+
+            # Complete the step
+            step.status = "completed"
+            step.completed_at = int(time.time())
+
+            # Complete the run
+            run.status = RunStatus.COMPLETED
+            run.completed_at = int(time.time())
+            run.usage = Usage(
+                prompt_tokens=50,
+                completion_tokens=20,
+                total_tokens=70,
+            )
+
+    # Start background processing
+    asyncio.create_task(process_run())
+
+    return run
+
+
+@app.get("/v1/threads/{thread_id}/runs", dependencies=[Depends(verify_api_key)])
+async def list_runs(
+    thread_id: str,
+    limit: int = Query(default=20, ge=1, le=100),
+    order: str = Query(default="desc"),
+    after: str | None = Query(default=None),
+    before: str | None = Query(default=None),
+) -> RunList:
+    """List runs in a thread."""
+    if thread_id not in threads_storage:
+        raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found")
+
+    runs = list(runs_storage.get(thread_id, {}).values())
+
+    # Sort by created_at
+    runs = sorted(runs, key=lambda r: r.created_at, reverse=(order == "desc"))
+
+    # Apply pagination
+    if after:
+        try:
+            after_idx = next(i for i, r in enumerate(runs) if r.id == after)
+            runs = runs[after_idx + 1:]
+        except StopIteration:
+            pass
+
+    if before:
+        try:
+            before_idx = next(i for i, r in enumerate(runs) if r.id == before)
+            runs = runs[:before_idx]
+        except StopIteration:
+            pass
+
+    # Limit results
+    has_more = len(runs) > limit
+    runs = runs[:limit]
+
+    return RunList(
+        data=runs,
+        first_id=runs[0].id if runs else None,
+        last_id=runs[-1].id if runs else None,
+        has_more=has_more,
+    )
+
+
+@app.get(
+    "/v1/threads/{thread_id}/runs/{run_id}",
+    dependencies=[Depends(verify_api_key)],
+)
+async def retrieve_run(thread_id: str, run_id: str) -> Run:
+    """Retrieve a specific run."""
+    if thread_id not in threads_storage:
+        raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found")
+
+    run = runs_storage.get(thread_id, {}).get(run_id)
+
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    return run
+
+
+@app.post(
+    "/v1/threads/{thread_id}/runs/{run_id}",
+    dependencies=[Depends(verify_api_key)],
+)
+async def modify_run(thread_id: str, run_id: str, request: ModifyRunRequest) -> Run:
+    """Modify a run (only metadata)."""
+    if thread_id not in threads_storage:
+        raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found")
+
+    run = runs_storage.get(thread_id, {}).get(run_id)
+
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    if request.metadata is not None:
+        run.metadata = request.metadata
+
+    return run
+
+
+@app.post(
+    "/v1/threads/{thread_id}/runs/{run_id}/cancel",
+    dependencies=[Depends(verify_api_key)],
+)
+async def cancel_run(thread_id: str, run_id: str) -> Run:
+    """Cancel a run."""
+    if thread_id not in threads_storage:
+        raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found")
+
+    run = runs_storage.get(thread_id, {}).get(run_id)
+
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    # Update status to cancelling or cancelled
+    if run.status in [RunStatus.QUEUED, RunStatus.IN_PROGRESS]:
+        run.status = RunStatus.CANCELLING
+        run.cancelled_at = int(time.time())
+
+        # Simulate quick cancellation
+        import asyncio
+
+        async def complete_cancellation():
+            await asyncio.sleep(0.1)
+            run.status = RunStatus.CANCELLED
+
+        asyncio.create_task(complete_cancellation())
+
+    return run
+
+
+@app.post(
+    "/v1/threads/{thread_id}/runs/{run_id}/submit_tool_outputs",
+    dependencies=[Depends(verify_api_key)],
+)
+async def submit_tool_outputs(
+    thread_id: str, run_id: str, request: dict
+) -> Run:
+    """Submit tool outputs for a run."""
+    if thread_id not in threads_storage:
+        raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found")
+
+    run = runs_storage.get(thread_id, {}).get(run_id)
+
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    if run.status != RunStatus.REQUIRES_ACTION:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Run is in {run.status} status, not requires_action",
+        )
+
+    # Clear required action and continue processing
+    run.required_action = None
+    run.status = RunStatus.IN_PROGRESS
+
+    # Simulate completing the run
+    import asyncio
+
+    async def complete_run():
+        await asyncio.sleep(0.3)
+
+        # Generate assistant message with tool results
+        assistant_message = ThreadMessage(
+            id=_generate_message_id(),
+            created_at=int(time.time()),
+            thread_id=thread_id,
+            role="assistant",
+            content=[
+                {
+                    "type": "text",
+                    "text": {
+                        "value": f"Based on the tool output, the result is: {request.get('tool_outputs', [{}])[0].get('output', 'unknown')}"
+                    },
+                }
+            ],
+            assistant_id=run.assistant_id,
+            run_id=run_id,
+        )
+        messages_storage[thread_id].append(assistant_message)
+
+        # Complete the run
+        run.status = RunStatus.COMPLETED
+        run.completed_at = int(time.time())
+        run.usage = Usage(
+            prompt_tokens=60,
+            completion_tokens=25,
+            total_tokens=85,
+        )
+
+    asyncio.create_task(complete_run())
+
+    return run
+
+
+# Run Steps endpoints
+@app.get(
+    "/v1/threads/{thread_id}/runs/{run_id}/steps",
+    dependencies=[Depends(verify_api_key)],
+)
+async def list_run_steps(
+    thread_id: str,
+    run_id: str,
+    limit: int = Query(default=20, ge=1, le=100),
+    order: str = Query(default="desc"),
+    after: str | None = Query(default=None),
+    before: str | None = Query(default=None),
+) -> RunStepList:
+    """List steps for a run."""
+    if thread_id not in threads_storage:
+        raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found")
+
+    if run_id not in runs_storage.get(thread_id, {}):
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    steps = run_steps_storage.get(thread_id, {}).get(run_id, [])
+
+    # Sort by created_at
+    steps = sorted(steps, key=lambda s: s.created_at, reverse=(order == "desc"))
+
+    # Apply pagination
+    if after:
+        try:
+            after_idx = next(i for i, s in enumerate(steps) if s.id == after)
+            steps = steps[after_idx + 1:]
+        except StopIteration:
+            pass
+
+    if before:
+        try:
+            before_idx = next(i for i, s in enumerate(steps) if s.id == before)
+            steps = steps[:before_idx]
+        except StopIteration:
+            pass
+
+    # Limit results
+    has_more = len(steps) > limit
+    steps = steps[:limit]
+
+    return RunStepList(
+        data=steps,
+        first_id=steps[0].id if steps else None,
+        last_id=steps[-1].id if steps else None,
+        has_more=has_more,
+    )
+
+
+@app.get(
+    "/v1/threads/{thread_id}/runs/{run_id}/steps/{step_id}",
+    dependencies=[Depends(verify_api_key)],
+)
+async def retrieve_run_step(thread_id: str, run_id: str, step_id: str) -> RunStep:
+    """Retrieve a specific run step."""
+    if thread_id not in threads_storage:
+        raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found")
+
+    if run_id not in runs_storage.get(thread_id, {}):
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    steps = run_steps_storage.get(thread_id, {}).get(run_id, [])
+    step = next((s for s in steps if s.id == step_id), None)
+
+    if not step:
+        raise HTTPException(status_code=404, detail=f"Step {step_id} not found")
+
+    return step

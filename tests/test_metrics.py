@@ -167,7 +167,7 @@ class TestMetricsWindowBehavior:
         window.add(5)
 
         # Old data should be cleaned up
-        assert len(window.data) <= 2  # Current second + maybe one previous
+        assert len(window.timestamps) <= 2  # Current second + maybe one previous
 
 
 @pytest.mark.integration

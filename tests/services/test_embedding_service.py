@@ -448,3 +448,62 @@ async def test_invalid_input_type():
     # This would fail at Pydantic validation level, so we test the internal method
     with pytest.raises(ValueError, match="Unsupported input format"):
         service._process_embedding_input({"invalid": "type"})
+
+
+@pytest.mark.asyncio
+async def test_encoding_format_base64(embedding_service):
+    """Test base64 encoding format."""
+    request = EmbeddingRequest(
+        model="text-embedding-ada-002",
+        input="Test",
+        encoding_format="base64",
+    )
+
+    response = await embedding_service.create_embedding(request)
+
+    # With base64, embedding should be a string
+    assert isinstance(response.data[0].embedding, str)
+    # Should be valid base64
+    import base64
+    try:
+        base64.b64decode(response.data[0].embedding)
+    except Exception:
+        pytest.fail("Invalid base64 string")
+
+
+@pytest.mark.asyncio
+async def test_encoding_format_float(embedding_service):
+    """Test float encoding format (default)."""
+    request = EmbeddingRequest(
+        model="text-embedding-ada-002",
+        input="Test",
+        encoding_format="float",
+    )
+
+    response = await embedding_service.create_embedding(request)
+
+    # With float, embedding should be a list
+    assert isinstance(response.data[0].embedding, list)
+    assert all(isinstance(x, float) for x in response.data[0].embedding)
+
+
+@pytest.mark.asyncio
+async def test_batch_with_base64_encoding(embedding_service):
+    """Test batch embeddings with base64 encoding."""
+    request = EmbeddingRequest(
+        model="text-embedding-ada-002",
+        input=["Text 1", "Text 2", "Text 3"],
+        encoding_format="base64",
+    )
+
+    response = await embedding_service.create_embedding(request)
+
+    assert len(response.data) == 3
+    for embedding_obj in response.data:
+        assert isinstance(embedding_obj.embedding, str)
+        # Verify valid base64
+        import base64
+        try:
+            base64.b64decode(embedding_obj.embedding)
+        except Exception:
+            pytest.fail(f"Invalid base64 string at index {embedding_obj.index}")

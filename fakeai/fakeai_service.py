@@ -30,6 +30,11 @@ from fakeai.audio import (
     generate_audio_output,
 )
 from fakeai.config import AppConfig
+from fakeai.context_validator import (
+    ContextLengthExceededError,
+    create_context_length_error,
+    validate_context_length,
+)
 from fakeai.dcgm_metrics import (
     DCGMMetricsSimulator,
 )
@@ -1732,6 +1737,28 @@ class FakeAIService:
             text_tokens + input_image_tokens + input_video_tokens + input_audio_tokens
         )
 
+        # Add tokens from tool definitions if present
+        tool_tokens = 0
+        if request.tools:
+            # Estimate tokens for tool definitions (rough approximation)
+            tool_json = json.dumps([tool.model_dump() for tool in request.tools])
+            tool_tokens = calculate_token_count(tool_json)
+            prompt_tokens += tool_tokens
+
+        # Validate context length if enabled
+        if self.config.enable_context_validation:
+            is_valid, error_message = validate_context_length(
+                model=request.model,
+                prompt_tokens=prompt_tokens,
+                max_tokens=request.max_tokens,
+                image_tokens=input_image_tokens,
+                audio_tokens=input_audio_tokens,
+                video_tokens=input_video_tokens,
+            )
+            if not is_valid:
+                error_dict = create_context_length_error(error_message)
+                raise ContextLengthExceededError(error_message, error_dict)
+
         # Start Dynamo metrics tracking for this request
         dynamo_request = self.dynamo_metrics.start_request(
             request_id=request_id,
@@ -2001,6 +2028,56 @@ class FakeAIService:
             extract_text_content(msg.content) for msg in request.messages if msg.content
         )
         prompt_tokens = calculate_token_count(prompt_text)
+
+        # Process audio inputs if present
+        input_audio_tokens, audio_transcript = self._process_audio_input(
+            request.messages
+        )
+        if audio_transcript:
+            prompt_text = f"{prompt_text} {audio_transcript}".strip()
+            # Recalculate prompt tokens with audio transcript
+            prompt_tokens = calculate_token_count(prompt_text)
+
+        # Process vision inputs if present (calculate image tokens)
+        input_image_tokens = 0
+        for msg in request.messages:
+            if msg.content:
+                input_image_tokens += calculate_message_image_tokens(
+                    msg.content, request.model
+                )
+
+        # Process video inputs if present (calculate video tokens)
+        input_video_tokens = 0
+        for msg in request.messages:
+            if msg.content:
+                input_video_tokens += calculate_message_video_tokens(
+                    msg.content, request.model
+                )
+
+        # Total prompt tokens = text + image + video + audio tokens
+        total_prompt_tokens = (
+            prompt_tokens + input_image_tokens + input_video_tokens + input_audio_tokens
+        )
+
+        # Add tokens from tool definitions if present
+        if request.tools:
+            tool_json = json.dumps([tool.model_dump() for tool in request.tools])
+            tool_tokens = calculate_token_count(tool_json)
+            total_prompt_tokens += tool_tokens
+
+        # Validate context length if enabled
+        if self.config.enable_context_validation:
+            is_valid, error_message = validate_context_length(
+                model=request.model,
+                prompt_tokens=total_prompt_tokens,
+                max_tokens=request.max_tokens,
+                image_tokens=input_image_tokens,
+                audio_tokens=input_audio_tokens,
+                video_tokens=input_video_tokens,
+            )
+            if not is_valid:
+                error_dict = create_context_length_error(error_message)
+                raise ContextLengthExceededError(error_message, error_dict)
 
         # Prompt caching check
         prompt_hash = self._get_prompt_hash(request.messages)
