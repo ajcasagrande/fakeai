@@ -11,7 +11,7 @@ fi
 
 # Install publishing dependencies
 echo "Installing publishing dependencies..."
-pip install --upgrade build twine
+uv pip install --upgrade build twine
 
 # Clean old build artifacts
 echo "Cleaning old build artifacts..."
