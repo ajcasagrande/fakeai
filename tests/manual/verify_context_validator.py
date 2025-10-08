@@ -10,8 +10,8 @@ This script verifies that all components are working correctly:
 5. Integration readiness
 """
 
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -91,11 +91,11 @@ def main():
     print_section("2. Module Import Check")
     try:
         from fakeai.context_validator import (
-            validate_context_length,
+            MODEL_CONTEXT_WINDOWS,
+            calculate_remaining_budget,
             create_context_length_error,
             get_model_context_window,
-            calculate_remaining_budget,
-            MODEL_CONTEXT_WINDOWS,
+            validate_context_length,
         )
         print("✅ All imports successful")
         print(f"   - validate_context_length: {type(validate_context_length).__name__}")
@@ -111,8 +111,8 @@ def main():
     print_section("3. Basic Functionality Check")
     try:
         from fakeai.context_validator import (
-            validate_context_length,
             get_model_context_window,
+            validate_context_length,
         )
 
         # Test 1: Valid request

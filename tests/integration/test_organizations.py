@@ -16,7 +16,6 @@ This module provides comprehensive integration tests for:
 """
 
 import time
-from typing import Any
 
 import pytest
 

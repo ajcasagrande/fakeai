@@ -7,8 +7,6 @@ This script demonstrates how to monitor FakeAI server metrics in real-time.
 #  SPDX-License-Identifier: Apache-2.0
 
 import asyncio
-import sys
-import time
 from datetime import datetime
 
 import aiohttp

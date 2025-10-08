@@ -11,9 +11,7 @@ This module tests the complete Assistants API including:
 - Vector store integration
 """
 
-import json
 import time
-from typing import Any
 
 import pytest
 

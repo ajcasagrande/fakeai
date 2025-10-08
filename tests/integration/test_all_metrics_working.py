@@ -5,9 +5,8 @@ Tests that all 18+ metrics systems are collecting data correctly,
 correlating properly, and exporting in all formats.
 """
 
-import asyncio
-import json
 import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -15,17 +14,12 @@ from fakeai.app import app
 from fakeai.config import AppConfig
 from fakeai.fakeai_service import FakeAIService
 from fakeai.metrics import MetricsTracker
-from fakeai.model_metrics import ModelMetricsTracker
-from fakeai.batch_metrics import BatchMetricsTracker
-from fakeai.streaming_metrics import StreamingMetricsTracker
+
 try:
     from fakeai.dynamo_metrics import DynamoMetricsCollector
 except ImportError:
     DynamoMetricsCollector = None
 from fakeai.dcgm_metrics import DCGMMetricsSimulator
-from fakeai.cost_tracker import CostTracker
-from fakeai.rate_limiter_metrics import RateLimiterMetrics
-from fakeai.error_metrics import ErrorMetricsTracker
 
 
 @pytest.fixture

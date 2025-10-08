@@ -4,7 +4,6 @@ Tests for base validation classes and protocols.
 
 #  SPDX-License-Identifier: Apache-2.0
 
-import pytest
 
 from fakeai.validation.base import (
     ValidationError,

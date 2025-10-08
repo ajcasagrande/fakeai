@@ -17,9 +17,7 @@ import random
 import re
 import time
 import uuid
-from collections import defaultdict
 from collections.abc import AsyncGenerator
-from functools import lru_cache
 from typing import Any
 
 from faker import Faker
@@ -40,7 +38,6 @@ from fakeai.dcgm_metrics import (
 )
 from fakeai.dynamo_metrics import (
     DynamoMetricsCollector,
-    RequestMetrics,
 )
 from fakeai.kv_cache import (
     KVCacheMetrics,
@@ -54,19 +51,11 @@ from fakeai.logprobs_enhanced import (
 from fakeai.metrics import MetricsTracker
 from fakeai.models import (
     ArchiveOrganizationProjectResponse,
-    Assistant,
-    AssistantList,
     AudioOutput,
     AudioSpeechesUsageResponse,
     AudioTranscriptionsUsageResponse,
-    AutoChunkingStrategy,
     Batch,
     BatchListResponse,
-    BatchOutputResponse,
-)
-from fakeai.models import BatchRequest as BatchRequestModel
-from fakeai.models import (
-    BatchRequestCounts,
     ChatCompletionChoice,
     ChatCompletionChunk,
     ChatCompletionChunkChoice,
@@ -82,16 +71,12 @@ from fakeai.models import (
     CostBucket,
     CostResult,
     CostsResponse,
-    CreateAssistantRequest,
     CreateBatchRequest,
-    CreateMessageRequest,
     CreateOrganizationInviteRequest,
     CreateOrganizationProjectRequest,
     CreateOrganizationUserRequest,
     CreateProjectUserRequest,
-    CreateRunRequest,
     CreateServiceAccountRequest,
-    CreateThreadRequest,
     CreateVectorStoreFileBatchRequest,
     CreateVectorStoreFileRequest,
     CreateVectorStoreRequest,
@@ -99,49 +84,31 @@ from fakeai.models import (
     DeleteProjectUserResponse,
     DeleteServiceAccountResponse,
     Delta,
-    Embedding,
     EmbeddingRequest,
     EmbeddingResponse,
     EmbeddingsUsageResponse,
-    ExpiresAfter,
-    FileCounts,
     FileListResponse,
     FileObject,
-    FineTuningCheckpoint,
-    FineTuningCheckpointList,
-    FineTuningEvent,
-    FineTuningEventList,
-    FineTuningJob,
-    FineTuningJobList,
-    FineTuningJobRequest,
-    GeneratedImage,
-    Hyperparameters,
     ImageGenerationRequest,
     ImageGenerationResponse,
     ImagesUsageResponse,
     LogProbs,
     Message,
-    MessageList,
     Model,
     ModelCapabilitiesResponse,
     ModelListResponse,
     ModelPermission,
     ModelPricing,
-    ModifyAssistantRequest,
     ModifyOrganizationProjectRequest,
     ModifyOrganizationUserRequest,
     ModifyProjectUserRequest,
-    ModifyRunRequest,
-    ModifyThreadRequest,
     ModifyVectorStoreRequest,
     OrganizationInvite,
     OrganizationInviteListResponse,
     OrganizationProject,
     OrganizationProjectListResponse,
-    OrganizationRole,
     OrganizationUser,
     OrganizationUserListResponse,
-    ProjectRole,
     ProjectUser,
     ProjectUserListResponse,
     PromptTokensDetails,
@@ -151,7 +118,6 @@ from fakeai.models import (
     RealtimeError,
     RealtimeEvent,
     RealtimeEventType,
-    RealtimeInputAudioTranscription,
     RealtimeItem,
     RealtimeItemRole,
     RealtimeItemStatus,
@@ -165,20 +131,11 @@ from fakeai.models import (
     RealtimeTurnDetection,
     RealtimeVoice,
     Role,
-    Run,
-    RunList,
-    RunStatus,
-    RunStep,
-    RunStepList,
     ServiceAccount,
     ServiceAccountListResponse,
-    ServiceAccountRole,
     SpeechRequest,
-    StaticChunkingStrategy,
     TextGenerationRequest,
     TextGenerationResponse,
-    Thread,
-    ThreadMessage,
     Usage,
     UsageAggregationBucket,
     UsageResultItem,
@@ -187,16 +144,18 @@ from fakeai.models import (
     VectorStoreFileBatch,
     VectorStoreFileListResponse,
     VectorStoreListResponse,
+    VideoGenerationRequest,
+    VideoGenerationResponse,
 )
 from fakeai.semantic_embeddings import (
     SemanticEmbeddingGenerator,
     get_semantic_embedding_generator,
 )
 from fakeai.services.audio_service import AudioService
-from fakeai.services.batch_service import BatchService
 from fakeai.services.embedding_service import EmbeddingService
 from fakeai.services.image_generation_service import ImageGenerationService
 from fakeai.services.moderation_service import ModerationService
+from fakeai.services.vector_store_service import VectorStoreService
 from fakeai.structured_outputs import (
     SchemaValidationError,
     format_as_json_string,
@@ -207,9 +166,7 @@ from fakeai.utils import (
     AsyncExecutor,
     SimulatedGenerator,
     calculate_token_count,
-    create_random_embedding,
     generate_simulated_audio,
-    normalize_embedding,
     tokenize_text,
 )
 from fakeai.video import calculate_message_video_tokens
@@ -282,7 +239,8 @@ class UsageTracker:
 
     def __init__(self):
         """Initialize the usage tracker."""
-        # Store usage records: list of dicts with timestamp, model, tokens, etc.
+        # Store usage records: list of dicts with timestamp, model, tokens,
+        # etc.
         self.usage_records: list[dict[str, Any]] = []
 
     def track_usage(
@@ -376,13 +334,13 @@ class UsageTracker:
         }.get(bucket_size, 86400)
 
         # Filter records by time range
-        filtered = [
-            r for r in self.usage_records if start_time <= r["timestamp"] <= end_time
-        ]
+        filtered = [r for r in self.usage_records if start_time <=
+                    r["timestamp"] <= end_time]
 
         # Apply optional filters
         if project_id:
-            filtered = [r for r in filtered if r.get("project_id") == project_id]
+            filtered = [r for r in filtered if r.get(
+                "project_id") == project_id]
         if model:
             filtered = [r for r in filtered if r["model"] == model]
 
@@ -391,7 +349,10 @@ class UsageTracker:
 
         for record in filtered:
             # Calculate bucket start time
-            bucket_start = int(record["timestamp"] // bucket_seconds * bucket_seconds)
+            bucket_start = int(
+                record["timestamp"] //
+                bucket_seconds *
+                bucket_seconds)
 
             if bucket_start not in buckets:
                 buckets[bucket_start] = {
@@ -441,20 +402,23 @@ class UsageTracker:
         }.get(bucket_size, 86400)
 
         # Filter records by time range
-        filtered = [
-            r for r in self.usage_records if start_time <= r["timestamp"] <= end_time
-        ]
+        filtered = [r for r in self.usage_records if start_time <=
+                    r["timestamp"] <= end_time]
 
         # Apply project filter
         if project_id:
-            filtered = [r for r in filtered if r.get("project_id") == project_id]
+            filtered = [r for r in filtered if r.get(
+                "project_id") == project_id]
 
         # Group by time buckets and dimensions
         buckets: dict[int, dict[str, list[dict[str, Any]]]] = {}
 
         for record in filtered:
             # Calculate bucket start time
-            bucket_start = int(record["timestamp"] // bucket_seconds * bucket_seconds)
+            bucket_start = int(
+                record["timestamp"] //
+                bucket_seconds *
+                bucket_seconds)
 
             if bucket_start not in buckets:
                 buckets[bucket_start] = {
@@ -465,8 +429,9 @@ class UsageTracker:
 
             # Calculate cost for this record
             cost = self.calculate_cost(
-                record["model"], record["input_tokens"], record["output_tokens"]
-            )
+                record["model"],
+                record["input_tokens"],
+                record["output_tokens"])
 
             # Determine line item based on endpoint
             endpoint = record["endpoint"]
@@ -489,8 +454,8 @@ class UsageTracker:
                 (
                     r
                     for r in buckets[bucket_start]["results"]
-                    if r["line_item"] == line_item
-                    and r.get("project_id") == record.get("project_id")
+                    if r["line_item"] == line_item and
+                    r.get("project_id") == record.get("project_id")
                 ),
                 None,
             )
@@ -546,22 +511,24 @@ class FakeAIService:
         self.dynamo_metrics = DynamoMetricsCollector(window_size=300)
 
         # Initialize DCGM GPU metrics simulator (4× H100 GPUs)
-        self.dcgm_simulator = DCGMMetricsSimulator(num_gpus=4, gpu_model="H100-80GB")
+        self.dcgm_simulator = DCGMMetricsSimulator(
+            num_gpus=4, gpu_model="H100-80GB")
 
         # Initialize semantic embeddings generator (optional)
         self.semantic_embeddings: SemanticEmbeddingGenerator | None = None
-        if config.use_semantic_embeddings:
+        if config.generation.use_semantic_embeddings:
             try:
                 self.semantic_embeddings = get_semantic_embedding_generator(
-                    model_name=config.embedding_model,
-                    use_gpu=config.embedding_use_gpu,
+                    model_name=config.generation.embedding_model,
+                    use_gpu=config.generation.embedding_use_gpu,
                 )
                 logger.info(
-                    f"Semantic embeddings enabled: model={config.embedding_model}, "
-                    f"use_gpu={config.embedding_use_gpu}"
-                )
+                    f"Semantic embeddings enabled: model={
+                        config.embedding_model}, " f"use_gpu={
+                        config.embedding_use_gpu}")
             except Exception as e:
-                logger.warning(f"Failed to initialize semantic embeddings: {e}")
+                logger.warning(
+                    f"Failed to initialize semantic embeddings: {e}")
                 logger.info("Falling back to random embeddings")
 
         # Initialize audio service
@@ -586,21 +553,21 @@ class FakeAIService:
 
         # Initialize image generator (optional)
         self.image_generator: ImageGenerator | None = None
-        if config.generate_actual_images:
+        if config.generation.generate_actual_images:
             try:
                 from fakeai.image_generator import ImageGenerator
 
                 # Determine base URL from config
-                base_url = f"http://{config.host}:{config.port}"
+                base_url = f"http://{config.server.host}:{config.server.port}"
                 self.image_generator = ImageGenerator(
                     base_url=base_url,
-                    storage_backend=config.image_storage_backend,
-                    retention_hours=config.image_retention_hours,
+                    storage_backend=config.storage.image_storage_backend,
+                    retention_hours=config.storage.image_retention_hours,
                 )
                 logger.info(
-                    f"Image generator enabled: backend={config.image_storage_backend}, "
-                    f"retention={config.image_retention_hours}h"
-                )
+                    f"Image generator enabled: backend={
+                        config.storage.image_storage_backend}, " f"retention={
+                        config.storage.image_retention_hours}h")
             except Exception as e:
                 logger.warning(f"Failed to initialize image generator: {e}")
                 logger.info("Falling back to fake URLs")
@@ -612,17 +579,28 @@ class FakeAIService:
             image_generator=self.image_generator,
         )
 
-        # Initialize batch service
-        # TODO: Uncomment when file_manager and batch_metrics are initialized
-        # self.batch_service = BatchService(
-        #     config=config,
-        #     metrics_tracker=self.metrics_tracker,
-        #     model_registry=None,  # Will use _ensure_model_exists from parent
-        #     file_manager=self.file_manager,
-        #     batch_metrics=self.batch_metrics,
-        # )
-        # # Set parent service reference for batch execution
-        # self.batch_service.set_parent_service(self)
+        # Initialize file manager for batch processing and file uploads
+        from fakeai.file_manager import FileManager
+
+        self.file_manager = FileManager(storage_backend="memory")
+
+        # Initialize batch metrics tracker
+        from fakeai.batch_metrics import BatchMetricsTracker
+
+        self.batch_metrics = BatchMetricsTracker()
+
+        # Initialize batch service with all dependencies
+        from fakeai.services.batch_service import BatchService
+
+        self.batch_service = BatchService(
+            config=config,
+            metrics_tracker=self.metrics_tracker,
+            model_registry=None,  # Will use _ensure_model_exists from parent
+            file_manager=self.file_manager,
+            batch_metrics=self.batch_metrics,
+        )
+        # Set parent service reference for batch execution
+        self.batch_service.set_parent_service(self)
 
         # Initialize prompt cache system
         # Format: {hash: (token_count, timestamp)}
@@ -632,24 +610,28 @@ class FakeAIService:
         self._init_simulated_models()
         self._init_simulated_files()
 
-        # Initialize vector store storage
-        self.vector_stores: dict[str, Any] = {}  # Store vector store objects
-        self.vector_store_files: dict[str, list[Any]] = (
-            {}
-        )  # Store files per vector store (vs_id -> files)
-        self.vector_store_chunks: dict[str, list[dict[str, Any]]] = (
-            {}
-        )  # Store chunks per file (file_id -> chunks)
-        self.vector_store_embeddings: dict[str, list[list[float]]] = (
-            {}
-        )  # Store embeddings per file (file_id -> embeddings)
+        # Initialize fine-tuning service (after files are initialized)
+        from fakeai.services.fine_tuning_service import FineTuningService
+
+        self.fine_tuning_service = FineTuningService(
+            config=config,
+            metrics_tracker=self.metrics_tracker,
+            file_storage=self.files,
+        )
+
+        # Initialize vector store service (will be set up after files are initialized)
+        # Note: We'll use a simple file lookup adapter since FakeAIService uses
+        # self.files list
+        self.vector_store_service: VectorStoreService | None = None
 
         # Initialize organization and project management storage
-        self.organization_users: dict[str, dict[str, Any]] = {}  # user_id -> user data
+        # user_id -> user data
+        self.organization_users: dict[str, dict[str, Any]] = {}
         self.organization_invites: dict[str, dict[str, Any]] = (
             {}
         )  # invite_id -> invite data
-        self.projects: dict[str, dict[str, Any]] = {}  # project_id -> project data
+        # project_id -> project data
+        self.projects: dict[str, dict[str, Any]] = {}
         self.project_users: dict[str, dict[str, list[str]]] = (
             {}
         )  # project_id -> {user_id -> role}
@@ -658,30 +640,18 @@ class FakeAIService:
         )  # project_id -> {account_id -> account data}
 
         # Initialize Assistants API storage
-        self.assistants: dict[str, Any] = {}  # assistant_id -> Assistant object
+        # assistant_id -> Assistant object
+        self.assistants: dict[str, Any] = {}
         self.threads: dict[str, Any] = {}  # thread_id -> Thread object
         self.thread_messages: dict[str, list[Any]] = (
             {}
         )  # thread_id -> list of ThreadMessage objects
         self.runs: dict[str, Any] = {}  # run_id -> Run object
-        self.run_steps: dict[str, list[Any]] = {}  # run_id -> list of RunStep objects
+        # run_id -> list of RunStep objects
+        self.run_steps: dict[str, list[Any]] = {}
         self.run_tasks: dict[str, asyncio.Task] = (
             {}
         )  # run_id -> async task for background execution
-
-        # Initialize Fine-Tuning API storage
-        self.fine_tuning_jobs: dict[str, FineTuningJob] = (
-            {}
-        )  # job_id -> FineTuningJob object
-        self.fine_tuning_events: dict[str, list[FineTuningEvent]] = defaultdict(
-            list
-        )  # job_id -> list of events
-        self.fine_tuning_checkpoints: dict[str, list[FineTuningCheckpoint]] = (
-            defaultdict(list)
-        )  # job_id -> list of checkpoints
-        self.fine_tuning_tasks: dict[str, asyncio.Task] = (
-            {}
-        )  # job_id -> async task for background processing
 
     def _init_simulated_models(self) -> None:
         """Initialize simulated model data with comprehensive metadata."""
@@ -738,7 +708,9 @@ class FakeAIService:
                 max_output_tokens=1024,
                 supports_tools=False,
                 training_cutoff="2019-10",
-                pricing=ModelPricing(input_per_million=0.0, output_per_million=0.0),
+                pricing=ModelPricing(
+                    input_per_million=0.0,
+                    output_per_million=0.0),
             ),
             # GPT-3.5 Family
             "meta-llama/Llama-3.1-8B-Instruct": new_model(
@@ -748,7 +720,9 @@ class FakeAIService:
                 max_output_tokens=4096,
                 supports_tools=True,
                 training_cutoff="2021-09",
-                pricing=ModelPricing(input_per_million=0.50, output_per_million=1.50),
+                pricing=ModelPricing(
+                    input_per_million=0.50,
+                    output_per_million=1.50),
             ),
             # GPT-4 Family
             "openai/gpt-oss-120b": new_model(
@@ -758,7 +732,9 @@ class FakeAIService:
                 max_output_tokens=8192,
                 supports_tools=True,
                 training_cutoff="2023-04",
-                pricing=ModelPricing(input_per_million=30.00, output_per_million=60.00),
+                pricing=ModelPricing(
+                    input_per_million=30.00,
+                    output_per_million=60.00),
             ),
             "openai/gpt-oss-120b": new_model(
                 "openai/gpt-oss-120b",
@@ -768,7 +744,9 @@ class FakeAIService:
                 supports_vision=True,
                 supports_tools=True,
                 training_cutoff="2023-12",
-                pricing=ModelPricing(input_per_million=10.00, output_per_million=30.00),
+                pricing=ModelPricing(
+                    input_per_million=10.00,
+                    output_per_million=30.00),
             ),
             "openai/gpt-oss-120b": new_model(
                 "openai/gpt-oss-120b",
@@ -809,7 +787,9 @@ class FakeAIService:
                 supports_audio=True,
                 supports_tools=True,
                 training_cutoff="2023-10",
-                pricing=ModelPricing(input_per_million=5.00, output_per_million=20.00),
+                pricing=ModelPricing(
+                    input_per_million=5.00,
+                    output_per_million=20.00),
             ),
             # deepseek-ai/DeepSeek-R1 Reasoning Models
             "deepseek-ai/DeepSeek-R1": new_model(
@@ -819,7 +799,9 @@ class FakeAIService:
                 max_output_tokens=100000,
                 supports_tools=False,
                 training_cutoff="2023-10",
-                pricing=ModelPricing(input_per_million=15.00, output_per_million=60.00),
+                pricing=ModelPricing(
+                    input_per_million=15.00,
+                    output_per_million=60.00),
             ),
             "deepseek-ai/DeepSeek-R1": new_model(
                 "deepseek-ai/DeepSeek-R1",
@@ -828,7 +810,9 @@ class FakeAIService:
                 max_output_tokens=32768,
                 supports_tools=False,
                 training_cutoff="2023-10",
-                pricing=ModelPricing(input_per_million=15.00, output_per_million=60.00),
+                pricing=ModelPricing(
+                    input_per_million=15.00,
+                    output_per_million=60.00),
             ),
             "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B": new_model(
                 "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
@@ -837,7 +821,9 @@ class FakeAIService:
                 max_output_tokens=65536,
                 supports_tools=False,
                 training_cutoff="2023-10",
-                pricing=ModelPricing(input_per_million=3.00, output_per_million=12.00),
+                pricing=ModelPricing(
+                    input_per_million=3.00,
+                    output_per_million=12.00),
             ),
             # gpt-oss Open Source Reasoning Models
             "gpt-oss-120b": new_model(
@@ -847,7 +833,9 @@ class FakeAIService:
                 max_output_tokens=100000,
                 supports_tools=True,
                 training_cutoff="2024-12",
-                pricing=ModelPricing(input_per_million=0.0, output_per_million=0.0),
+                pricing=ModelPricing(
+                    input_per_million=0.0,
+                    output_per_million=0.0),
             ),
             "gpt-oss-20b": new_model(
                 "gpt-oss-20b",
@@ -856,7 +844,9 @@ class FakeAIService:
                 max_output_tokens=100000,
                 supports_tools=True,
                 training_cutoff="2024-12",
-                pricing=ModelPricing(input_per_million=0.0, output_per_million=0.0),
+                pricing=ModelPricing(
+                    input_per_million=0.0,
+                    output_per_million=0.0),
             ),
             # Claude Models (Anthropic)
             "claude-3-opus": new_model(
@@ -867,7 +857,9 @@ class FakeAIService:
                 supports_vision=True,
                 supports_tools=True,
                 training_cutoff="2023-08",
-                pricing=ModelPricing(input_per_million=15.00, output_per_million=75.00),
+                pricing=ModelPricing(
+                    input_per_million=15.00,
+                    output_per_million=75.00),
             ),
             "claude-3-sonnet": new_model(
                 "claude-3-sonnet",
@@ -877,7 +869,9 @@ class FakeAIService:
                 supports_vision=True,
                 supports_tools=True,
                 training_cutoff="2023-08",
-                pricing=ModelPricing(input_per_million=3.00, output_per_million=15.00),
+                pricing=ModelPricing(
+                    input_per_million=3.00,
+                    output_per_million=15.00),
             ),
             "claude-3-haiku": new_model(
                 "claude-3-haiku",
@@ -887,7 +881,9 @@ class FakeAIService:
                 supports_vision=True,
                 supports_tools=True,
                 training_cutoff="2023-08",
-                pricing=ModelPricing(input_per_million=0.25, output_per_million=1.25),
+                pricing=ModelPricing(
+                    input_per_million=0.25,
+                    output_per_million=1.25),
             ),
             # Gemini Models (Google)
             "gemini-1.5-pro": new_model(
@@ -899,7 +895,9 @@ class FakeAIService:
                 supports_audio=True,
                 supports_tools=True,
                 training_cutoff="2024-01",
-                pricing=ModelPricing(input_per_million=1.25, output_per_million=5.00),
+                pricing=ModelPricing(
+                    input_per_million=1.25,
+                    output_per_million=5.00),
             ),
             "gemini-1.5-flash": new_model(
                 "gemini-1.5-flash",
@@ -910,7 +908,9 @@ class FakeAIService:
                 supports_audio=True,
                 supports_tools=True,
                 training_cutoff="2024-01",
-                pricing=ModelPricing(input_per_million=0.075, output_per_million=0.30),
+                pricing=ModelPricing(
+                    input_per_million=0.075,
+                    output_per_million=0.30),
             ),
             # Mixtral Models (Mistral AI)
             "mixtral-8x7b": new_model(
@@ -920,7 +920,9 @@ class FakeAIService:
                 max_output_tokens=8192,
                 supports_tools=True,
                 training_cutoff="2023-12",
-                pricing=ModelPricing(input_per_million=0.50, output_per_million=1.50),
+                pricing=ModelPricing(
+                    input_per_million=0.50,
+                    output_per_million=1.50),
             ),
             "mixtral-8x22b": new_model(
                 "mixtral-8x22b",
@@ -929,7 +931,9 @@ class FakeAIService:
                 max_output_tokens=16384,
                 supports_tools=True,
                 training_cutoff="2024-01",
-                pricing=ModelPricing(input_per_million=2.00, output_per_million=6.00),
+                pricing=ModelPricing(
+                    input_per_million=2.00,
+                    output_per_million=6.00),
             ),
             "mistral-large": new_model(
                 "mistral-large",
@@ -938,7 +942,9 @@ class FakeAIService:
                 max_output_tokens=8192,
                 supports_tools=True,
                 training_cutoff="2024-02",
-                pricing=ModelPricing(input_per_million=4.00, output_per_million=12.00),
+                pricing=ModelPricing(
+                    input_per_million=4.00,
+                    output_per_million=12.00),
             ),
             # DeepSeek Models
             "deepseek-v3": new_model(
@@ -948,7 +954,9 @@ class FakeAIService:
                 max_output_tokens=8192,
                 supports_tools=True,
                 training_cutoff="2024-11",
-                pricing=ModelPricing(input_per_million=0.27, output_per_million=1.10),
+                pricing=ModelPricing(
+                    input_per_million=0.27,
+                    output_per_million=1.10),
             ),
             "deepseek-ai/DeepSeek-R1-Distill-Llama-8B": new_model(
                 "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
@@ -957,7 +965,9 @@ class FakeAIService:
                 max_output_tokens=8192,
                 supports_tools=True,
                 training_cutoff="2024-12",
-                pricing=ModelPricing(input_per_million=0.0, output_per_million=0.0),
+                pricing=ModelPricing(
+                    input_per_million=0.0,
+                    output_per_million=0.0),
             ),
             # Llama Models (Meta)
             "llama-3.1-405b": new_model(
@@ -967,7 +977,9 @@ class FakeAIService:
                 max_output_tokens=4096,
                 supports_tools=True,
                 training_cutoff="2023-12",
-                pricing=ModelPricing(input_per_million=3.00, output_per_million=3.00),
+                pricing=ModelPricing(
+                    input_per_million=3.00,
+                    output_per_million=3.00),
             ),
             "llama-3.1-70b": new_model(
                 "llama-3.1-70b",
@@ -976,7 +988,9 @@ class FakeAIService:
                 max_output_tokens=4096,
                 supports_tools=True,
                 training_cutoff="2023-12",
-                pricing=ModelPricing(input_per_million=0.88, output_per_million=0.88),
+                pricing=ModelPricing(
+                    input_per_million=0.88,
+                    output_per_million=0.88),
             ),
             "llama-3.1-8b": new_model(
                 "llama-3.1-8b",
@@ -985,7 +999,9 @@ class FakeAIService:
                 max_output_tokens=4096,
                 supports_tools=True,
                 training_cutoff="2023-12",
-                pricing=ModelPricing(input_per_million=0.20, output_per_million=0.20),
+                pricing=ModelPricing(
+                    input_per_million=0.20,
+                    output_per_million=0.20),
             ),
             # Embedding Models
             "sentence-transformers/all-mpnet-base-v2": new_model(
@@ -995,7 +1011,9 @@ class FakeAIService:
                 max_output_tokens=0,
                 supports_tools=False,
                 training_cutoff="2021-09",
-                pricing=ModelPricing(input_per_million=0.10, output_per_million=0.0),
+                pricing=ModelPricing(
+                    input_per_million=0.10,
+                    output_per_million=0.0),
             ),
             "nomic-ai/nomic-embed-text-v1.5": new_model(
                 "nomic-ai/nomic-embed-text-v1.5",
@@ -1004,7 +1022,9 @@ class FakeAIService:
                 max_output_tokens=0,
                 supports_tools=False,
                 training_cutoff="2022-12",
-                pricing=ModelPricing(input_per_million=0.02, output_per_million=0.0),
+                pricing=ModelPricing(
+                    input_per_million=0.02,
+                    output_per_million=0.0),
             ),
             "BAAI/bge-m3": new_model(
                 "BAAI/bge-m3",
@@ -1013,7 +1033,9 @@ class FakeAIService:
                 max_output_tokens=0,
                 supports_tools=False,
                 training_cutoff="2022-12",
-                pricing=ModelPricing(input_per_million=0.13, output_per_million=0.0),
+                pricing=ModelPricing(
+                    input_per_million=0.13,
+                    output_per_million=0.0),
             ),
             # Image Generation Models
             "stabilityai/stable-diffusion-2-1": new_model(
@@ -1071,12 +1093,25 @@ class FakeAIService:
             for i in range(3)
         ]
 
+        # Initialize vector store service with a file lookup adapter
+        file_lookup = type(
+            'FileLookup', (), {
+                'get_file': lambda self, file_id: next(
+                    (f for f in self.files if f.id == file_id), None)})()
+        file_lookup.files = self.files  # Bind the files list
+
+        self.vector_store_service = VectorStoreService(
+            config=self.config,
+            metrics_tracker=self.metrics_tracker,
+            file_manager=file_lookup,
+        )
+
     def _is_reasoning_model(self, model_id: str) -> bool:
         """Check if model supports reasoning content (gpt-oss and deepseek-ai/DeepSeek-R1 families)."""
         return (
-            model_id.startswith("gpt-oss")
-            or model_id.startswith("deepseek-ai/DeepSeek-R1")
-            or "reasoning" in model_id.lower()
+            model_id.startswith("gpt-oss") or
+            model_id.startswith("deepseek-ai/DeepSeek-R1") or
+            "reasoning" in model_id.lower()
         )
 
     def _get_effective_max_tokens(self, request) -> int:
@@ -1092,10 +1127,11 @@ class FakeAIService:
         Returns:
             Effective max tokens to generate (default: 100)
         """
-        # For deepseek-ai/DeepSeek-R1 models, max_completion_tokens is preferred
+        # For deepseek-ai/DeepSeek-R1 models, max_completion_tokens is
+        # preferred
         if (
-            hasattr(request, "max_completion_tokens")
-            and request.max_completion_tokens is not None
+            hasattr(request, "max_completion_tokens") and
+            request.max_completion_tokens is not None
         ):
             return request.max_completion_tokens
 
@@ -1108,7 +1144,12 @@ class FakeAIService:
 
     def _is_moe_model(self, model_id: str) -> bool:
         """Check if model uses Mixture of Experts architecture."""
-        moe_patterns = ["mixtral", "gpt-oss", "deepseek-v3", "deepseek-v", "grok"]
+        moe_patterns = [
+            "mixtral",
+            "gpt-oss",
+            "deepseek-v3",
+            "deepseek-v",
+            "grok"]
         return any(pattern in model_id.lower() for pattern in moe_patterns)
 
     def _supports_predicted_outputs(self, model_id: str) -> bool:
@@ -1129,7 +1170,8 @@ class FakeAIService:
             # Deterministic fingerprint based on seed
             import hashlib
 
-            fingerprint_hash = hashlib.sha256(f"seed-{seed}".encode()).hexdigest()[:16]
+            fingerprint_hash = hashlib.sha256(
+                f"seed-{seed}".encode()).hexdigest()[:16]
             return f"fp_{fingerprint_hash}"
         else:
             # Random fingerprint
@@ -1157,9 +1199,8 @@ class FakeAIService:
         if model_id.startswith("ft:"):
             # LoRA fine-tuned model: ft:base-model:org::unique-id
             parts = model_id.split(":")
-            base_model = (
-                parts[1] if len(parts) > 1 else "meta-llama/Llama-3.1-8B-Instruct"
-            )
+            base_model = (parts[1] if len(parts) >
+                          1 else "meta-llama/Llama-3.1-8B-Instruct")
             organization = parts[2] if len(parts) > 2 else "custom"
             owned_by = organization
             root = base_model
@@ -1305,10 +1346,10 @@ class FakeAIService:
         "You will not provide information that could be used to harm people, "
         "break laws, or violate ethical guidelines. "
         "You will refuse requests for illegal activities, violence, self-harm, "
-        "child exploitation, hate speech, or harassment."
-    )
+        "child exploitation, hate speech, or harassment.")
 
-    def should_refuse_request(self, messages: list[Message]) -> tuple[bool, str | None]:
+    def should_refuse_request(
+            self, messages: list[Message]) -> tuple[bool, str | None]:
         """
         Check if the request should be refused due to harmful content.
 
@@ -1331,7 +1372,8 @@ class FakeAIService:
                 elif isinstance(msg.content, list):
                     texts = []
                     for part in msg.content:
-                        if isinstance(part, dict) and part.get("type") == "text":
+                        if isinstance(part, dict) and part.get(
+                                "type") == "text":
                             texts.append(part.get("text", ""))
                         elif hasattr(part, "type") and part.type == "text":
                             texts.append(part.text)
@@ -1345,14 +1387,14 @@ class FakeAIService:
             for pattern in patterns:
                 if pattern.lower() in full_text:
                     refusal_msg = (
-                        f"I cannot provide assistance with requests related to {category.replace('_', ' ')}. "
-                        "This type of content could cause harm and violates ethical guidelines. "
+                        f"I cannot provide assistance with requests related to {
+                            category.replace(
+                                '_',
+                                ' ')}. " "This type of content could cause harm and violates ethical guidelines. "
                         "If you're experiencing thoughts of self-harm, please contact a mental health "
-                        "professional or crisis hotline immediately."
-                    )
+                        "professional or crisis hotline immediately.")
                     logger.warning(
-                        f"Safety refusal triggered: category={category}, pattern='{pattern}'"
-                    )
+                        f"Safety refusal triggered: category={category}, pattern='{pattern}'")
                     return (True, refusal_msg)
 
         return (False, None)
@@ -1379,7 +1421,8 @@ class FakeAIService:
                 elif isinstance(msg.content, list):
                     texts = []
                     for part in msg.content:
-                        if isinstance(part, dict) and part.get("type") == "text":
+                        if isinstance(part, dict) and part.get(
+                                "type") == "text":
                             texts.append(part.get("text", ""))
                         elif hasattr(part, "type") and part.type == "text":
                             texts.append(part.text)
@@ -1390,12 +1433,14 @@ class FakeAIService:
         # Check for jailbreak patterns
         for pattern in self.JAILBREAK_PATTERNS:
             if pattern.lower() in full_text:
-                logger.warning(f"Jailbreak attempt detected: pattern='{pattern}'")
+                logger.warning(
+                    f"Jailbreak attempt detected: pattern='{pattern}'")
                 return True
 
         return False
 
-    def _prepend_safety_message(self, messages: list[Message]) -> list[Message]:
+    def _prepend_safety_message(
+            self, messages: list[Message]) -> list[Message]:
         """
         Prepend safety system message if no system message exists.
 
@@ -1412,7 +1457,9 @@ class FakeAIService:
         has_system = any(msg.role == Role.SYSTEM for msg in messages)
 
         if not has_system:
-            safety_msg = Message(role=Role.SYSTEM, content=self.SAFETY_SYSTEM_MESSAGE)
+            safety_msg = Message(
+                role=Role.SYSTEM,
+                content=self.SAFETY_SYSTEM_MESSAGE)
             return [safety_msg] + messages
 
         return messages
@@ -1446,9 +1493,9 @@ class FakeAIService:
                         content_data.append(str(part))
 
             msg_dict = {
-                "role": msg.role.value if hasattr(msg.role, "value") else str(msg.role),
-                "content": content_data,
-            }
+                "role": msg.role.value if hasattr(
+                    msg.role, "value") else str(
+                    msg.role), "content": content_data, }
             # Include optional fields if present
             if msg.name:
                 msg_dict["name"] = msg.name
@@ -1474,7 +1521,8 @@ class FakeAIService:
         # Generate SHA-256 hash
         return hashlib.sha256(json_str.encode()).hexdigest()
 
-    def _check_cache_hit(self, prompt_hash: str, token_count: int) -> tuple[bool, int]:
+    def _check_cache_hit(self, prompt_hash: str,
+                         token_count: int) -> tuple[bool, int]:
         """Check if prompt is in cache and return cache hit info.
 
         Args:
@@ -1610,7 +1658,8 @@ class FakeAIService:
                 f"Please use a model with {feature} support."
             )
 
-    async def get_model_capabilities(self, model_id: str) -> ModelCapabilitiesResponse:
+    async def get_model_capabilities(
+            self, model_id: str) -> ModelCapabilitiesResponse:
         """
         Get comprehensive capability information for a model.
 
@@ -1657,11 +1706,11 @@ class FakeAIService:
 
         if request.response_format:
             if (
-                hasattr(request.response_format, "type")
-                and request.response_format.type == "json_schema"
+                hasattr(request.response_format, "type") and
+                request.response_format.type == "json_schema"
             ):
                 is_structured_output = True
-                json_schema_obj = request.response_format.json_schema.schema
+                json_schema_obj = request.response_format.json_schema.schema_
                 json_schema_name = request.response_format.json_schema.name
 
                 # Validate strict mode requirements
@@ -1669,7 +1718,7 @@ class FakeAIService:
                     try:
                         validate_strict_schema(json_schema_obj)
                     except SchemaValidationError as e:
-                        from fakeai.models import ErrorDetail, ErrorResponse
+                        pass
 
                         raise ValueError(
                             f"Invalid JSON schema for strict mode: {str(e)}"
@@ -1677,7 +1726,7 @@ class FakeAIService:
 
                     # Enforce parallel_tool_calls=false for strict mode
                     if request.parallel_tool_calls is not False:
-                        from fakeai.models import ErrorDetail, ErrorResponse
+                        pass
 
                         raise ValueError(
                             "When using strict mode with structured outputs, parallel_tool_calls must be false"
@@ -1712,7 +1761,8 @@ class FakeAIService:
                     msg.content, request.model
                 )
 
-        # Process video inputs if present (calculate video tokens - NVIDIA Cosmos extension)
+        # Process video inputs if present (calculate video tokens - NVIDIA
+        # Cosmos extension)
         input_video_tokens = 0
         for msg in request.messages:
             if msg.content:
@@ -1721,9 +1771,8 @@ class FakeAIService:
                 )
 
         # Extract prompt text for token counting and KV cache routing
-        prompt_text = " ".join(
-            extract_text_content(msg.content) for msg in request.messages if msg.content
-        )
+        prompt_text = " ".join(extract_text_content(msg.content)
+                               for msg in request.messages if msg.content)
 
         # Add audio transcriptions to prompt text
         if audio_transcript:
@@ -1734,14 +1783,17 @@ class FakeAIService:
 
         # Total prompt tokens = text + image + video + audio tokens
         prompt_tokens = (
-            text_tokens + input_image_tokens + input_video_tokens + input_audio_tokens
-        )
+            text_tokens +
+            input_image_tokens +
+            input_video_tokens +
+            input_audio_tokens)
 
         # Add tokens from tool definitions if present
         tool_tokens = 0
         if request.tools:
             # Estimate tokens for tool definitions (rough approximation)
-            tool_json = json.dumps([tool.model_dump() for tool in request.tools])
+            tool_json = json.dumps([tool.model_dump()
+                                   for tool in request.tools])
             tool_tokens = calculate_token_count(tool_json)
             prompt_tokens += tool_tokens
 
@@ -1868,7 +1920,8 @@ class FakeAIService:
         # Handle predicted outputs (EAGLE/speculative decoding)
         accepted_pred_tokens = 0
         rejected_pred_tokens = 0
-        if request.prediction and self._supports_predicted_outputs(request.model):
+        if request.prediction and self._supports_predicted_outputs(
+                request.model):
             accepted_pred_tokens, rejected_pred_tokens = (
                 self._simulate_speculative_decoding(
                     request.prediction.content, completion_text
@@ -1878,7 +1931,8 @@ class FakeAIService:
         # Generate audio output if requested
         audio_output = None
         output_audio_tokens = 0
-        if request.audio and (not request.modalities or "audio" in request.modalities):
+        if request.audio and (
+                not request.modalities or "audio" in request.modalities):
             audio_config = {
                 "voice": request.audio.voice,
                 "format": request.audio.format,
@@ -1887,15 +1941,13 @@ class FakeAIService:
                 completion_text, audio_config
             )
 
-        # Track token generation (including reasoning, prediction, and audio tokens)
+        # Track token generation (including reasoning, prediction, and audio
+        # tokens)
         total_completion_tokens = (
-            completion_tokens
-            + reasoning_tokens
-            + rejected_pred_tokens
-            + output_audio_tokens
-        )
-        self.metrics_tracker.track_tokens(
-            "/v1/chat/completions", total_completion_tokens
+            completion_tokens +
+            reasoning_tokens +
+            rejected_pred_tokens +
+            output_audio_tokens
         )
 
         # Determine finish reason
@@ -1907,10 +1959,10 @@ class FakeAIService:
         # Create completion tokens details
         completion_tokens_details = None
         if (
-            reasoning_tokens > 0
-            or accepted_pred_tokens > 0
-            or rejected_pred_tokens > 0
-            or output_audio_tokens > 0
+            reasoning_tokens > 0 or
+            accepted_pred_tokens > 0 or
+            rejected_pred_tokens > 0 or
+            output_audio_tokens > 0
         ):
             completion_tokens_details = CompletionTokensDetails(
                 reasoning_tokens=reasoning_tokens,
@@ -1942,7 +1994,8 @@ class FakeAIService:
         logprobs_result = None
         if request.logprobs:
             # Tokenize completion text
-            completion_tokens_list = re.findall(r"\w+|[^\w\s]", completion_text)
+            completion_tokens_list = re.findall(
+                r"\w+|[^\w\s]", completion_text)
             logprobs_result = create_chat_logprobs(
                 text=completion_text,
                 tokens=completion_tokens_list,
@@ -1998,7 +2051,8 @@ class FakeAIService:
         # Larger responses simulate higher GPU utilization
         compute_intensity = min(0.9, total_completion_tokens / 500.0)
         memory_intensity = min(0.9, prompt_tokens / 1000.0)
-        self.dcgm_simulator.set_global_workload(compute_intensity, memory_intensity)
+        self.dcgm_simulator.set_global_workload(
+            compute_intensity, memory_intensity)
 
         return response
 
@@ -2006,6 +2060,16 @@ class FakeAIService:
         self, request: ChatCompletionRequest
     ) -> AsyncGenerator[ChatCompletionChunk, None]:
         """Create a streaming chat completion."""
+        # Generate unique request ID for tracking
+        request_id = f"req-{uuid.uuid4().hex[:12]}"
+
+        # Track stream start time for latency calculations
+        stream_start_time = time.time()
+
+        # Initialize token tracking arrays
+        token_timestamps = []
+        token_count = 0
+
         # Ensure model exists
         self._ensure_model_exists(request.model)
 
@@ -2024,9 +2088,8 @@ class FakeAIService:
                 return " ".join(texts)
             return ""
 
-        prompt_text = " ".join(
-            extract_text_content(msg.content) for msg in request.messages if msg.content
-        )
+        prompt_text = " ".join(extract_text_content(msg.content)
+                               for msg in request.messages if msg.content)
         prompt_tokens = calculate_token_count(prompt_text)
 
         # Process audio inputs if present
@@ -2056,12 +2119,15 @@ class FakeAIService:
 
         # Total prompt tokens = text + image + video + audio tokens
         total_prompt_tokens = (
-            prompt_tokens + input_image_tokens + input_video_tokens + input_audio_tokens
-        )
+            prompt_tokens +
+            input_image_tokens +
+            input_video_tokens +
+            input_audio_tokens)
 
         # Add tokens from tool definitions if present
         if request.tools:
-            tool_json = json.dumps([tool.model_dump() for tool in request.tools])
+            tool_json = json.dumps([tool.model_dump()
+                                   for tool in request.tools])
             tool_tokens = calculate_token_count(tool_json)
             total_prompt_tokens += tool_tokens
 
@@ -2085,7 +2151,8 @@ class FakeAIService:
             prompt_hash, prompt_tokens
         )
 
-        # KV Cache routing (for streaming we still do this but mainly for metrics)
+        # KV Cache routing (for streaming we still do this but mainly for
+        # metrics)
         token_ids = tokenize_for_cache(prompt_text)
         worker_id, kv_matched_tokens, _ = self.kv_cache_router.route_request(
             tokens=token_ids,
@@ -2164,6 +2231,14 @@ class FakeAIService:
             )
             # Split the completion text into token-equivalent chunks
             content_tokens = tokenize_text(completion_text)
+            # DEBUG: Log token count and newline presence
+            newline_tokens = [t for t in content_tokens if '\n' in t]
+            logger.info(
+                f"Content has {
+                    len(content_tokens)} tokens, {
+                    len(newline_tokens)} are newlines")
+            if newline_tokens:
+                logger.info(f"Sample newline tokens: {newline_tokens[:5]}")
 
         # Split reasoning into token-equivalent chunks
         reasoning_tokens_list = (
@@ -2217,11 +2292,11 @@ class FakeAIService:
 
         await asyncio.sleep(first_token_delay)
 
-        # Track start time for token timing calculations
-        stream_start_time = time.time()
-        token_timestamps = []
+        # Record first token received (TTFT measured)
+        self.dynamo_metrics.record_first_token(request_id)
 
-        # Calculate ITL (inter-token latency) parameters for use throughout streaming
+        # Calculate ITL (inter-token latency) parameters for use throughout
+        # streaming
         itl_base = self.config.itl_ms / 1000.0  # Convert ms to seconds
         itl_variance = self.config.itl_variance_percent / 100.0
         itl_min = itl_base * (1.0 - itl_variance)
@@ -2237,11 +2312,8 @@ class FakeAIService:
                 )  # milliseconds
                 token_timestamps.append(relative_time)
 
-                # For tokens that are alphanumeric (words), add space before if not first
-                # For punctuation and special chars, no space needed
+                # Use token as-is - tokenizer handles spacing
                 chunk_text = token
-                if i > 0 and (token[0].isalnum() if token else False):
-                    chunk_text = " " + chunk_text
 
                 # Stream as reasoning_content
                 chunk = ChatCompletionChunk(
@@ -2272,7 +2344,8 @@ class FakeAIService:
             from fakeai.models import FunctionDelta, ToolCallDelta
 
             for tool_call_idx, tool_call in enumerate(tool_calls_to_stream):
-                # Stream tool call in chunks: id, type, function name, then arguments
+                # Stream tool call in chunks: id, type, function name, then
+                # arguments
 
                 # Chunk 1: Tool call id and type
                 chunk = ChatCompletionChunk(
@@ -2330,7 +2403,7 @@ class FakeAIService:
                 # Chunk 3+: Function arguments (stream in chunks)
                 args_str = tool_call.function.arguments
                 args_chunks = [
-                    args_str[i : i + 20] for i in range(0, len(args_str), 20)
+                    args_str[i: i + 20] for i in range(0, len(args_str), 20)
                 ]
 
                 for args_chunk in args_chunks:
@@ -2371,10 +2444,9 @@ class FakeAIService:
                 token_timestamps.append(relative_time)
 
                 # For tokens that are alphanumeric (words), add space before if not first
-                # For punctuation and special chars, no space needed
+                # For punctuation and special chars (including newlines), send as-is
+                # Use token as-is - tokenizer handles spacing
                 chunk_text = token
-                if i > 0 and (token[0].isalnum() if token else False):
-                    chunk_text = " " + chunk_text
 
                 # Add timing information to the Delta object
                 chunk = ChatCompletionChunk(
@@ -2416,7 +2488,8 @@ class FakeAIService:
                 elif isinstance(content, list):
                     texts = []
                     for part in content:
-                        if isinstance(part, dict) and part.get("type") == "text":
+                        if isinstance(part, dict) and part.get(
+                                "type") == "text":
                             texts.append(part.get("text", ""))
                         elif hasattr(part, "type") and part.type == "text":
                             texts.append(part.text)
@@ -2432,7 +2505,8 @@ class FakeAIService:
             )
 
             completion_tokens = len(content_tokens)
-            reasoning_tokens_count = len(reasoning_tokens) if reasoning_tokens else 0
+            reasoning_tokens_count = len(
+                reasoning_tokens) if reasoning_tokens else 0
             total_completion_tokens = completion_tokens + reasoning_tokens_count
 
             # Build completion tokens details if needed
@@ -2473,9 +2547,6 @@ class FakeAIService:
             yield final_chunk
 
             # Track token generation and complete KV cache request
-            self.metrics_tracker.track_tokens(
-                "/v1/chat/completions", total_completion_tokens
-            )
             self.kv_cache_router.complete_request(
                 worker_id, token_ids, total_completion_tokens
             )
@@ -2503,19 +2574,28 @@ class FakeAIService:
                 len(reasoning_tokens_list) if reasoning_tokens_list else 0
             )
             total_completion_tokens = completion_tokens + reasoning_tokens_count
-            self.metrics_tracker.track_tokens(
-                "/v1/chat/completions", total_completion_tokens
-            )
             self.kv_cache_router.complete_request(
                 worker_id, token_ids, total_completion_tokens
             )
 
-    async def create_completion(self, request: CompletionRequest) -> CompletionResponse:
+            # Complete Dynamo metrics tracking for streaming request
+            request_end_time = time.time()
+            total_latency_ms = (request_end_time - stream_start_time) * 1000
+            ttft_ms = first_token_delay * 1000 if first_token_delay else 0  # Convert back to ms
+            self.dynamo_metrics.complete_request(
+                request_id=request_id,
+                output_tokens=total_completion_tokens,
+                success=True,
+            )
+
+    async def create_completion(
+            self, request: CompletionRequest) -> CompletionResponse:
         """Create a text completion."""
         # Ensure model exists
         self._ensure_model_exists(request.model)
 
-        # Handle the prompt which can be a string, list of strings, or token IDs
+        # Handle the prompt which can be a string, list of strings, or token
+        # IDs
         prompt_text = self._process_prompt(request.prompt)
         prompt_tokens = calculate_token_count(prompt_text)
 
@@ -2566,11 +2646,8 @@ class FakeAIService:
             ),
         )
 
-        # Track token usage
+        # Metrics tracked via events
         total_tokens = prompt_tokens + completion_tokens
-        self.metrics_tracker.track_tokens("/v1/completions", total_tokens)
-
-        return response
 
     async def create_completion_stream(
         self, request: CompletionRequest
@@ -2579,7 +2656,12 @@ class FakeAIService:
         # Ensure model exists
         self._ensure_model_exists(request.model)
 
-        # Handle the prompt which can be a string, list of strings, or token IDs
+        # Track stream start time for latency calculations
+        stream_start_time = time.time()
+        token_timestamps = []
+
+        # Handle the prompt which can be a string, list of strings, or token
+        # IDs
         prompt_text = self._process_prompt(request.prompt)
 
         # Generate simulated completion
@@ -2609,12 +2691,8 @@ class FakeAIService:
         first_token_delay = random.uniform(ttft_min, ttft_max)
         await asyncio.sleep(first_token_delay)
 
-        # Track start time for token timing calculations
-        stream_start_time = time.time()
-        token_timestamps = []
-        token_count = 0
-
         # Stream the content token by token
+        token_count = 0
         for i, token in enumerate(tokens):
             # Record the timestamp for this token
             current_time = time.time()
@@ -2623,11 +2701,8 @@ class FakeAIService:
             )  # milliseconds
             token_timestamps.append(relative_time)
 
-            # For tokens that are alphanumeric (words), add space before if not first
-            # For punctuation and special chars, no space needed
+            # Use token as-is - tokenizer handles spacing
             chunk_text = token
-            if i > 0 and (token[0].isalnum() if token else False):
-                chunk_text = " " + chunk_text
 
             token_count += 1
 
@@ -2647,7 +2722,8 @@ class FakeAIService:
                             else None
                         ),
                         finish_reason=None,
-                        token_timing=[relative_time],  # Add token timing information
+                        # Add token timing information
+                        token_timing=[relative_time],
                     )
                     for j in range(request.n or 1)
                 ],
@@ -2683,7 +2759,9 @@ class FakeAIService:
         )
         yield final_chunk
 
-    async def create_embedding(self, request: EmbeddingRequest) -> EmbeddingResponse:
+    async def create_embedding(
+            self,
+            request: EmbeddingRequest) -> EmbeddingResponse:
         """Create embeddings."""
         # Ensure model exists
         self._ensure_model_exists(request.model)
@@ -2749,6 +2827,55 @@ class FakeAIService:
 
         # Delegate to audio service
         return await self.audio_service.create_speech(request)
+
+    async def generate_videos(
+        self, request: VideoGenerationRequest
+    ) -> VideoGenerationResponse:
+        """
+        Generate videos from text prompts.
+
+        This is a simulated implementation that creates placeholder video URLs.
+        In a real implementation, this would call actual video generation models.
+
+        Args:
+            request: VideoGenerationRequest containing prompt, model, duration, size, etc.
+
+        Returns:
+            VideoGenerationResponse with generated video URLs
+        """
+        import time
+
+        from fakeai.models import GeneratedVideo, VideoGenerationResponse
+
+        # Simulate processing delay based on video duration
+        await asyncio.sleep(random.uniform(1.0, 2.0))
+
+        # Create simulated video URL
+        video_id = f"video-{int(time.time())}-{random.randint(1000, 9999)}"
+        format_str = request.format.value if hasattr(
+            request.format, 'value') else request.format
+        video_url = f"http://localhost:8765/videos/{video_id}.{format_str}"
+
+        video = GeneratedVideo(
+            url=video_url,
+            b64_json=None,
+        )
+
+        # Track usage
+        model = request.model or "runway-gen3"
+        self.usage_tracker.track_usage(
+            endpoint="/v1/videos/generations",
+            model=model,
+            input_tokens=0,
+            output_tokens=0,
+            num_requests=1,
+            user_id=request.user,
+        )
+
+        return VideoGenerationResponse(
+            created=int(time.time()),
+            data=[video],
+        )
 
     async def list_files(self) -> FileListResponse:
         """List files."""
@@ -2875,8 +3002,8 @@ class FakeAIService:
             ):
                 # Convert each token ID list to a placeholder string
                 return [
-                    f"[Token IDs input with {len(ids)} tokens]" for ids in input_data
-                ]
+                    f"[Token IDs input with {
+                        len(ids)} tokens]" for ids in input_data]
 
         raise ValueError("Unsupported input format for embeddings")
 
@@ -2892,8 +3019,10 @@ class FakeAIService:
 
         # Use the enhanced logprobs generation
         return create_completion_logprobs(
-            text=text, tokens=tokens, logprobs=logprob_count, temperature=temperature
-        )
+            text=text,
+            tokens=tokens,
+            logprobs=logprob_count,
+            temperature=temperature)
 
     async def _generate_simulated_reasoning(
         self,
@@ -2958,7 +3087,8 @@ class FakeAIService:
             reasoning = " ".join(trimmed_words)
 
         # Simulate some delay for reasoning
-        delay = 0.2 if not self.config.random_delay else random.uniform(0.1, 0.3)
+        delay = 0.2 if not self.config.random_delay else random.uniform(
+            0.1, 0.3)
         await asyncio.sleep(delay)
 
         return reasoning
@@ -2988,7 +3118,8 @@ class FakeAIService:
         # Calculate similarity (proxy for token-level acceptance)
         from difflib import SequenceMatcher
 
-        similarity = SequenceMatcher(None, prediction_content, actual_output).ratio()
+        similarity = SequenceMatcher(
+            None, prediction_content, actual_output).ratio()
 
         # Simulate acceptance rate (60-80% typical, correlates with similarity)
         acceptance_rate = min(0.8, similarity * 0.9)
@@ -3042,7 +3173,8 @@ class FakeAIService:
             None,
         )
 
-        # Calculate a realistic delay based on the number of tokens and temperature
+        # Calculate a realistic delay based on the number of tokens and
+        # temperature
         token_factor = 0.01 * max_tokens
         temp_factor = 0.5 if temperature < 0.5 else 1.0 if temperature < 1.0 else 1.5
         base_delay = token_factor * temp_factor
@@ -3055,15 +3187,16 @@ class FakeAIService:
             delay = delay * 0.2
 
         # For debugging
-        logger.info(f"Generating completion with delay {delay:.2f}s, stream={stream}")
+        logger.info(
+            f"Generating completion with delay {
+                delay:.2f}s, stream={stream}")
 
         # Generate the response with a delay
         response = await self.executor.run_with_delay(
             self.generator.generate_response,
             user_message,
-            system_prompt,
             max_tokens,
-            delay,
+            delay=delay,
         )
 
         return response
@@ -3140,7 +3273,11 @@ class FakeAIService:
 
         # Add instructions as system message if provided
         if request.instructions:
-            messages.insert(0, Message(role=Role.SYSTEM, content=request.instructions))
+            messages.insert(
+                0,
+                Message(
+                    role=Role.SYSTEM,
+                    content=request.instructions))
 
         # Generate completion
         completion_text = await self._generate_simulated_completion(
@@ -3195,15 +3332,13 @@ class FakeAIService:
             },
         }
 
-        # Track token usage
+        # Metrics tracked via events
         total_tokens = input_tokens + output_tokens
-        self.metrics_tracker.track_tokens("/v1/responses", total_tokens)
-
-        return response
 
     async def create_ranking(self, request) -> dict[str, Any]:
         """Create a NVIDIA NIM ranking response."""
-        # Simulate ranking by scoring passages based on query-passage similarity
+        # Simulate ranking by scoring passages based on query-passage
+        # similarity
         rankings = []
 
         for idx, passage in enumerate(request.passages):
@@ -3229,13 +3364,11 @@ class FakeAIService:
         # Sort by logit descending (most relevant first)
         rankings.sort(key=lambda x: x["logit"], reverse=True)
 
-        # Track token usage
+        # Metrics tracked via events
         query_tokens = calculate_token_count(request.query.text)
-        passage_tokens = sum(calculate_token_count(p.text) for p in request.passages)
+        passage_tokens = sum(calculate_token_count(p.text)
+                             for p in request.passages)
         total_tokens = query_tokens + passage_tokens
-        self.metrics_tracker.track_tokens("/v1/ranking", total_tokens)
-
-        # Simulate processing delay
         await asyncio.sleep(random.uniform(0.1, 0.3))
 
         return {"rankings": rankings}
@@ -3262,7 +3395,8 @@ class FakeAIService:
         from fakeai.models import RagDocument, SolidoRagResponse, Usage
 
         # Normalize query to list
-        queries = request.query if isinstance(request.query, list) else [request.query]
+        queries = request.query if isinstance(
+            request.query, list) else [request.query]
         combined_query = " ".join(queries)
 
         # Simulate document retrieval with filters
@@ -3276,9 +3410,11 @@ class FakeAIService:
             doc_id = f"doc-{uuid.uuid4().hex[:8]}"
 
             # Generate realistic content based on filters
-            if filters.get("family") == "Solido" and filters.get("tool") == "SDE":
+            if filters.get("family") == "Solido" and filters.get(
+                    "tool") == "SDE":
                 # Generate Solido Design Environment documentation snippets
-                doc_content = self._generate_solido_doc_content(combined_query, i)
+                doc_content = self._generate_solido_doc_content(
+                    combined_query, i)
                 source = f"Solido_SDE_User_Guide_2024.2_p{100 + i * 15}"
             else:
                 # Generic documentation
@@ -3303,8 +3439,7 @@ class FakeAIService:
 
         # Create prompt with context
         augmented_prompt = (
-            f"Context:\n{context_text}\n\nQuestion: {combined_query}\n\nAnswer:"
-        )
+            f"Context:\n{context_text}\n\nQuestion: {combined_query}\n\nAnswer:")
 
         # Calculate tokens
         prompt_tokens = calculate_token_count(augmented_prompt)
@@ -3406,7 +3541,7 @@ class FakeAIService:
 
         # Create context string
         context_text = "Retrieved Context:\n" + "\n\n".join(
-            [f"[{i+1}] {doc.content}" for i, doc in enumerate(retrieved_docs)]
+            [f"[{i + 1}] {doc.content}" for i, doc in enumerate(retrieved_docs)]
         )
 
         return retrieved_docs, context_text
@@ -3450,8 +3585,9 @@ class FakeAIService:
         # Apply pagination
         if after:
             try:
-                after_idx = next(i for i, u in enumerate(all_users) if u["id"] == after)
-                all_users = all_users[after_idx + 1 :]
+                after_idx = next(
+                    i for i, u in enumerate(all_users) if u["id"] == after)
+                all_users = all_users[after_idx + 1:]
             except StopIteration:
                 pass
 
@@ -3495,7 +3631,9 @@ class FakeAIService:
         }
 
         self.organization_users[user_id] = user_data
-        logger.info(f"Created organization user {user_id} with role {request.role}")
+        logger.info(
+            f"Created organization user {user_id} with role {
+                request.role}")
 
         return OrganizationUser(**user_data)
 
@@ -3508,7 +3646,9 @@ class FakeAIService:
             raise ValueError(f"User not found: {user_id}")
 
         user["role"] = request.role
-        logger.info(f"Modified organization user {user_id} to role {request.role}")
+        logger.info(
+            f"Modified organization user {user_id} to role {
+                request.role}")
 
         return OrganizationUser(**user)
 
@@ -3548,10 +3688,9 @@ class FakeAIService:
         # Apply pagination
         if after:
             try:
-                after_idx = next(
-                    i for i, inv in enumerate(all_invites) if inv["id"] == after
-                )
-                all_invites = all_invites[after_idx + 1 :]
+                after_idx = next(i for i, inv in enumerate(
+                    all_invites) if inv["id"] == after)
+                all_invites = all_invites[after_idx + 1:]
             except StopIteration:
                 pass
 
@@ -3591,11 +3730,14 @@ class FakeAIService:
         }
 
         self.organization_invites[invite_id] = invite_data
-        logger.info(f"Created organization invite {invite_id} for {request.email}")
+        logger.info(
+            f"Created organization invite {invite_id} for {
+                request.email}")
 
         return OrganizationInvite(**invite_data)
 
-    async def get_organization_invite(self, invite_id: str) -> OrganizationInvite:
+    async def get_organization_invite(
+            self, invite_id: str) -> OrganizationInvite:
         """Get a specific organization invite."""
         invite = self.organization_invites.get(invite_id)
         if not invite:
@@ -3630,7 +3772,8 @@ class FakeAIService:
 
         # Filter archived projects if needed
         if not include_archived:
-            all_projects = [p for p in all_projects if p.get("status") == "active"]
+            all_projects = [
+                p for p in all_projects if p.get("status") == "active"]
 
         # Sort by created_at descending
         all_projects.sort(key=lambda p: p.get("created_at", 0), reverse=True)
@@ -3641,7 +3784,7 @@ class FakeAIService:
                 after_idx = next(
                     i for i, p in enumerate(all_projects) if p["id"] == after
                 )
-                all_projects = all_projects[after_idx + 1 :]
+                all_projects = all_projects[after_idx + 1:]
             except StopIteration:
                 pass
 
@@ -3684,7 +3827,8 @@ class FakeAIService:
 
         return OrganizationProject(**project_data)
 
-    async def get_organization_project(self, project_id: str) -> OrganizationProject:
+    async def get_organization_project(
+            self, project_id: str) -> OrganizationProject:
         """Get a specific project."""
         project = self.projects.get(project_id)
         if not project:
@@ -3755,8 +3899,9 @@ class FakeAIService:
         # Apply pagination
         if after:
             try:
-                after_idx = next(i for i, u in enumerate(all_users) if u["id"] == after)
-                all_users = all_users[after_idx + 1 :]
+                after_idx = next(
+                    i for i, u in enumerate(all_users) if u["id"] == after)
+                all_users = all_users[after_idx + 1:]
             except StopIteration:
                 pass
 
@@ -3787,7 +3932,9 @@ class FakeAIService:
         # Verify user exists in organization
         org_user = self.organization_users.get(request.user_id)
         if not org_user:
-            raise ValueError(f"User not found in organization: {request.user_id}")
+            raise ValueError(
+                f"User not found in organization: {
+                    request.user_id}")
 
         # Add to project
         if project_id not in self.project_users:
@@ -3795,8 +3942,9 @@ class FakeAIService:
 
         self.project_users[project_id][request.user_id] = request.role
         logger.info(
-            f"Added user {request.user_id} to project {project_id} with role {request.role}"
-        )
+            f"Added user {
+                request.user_id} to project {project_id} with role {
+                request.role}")
 
         return ProjectUser(
             id=request.user_id,
@@ -3806,7 +3954,10 @@ class FakeAIService:
             added_at=org_user.get("added_at", int(time.time())),
         )
 
-    async def get_project_user(self, project_id: str, user_id: str) -> ProjectUser:
+    async def get_project_user(
+            self,
+            project_id: str,
+            user_id: str) -> ProjectUser:
         """Get a specific user in a project."""
         if project_id not in self.projects:
             raise ValueError(f"Project not found: {project_id}")
@@ -3845,8 +3996,8 @@ class FakeAIService:
         # Update role
         project_user_dict[user_id] = request.role
         logger.info(
-            f"Modified user {user_id} in project {project_id} to role {request.role}"
-        )
+            f"Modified user {user_id} in project {project_id} to role {
+                request.role}")
 
         return ProjectUser(
             id=user_id,
@@ -3898,7 +4049,7 @@ class FakeAIService:
                 after_idx = next(
                     i for i, a in enumerate(all_accounts) if a["id"] == after
                 )
-                all_accounts = all_accounts[after_idx + 1 :]
+                all_accounts = all_accounts[after_idx + 1:]
             except StopIteration:
                 pass
 
@@ -3940,7 +4091,8 @@ class FakeAIService:
             self.service_accounts[project_id] = {}
 
         self.service_accounts[project_id][account_id] = account_data
-        logger.info(f"Created service account {account_id} in project {project_id}")
+        logger.info(
+            f"Created service account {account_id} in project {project_id}")
 
         return ServiceAccount(**account_data)
 
@@ -3954,7 +4106,8 @@ class FakeAIService:
         account_dict = self.service_accounts.get(project_id, {})
         account = account_dict.get(service_account_id)
         if not account:
-            raise ValueError(f"Service account not found: {service_account_id}")
+            raise ValueError(
+                f"Service account not found: {service_account_id}")
 
         return ServiceAccount(**account)
 
@@ -3967,12 +4120,12 @@ class FakeAIService:
 
         account_dict = self.service_accounts.get(project_id, {})
         if service_account_id not in account_dict:
-            raise ValueError(f"Service account not found: {service_account_id}")
+            raise ValueError(
+                f"Service account not found: {service_account_id}")
 
         del account_dict[service_account_id]
         logger.info(
-            f"Deleted service account {service_account_id} from project {project_id}"
-        )
+            f"Deleted service account {service_account_id} from project {project_id}")
 
         return DeleteServiceAccountResponse(
             id=service_account_id,
@@ -4028,7 +4181,8 @@ class FakeAIService:
             )
             data.append(agg_bucket)
 
-        return CompletionsUsageResponse(data=data, has_more=False, next_page=None)
+        return CompletionsUsageResponse(
+            data=data, has_more=False, next_page=None)
 
     async def get_embeddings_usage(
         self,
@@ -4063,7 +4217,8 @@ class FakeAIService:
             )
             data.append(agg_bucket)
 
-        return EmbeddingsUsageResponse(data=data, has_more=False, next_page=None)
+        return EmbeddingsUsageResponse(
+            data=data, has_more=False, next_page=None)
 
     async def get_images_usage(
         self,
@@ -4129,7 +4284,8 @@ class FakeAIService:
             )
             data.append(agg_bucket)
 
-        return AudioSpeechesUsageResponse(data=data, has_more=False, next_page=None)
+        return AudioSpeechesUsageResponse(
+            data=data, has_more=False, next_page=None)
 
     async def get_audio_transcriptions_usage(
         self,
@@ -4221,452 +4377,10 @@ class FakeAIService:
         return CostsResponse(data=data, has_more=False, next_page=None)
 
     # ==================== Fine-Tuning API Methods ====================
-
-    async def create_fine_tuning_job(
-        self, request: FineTuningJobRequest
-    ) -> FineTuningJob:
-        """
-        Create a new fine-tuning job.
-
-        Args:
-            request: Fine-tuning job creation request
-
-        Returns:
-            Created FineTuningJob object
-
-        Raises:
-            ValueError: If training file not found or validation file not found
-        """
-        # Validate training file exists
-        training_file = next(
-            (f for f in self.files if f.id == request.training_file), None
-        )
-        if not training_file:
-            raise ValueError(f"Training file {request.training_file} not found")
-
-        # Validate validation file if provided
-        if request.validation_file:
-            validation_file = next(
-                (f for f in self.files if f.id == request.validation_file), None
-            )
-            if not validation_file:
-                raise ValueError(f"Validation file {request.validation_file} not found")
-
-        # Resolve "auto" hyperparameters
-        hyperparameters = request.hyperparameters or Hyperparameters()
-        resolved_hyperparameters = Hyperparameters(
-            n_epochs=(
-                3 if hyperparameters.n_epochs == "auto" else hyperparameters.n_epochs
-            ),
-            batch_size=(
-                4
-                if hyperparameters.batch_size == "auto"
-                else hyperparameters.batch_size
-            ),
-            learning_rate_multiplier=(
-                0.1
-                if hyperparameters.learning_rate_multiplier == "auto"
-                else hyperparameters.learning_rate_multiplier
-            ),
-        )
-
-        # Create job
-        job_id = f"ftjob-{uuid.uuid4().hex}"
-        created_at = int(time.time())
-
-        job = FineTuningJob(
-            id=job_id,
-            created_at=created_at,
-            model=request.model,
-            organization_id="org-fakeai",
-            status="validating_files",
-            hyperparameters=resolved_hyperparameters,
-            training_file=request.training_file,
-            validation_file=request.validation_file,
-            integrations=request.integrations,
-            seed=request.seed,
-            estimated_finish=created_at + 35,  # ~35 seconds total
-        )
-
-        # Store job
-        self.fine_tuning_jobs[job_id] = job
-
-        # Add initial events
-        initial_event = FineTuningEvent(
-            id=f"ftevent-{uuid.uuid4().hex}",
-            created_at=created_at,
-            level="info",
-            message="Fine-tuning job created",
-            type="message",
-        )
-        self.fine_tuning_events[job_id].append(initial_event)
-
-        # Add an initial metrics event with sample data
-        metrics_event = FineTuningEvent(
-            id=f"ftevent-{uuid.uuid4().hex}",
-            created_at=created_at,
-            level="info",
-            message="Initial training metrics",
-            data={"step": 0, "train_loss": 2.5, "learning_rate": 0.0001},
-            type="metrics",
-        )
-        self.fine_tuning_events[job_id].append(metrics_event)
-
-        # Start background processing
-        task = asyncio.create_task(
-            self._process_fine_tuning_job(job_id, request.suffix)
-        )
-        self.fine_tuning_tasks[job_id] = task
-
-        logger.info(f"Created fine-tuning job {job_id} for model {request.model}")
-        return job
-
-    async def list_fine_tuning_jobs(
-        self, limit: int = 20, after: str | None = None
-    ) -> FineTuningJobList:
-        """
-        List fine-tuning jobs with pagination.
-
-        Args:
-            limit: Maximum number of jobs to return
-            after: Cursor for pagination (job_id to start after)
-
-        Returns:
-            FineTuningJobList with paginated results
-        """
-        # Get all jobs sorted by creation time (newest first)
-        all_jobs = sorted(
-            self.fine_tuning_jobs.values(), key=lambda j: j.created_at, reverse=True
-        )
-
-        # Apply pagination
-        if after:
-            # Find the index of the 'after' job
-            try:
-                after_idx = next(i for i, j in enumerate(all_jobs) if j.id == after)
-                all_jobs = all_jobs[after_idx + 1 :]
-            except StopIteration:
-                all_jobs = []
-
-        # Limit results
-        jobs = all_jobs[:limit]
-        has_more = len(all_jobs) > limit
-
-        return FineTuningJobList(
-            data=jobs,
-            has_more=has_more,
-        )
-
-    async def retrieve_fine_tuning_job(self, job_id: str) -> FineTuningJob:
-        """
-        Retrieve a specific fine-tuning job.
-
-        Args:
-            job_id: Job identifier
-
-        Returns:
-            FineTuningJob object
-
-        Raises:
-            ValueError: If job not found
-        """
-        job = self.fine_tuning_jobs.get(job_id)
-        if not job:
-            raise ValueError(f"Fine-tuning job {job_id} not found")
-
-        return job
-
-    async def cancel_fine_tuning_job(self, job_id: str) -> FineTuningJob:
-        """
-        Cancel a running or queued fine-tuning job.
-
-        Args:
-            job_id: Job identifier
-
-        Returns:
-            Updated FineTuningJob object with cancelled status
-
-        Raises:
-            ValueError: If job not found or cannot be cancelled
-        """
-        job = self.fine_tuning_jobs.get(job_id)
-        if not job:
-            raise ValueError(f"Fine-tuning job {job_id} not found")
-
-        # Can only cancel jobs that are not finished
-        if job.status in ["succeeded", "failed", "cancelled"]:
-            raise ValueError(f"Cannot cancel job with status {job.status}")
-
-        # Update job status
-        job.status = "cancelled"
-        job.finished_at = int(time.time())
-
-        # Cancel background task if running
-        if job_id in self.fine_tuning_tasks:
-            task = self.fine_tuning_tasks[job_id]
-            task.cancel()
-            del self.fine_tuning_tasks[job_id]
-
-        # Add cancellation event
-        event = FineTuningEvent(
-            id=f"ftevent-{uuid.uuid4().hex}",
-            created_at=int(time.time()),
-            level="info",
-            message="Fine-tuning job cancelled by user",
-            type="message",
-        )
-        self.fine_tuning_events[job_id].append(event)
-
-        logger.info(f"Cancelled fine-tuning job {job_id}")
-        return job
-
-    async def list_fine_tuning_events(
-        self, job_id: str, limit: int = 20
-    ) -> AsyncGenerator[str, None]:
-        """
-        Stream fine-tuning events via Server-Sent Events (SSE).
-
-        Args:
-            job_id: Job identifier
-            limit: Maximum number of events to return
-
-        Yields:
-            SSE-formatted event strings
-
-        Raises:
-            ValueError: If job not found
-        """
-        job = self.fine_tuning_jobs.get(job_id)
-        if not job:
-            raise ValueError(f"Fine-tuning job {job_id} not found")
-
-        # Get events for this job
-        events = self.fine_tuning_events.get(job_id, [])
-        events = events[-limit:] if limit else events
-
-        # Stream events in SSE format
-        for event in events:
-            event_data = event.model_dump(mode="json")
-            yield f"data: {json.dumps(event_data)}\n\n"
-
-    async def list_fine_tuning_checkpoints(
-        self, job_id: str, limit: int = 10
-    ) -> FineTuningCheckpointList:
-        """
-        List checkpoints for a fine-tuning job.
-
-        Args:
-            job_id: Job identifier
-            limit: Maximum number of checkpoints to return
-
-        Returns:
-            FineTuningCheckpointList with checkpoints
-
-        Raises:
-            ValueError: If job not found
-        """
-        job = self.fine_tuning_jobs.get(job_id)
-        if not job:
-            raise ValueError(f"Fine-tuning job {job_id} not found")
-
-        # Get checkpoints for this job
-        checkpoints = self.fine_tuning_checkpoints.get(job_id, [])
-
-        # Sort by step number (newest first)
-        checkpoints = sorted(checkpoints, key=lambda c: c.step_number, reverse=True)
-
-        # Apply limit
-        checkpoints = checkpoints[:limit] if limit else checkpoints
-
-        first_id = checkpoints[0].id if checkpoints else None
-        last_id = checkpoints[-1].id if checkpoints else None
-
-        return FineTuningCheckpointList(
-            data=checkpoints,
-            has_more=False,
-            first_id=first_id,
-            last_id=last_id,
-        )
-
-    async def _process_fine_tuning_job(self, job_id: str, suffix: str | None = None):
-        """
-        Background task to process a fine-tuning job through its lifecycle.
-
-        This simulates the complete fine-tuning workflow:
-        1. validating_files (1 second)
-        2. queued (1 second)
-        3. running (30 seconds with checkpoints at 25%, 50%, 75%, 100%)
-        4. succeeded
-
-        Args:
-            job_id: Job identifier
-            suffix: Optional suffix for fine-tuned model name
-        """
-        try:
-            job = self.fine_tuning_jobs[job_id]
-
-            # Phase 1: Validating files (1 second)
-            await asyncio.sleep(1.0)
-            job.status = "queued"
-            event = FineTuningEvent(
-                id=f"ftevent-{uuid.uuid4().hex}",
-                created_at=int(time.time()),
-                level="info",
-                message="Files validated successfully",
-                type="message",
-            )
-            self.fine_tuning_events[job_id].append(event)
-
-            # Phase 2: Queued (1 second)
-            await asyncio.sleep(1.0)
-            job.status = "running"
-            event = FineTuningEvent(
-                id=f"ftevent-{uuid.uuid4().hex}",
-                created_at=int(time.time()),
-                level="info",
-                message="Training started",
-                type="message",
-            )
-            self.fine_tuning_events[job_id].append(event)
-
-            # Phase 3: Running with checkpoints (30 seconds total)
-            total_steps = 100
-            training_duration = 30.0
-            checkpoint_steps = [25, 50, 75, 100]
-
-            for step in range(1, total_steps + 1):
-                await asyncio.sleep(training_duration / total_steps)
-
-                # Generate metrics periodically
-                if step % 10 == 0 or step in checkpoint_steps:
-                    train_loss = 2.5 * (1 - step / total_steps) + random.uniform(
-                        0.0, 0.2
-                    )
-                    valid_loss = train_loss + random.uniform(0.0, 0.3)
-                    train_accuracy = (
-                        0.3 + (0.65 * step / total_steps) + random.uniform(0.0, 0.05)
-                    )
-
-                    metrics = {
-                        "step": step,
-                        "train_loss": round(train_loss, 4),
-                        "valid_loss": round(valid_loss, 4),
-                        "train_accuracy": round(train_accuracy, 4),
-                        "learning_rate": 0.0001
-                        * job.hyperparameters.learning_rate_multiplier,
-                    }
-
-                    event = FineTuningEvent(
-                        id=f"ftevent-{uuid.uuid4().hex}",
-                        created_at=int(time.time()),
-                        level="info",
-                        message=f"Step {step}/{total_steps} completed",
-                        data=metrics,
-                        type="metrics",
-                    )
-                    self.fine_tuning_events[job_id].append(event)
-
-                # Create checkpoints at 25%, 50%, 75%, 100%
-                if step in checkpoint_steps:
-                    checkpoint_suffix = f"step-{step}"
-                    if suffix:
-                        checkpoint_model_name = (
-                            f"ft:{job.model}:org-fakeai:{suffix}:{checkpoint_suffix}"
-                        )
-                    else:
-                        checkpoint_model_name = (
-                            f"ft:{job.model}:org-fakeai::{checkpoint_suffix}"
-                        )
-
-                    checkpoint = FineTuningCheckpoint(
-                        id=f"ftckpt-{uuid.uuid4().hex}",
-                        created_at=int(time.time()),
-                        fine_tuning_job_id=job_id,
-                        fine_tuned_model_checkpoint=checkpoint_model_name,
-                        step_number=step,
-                        metrics={
-                            "train_loss": round(
-                                2.5 * (1 - step / total_steps)
-                                + random.uniform(0.0, 0.2),
-                                4,
-                            ),
-                            "valid_loss": round(
-                                2.5 * (1 - step / total_steps)
-                                + random.uniform(0.0, 0.3),
-                                4,
-                            ),
-                            "train_accuracy": round(
-                                0.3
-                                + (0.65 * step / total_steps)
-                                + random.uniform(0.0, 0.05),
-                                4,
-                            ),
-                        },
-                    )
-                    self.fine_tuning_checkpoints[job_id].append(checkpoint)
-
-                    logger.info(f"Created checkpoint for job {job_id} at step {step}")
-
-            # Phase 4: Succeeded
-            job.status = "succeeded"
-            job.finished_at = int(time.time())
-
-            # Set fine-tuned model name
-            timestamp = int(time.time())
-            if suffix:
-                job.fine_tuned_model = f"ft:{job.model}:org-fakeai:{suffix}:{timestamp}"
-            else:
-                job.fine_tuned_model = f"ft:{job.model}:org-fakeai::{timestamp}"
-
-            # Calculate trained tokens (simulate based on training file size and epochs)
-            training_file = next(
-                (f for f in self.files if f.id == job.training_file), None
-            )
-            if training_file:
-                # Rough estimate: ~1 token per 4 bytes, multiplied by number of epochs
-                estimated_tokens = (
-                    training_file.bytes // 4
-                ) * job.hyperparameters.n_epochs
-                job.trained_tokens = estimated_tokens
-            else:
-                job.trained_tokens = random.randint(50000, 500000)
-
-            event = FineTuningEvent(
-                id=f"ftevent-{uuid.uuid4().hex}",
-                created_at=int(time.time()),
-                level="info",
-                message=f"Training completed successfully. Fine-tuned model: {job.fine_tuned_model}",
-                type="message",
-            )
-            self.fine_tuning_events[job_id].append(event)
-
-            logger.info(f"Fine-tuning job {job_id} completed successfully")
-
-        except asyncio.CancelledError:
-            logger.info(f"Fine-tuning job {job_id} was cancelled")
-            raise
-        except Exception as e:
-            logger.error(f"Fine-tuning job {job_id} failed: {e}")
-            job = self.fine_tuning_jobs.get(job_id)
-            if job:
-                job.status = "failed"
-                job.finished_at = int(time.time())
-                job.error = FineTuningJobError(
-                    code="internal_error",
-                    message=str(e),
-                )
-                event = FineTuningEvent(
-                    id=f"ftevent-{uuid.uuid4().hex}",
-                    created_at=int(time.time()),
-                    level="error",
-                    message=f"Training failed: {e}",
-                    type="message",
-                )
-                self.fine_tuning_events[job_id].append(event)
-        finally:
-            # Clean up task reference
-            if job_id in self.fine_tuning_tasks:
-                del self.fine_tuning_tasks[job_id]
+    # NOTE: Fine-tuning functionality has been extracted to FineTuningService
+    # See: fakeai/services/fine_tuning_service.py
+    # Methods: create_fine_tuning_job, list_fine_tuning_jobs, retrieve_fine_tuning_job,
+    #          cancel_fine_tuning_job, list_fine_tuning_events, list_fine_tuning_checkpoints
 
 
 class RealtimeSessionHandler:
@@ -4677,7 +4391,11 @@ class RealtimeSessionHandler:
     for the OpenAI Realtime API.
     """
 
-    def __init__(self, model: str, config: AppConfig, fakeai_service: FakeAIService):
+    def __init__(
+            self,
+            model: str,
+            config: AppConfig,
+            fakeai_service: FakeAIService):
         """Initialize the Realtime session handler."""
         self.model = model
         self.config = config
@@ -4776,7 +4494,8 @@ class RealtimeSessionHandler:
             if td is None:
                 self.session_config.turn_detection = None
             else:
-                self.session_config.turn_detection = RealtimeTurnDetection(**td)
+                self.session_config.turn_detection = RealtimeTurnDetection(
+                    **td)
         if "tools" in session_config:
             self.session_config.tools = [
                 RealtimeTool(**tool) for tool in session_config["tools"]
@@ -4880,7 +4599,8 @@ class RealtimeSessionHandler:
 
         return self._create_event(RealtimeEventType.INPUT_AUDIO_BUFFER_CLEARED)
 
-    def create_conversation_item(self, item_data: dict[str, Any]) -> RealtimeEvent:
+    def create_conversation_item(
+            self, item_data: dict[str, Any]) -> RealtimeEvent:
         """Create a conversation item."""
         item = RealtimeItem(
             id=f"item_{uuid.uuid4().hex}",
@@ -5056,7 +4776,7 @@ class RealtimeSessionHandler:
             transcript = ""
 
             for i in range(0, len(audio_data), chunk_size):
-                chunk = audio_data[i : i + chunk_size]
+                chunk = audio_data[i: i + chunk_size]
                 accumulated_audio += chunk
 
                 # Audio delta
@@ -5076,7 +4796,7 @@ class RealtimeSessionHandler:
                     # Simulate partial transcript
                     words_so_far = int((i / len(audio_data)) * len(words))
                     partial_transcript = " ".join(words[:words_so_far])
-                    transcript_delta = partial_transcript[len(transcript) :]
+                    transcript_delta = partial_transcript[len(transcript):]
                     transcript = partial_transcript
 
                     if transcript_delta:
@@ -5098,7 +4818,7 @@ class RealtimeSessionHandler:
             )
 
             # Final transcript
-            final_transcript_delta = response_text[len(transcript) :]
+            final_transcript_delta = response_text[len(transcript):]
             if final_transcript_delta:
                 yield self._create_event(
                     RealtimeEventType.RESPONSE_AUDIO_TRANSCRIPT_DELTA,
@@ -5207,15 +4927,15 @@ class RealtimeSessionHandler:
         texts = []
         for item in self.conversation_items:
             if (
-                item.type == RealtimeItemType.MESSAGE
-                and item.role == RealtimeItemRole.USER
+                item.type == RealtimeItemType.MESSAGE and
+                item.role == RealtimeItemRole.USER
             ):
                 for content in item.content:
                     if content.type == RealtimeContentType.TEXT and content.text:
                         texts.append(content.text)
                     elif (
-                        content.type == RealtimeContentType.INPUT_AUDIO
-                        and content.transcript
+                        content.type == RealtimeContentType.INPUT_AUDIO and
+                        content.transcript
                     ):
                         texts.append(content.transcript)
         return " ".join(texts) if texts else "Hello"
@@ -5241,254 +4961,7 @@ class RealtimeSessionHandler:
         self, request: CreateVectorStoreRequest
     ) -> VectorStore:
         """Create a new vector store."""
-        # Generate vector store ID
-        vs_id = f"vs_{uuid.uuid4().hex}"
-        created_at = int(time.time())
-
-        # Determine status based on whether files are provided
-        if request.file_ids and len(request.file_ids) > 0:
-            status = "in_progress"
-        else:
-            status = "completed"
-
-        # Calculate expiration if policy provided
-        expires_at = None
-        if request.expires_after:
-            expires_at = created_at + (request.expires_after.days * 86400)
-
-        # Create vector store object
-        vector_store = VectorStore(
-            id=vs_id,
-            created_at=created_at,
-            name=request.name,
-            usage_bytes=0,
-            file_counts=FileCounts(
-                in_progress=len(request.file_ids) if request.file_ids else 0,
-                completed=0,
-                failed=0,
-                cancelled=0,
-                total=len(request.file_ids) if request.file_ids else 0,
-            ),
-            status=status,
-            expires_after=request.expires_after,
-            expires_at=expires_at,
-            last_active_at=created_at,
-            metadata=request.metadata,
-        )
-
-        # Store vector store
-        self.vector_stores[vs_id] = vector_store
-        self.vector_store_files[vs_id] = []
-
-        # Process files if provided
-        if request.file_ids:
-            # Default chunking strategy if not provided
-            chunking_strategy = request.chunking_strategy or AutoChunkingStrategy()
-
-            # Add files in background
-            asyncio.create_task(
-                self._process_vector_store_files(
-                    vs_id, request.file_ids, chunking_strategy
-                )
-            )
-
-        logger.info(
-            f"Created vector store {vs_id} with {len(request.file_ids) if request.file_ids else 0} files"
-        )
-        return vector_store
-
-    async def _process_vector_store_files(
-        self,
-        vs_id: str,
-        file_ids: list[str],
-        chunking_strategy,
-    ) -> None:
-        """Background task to process files for a vector store."""
-        try:
-            vector_store = self.vector_stores.get(vs_id)
-            if not vector_store:
-                return
-
-            for file_id in file_ids:
-                try:
-                    # Validate file exists
-                    file_obj = next((f for f in self.files if f.id == file_id), None)
-                    if not file_obj:
-                        logger.warning(
-                            f"File {file_id} not found for vector store {vs_id}"
-                        )
-                        vector_store.file_counts.failed += 1
-                        vector_store.file_counts.in_progress -= 1
-                        continue
-
-                    # Create vector store file object
-                    vs_file = VectorStoreFile(
-                        id=f"vsf_{uuid.uuid4().hex}",
-                        created_at=int(time.time()),
-                        vector_store_id=vs_id,
-                        usage_bytes=file_obj.bytes,
-                        status="in_progress",
-                        chunking_strategy=chunking_strategy,
-                    )
-                    self.vector_store_files[vs_id].append(vs_file)
-
-                    # Simulate chunking and embedding
-                    await asyncio.sleep(random.uniform(0.1, 0.3))
-
-                    # Generate chunks
-                    chunks = await self._simulate_chunking(file_id, chunking_strategy)
-                    self.vector_store_chunks[file_id] = chunks
-
-                    # Generate embeddings for chunks
-                    embeddings = await self._create_chunk_embeddings(chunks)
-                    self.vector_store_embeddings[file_id] = embeddings
-
-                    # Update file status
-                    vs_file.status = "completed"
-                    vector_store.file_counts.completed += 1
-                    vector_store.file_counts.in_progress -= 1
-                    vector_store.usage_bytes += file_obj.bytes
-
-                    logger.info(
-                        f"Processed file {file_id} for vector store {vs_id}: "
-                        f"{len(chunks)} chunks, {len(embeddings)} embeddings"
-                    )
-
-                except Exception as e:
-                    logger.error(f"Failed to process file {file_id}: {e}")
-                    vector_store.file_counts.failed += 1
-                    vector_store.file_counts.in_progress -= 1
-
-            # Update vector store status
-            if vector_store.file_counts.in_progress == 0:
-                vector_store.status = "completed"
-                vector_store.last_active_at = int(time.time())
-
-            logger.info(
-                f"Completed processing files for vector store {vs_id}: "
-                f"{vector_store.file_counts.completed} completed, "
-                f"{vector_store.file_counts.failed} failed"
-            )
-
-        except Exception as e:
-            logger.exception(f"Error processing vector store files for {vs_id}: {e}")
-
-    async def _simulate_chunking(
-        self,
-        file_id: str,
-        chunking_strategy,
-    ) -> list[dict[str, Any]]:
-        """Simulate chunking a file into text segments."""
-        # Find the file
-        file_obj = next((f for f in self.files if f.id == file_id), None)
-        if not file_obj:
-            return []
-
-        # Generate simulated text content
-        # In reality, this would read the actual file content
-        simulated_text = fake.text(max_nb_chars=5000)
-
-        # Determine chunk parameters
-        if isinstance(chunking_strategy, StaticChunkingStrategy):
-            max_chunk_tokens = chunking_strategy.max_chunk_size_tokens
-            overlap_tokens = chunking_strategy.chunk_overlap_tokens
-        else:
-            # Auto strategy uses defaults
-            max_chunk_tokens = 800
-            overlap_tokens = 400
-
-        # Tokenize text (simplified: split by words)
-        tokens = simulated_text.split()
-
-        # Create chunks with overlap
-        chunks = []
-        chunk_id = 0
-        i = 0
-
-        while i < len(tokens):
-            # Take max_chunk_tokens
-            chunk_tokens = tokens[i : i + max_chunk_tokens]
-            chunk_text = " ".join(chunk_tokens)
-
-            chunks.append(
-                {
-                    "id": f"chunk_{file_id}_{chunk_id}",
-                    "text": chunk_text,
-                    "token_count": len(chunk_tokens),
-                    "start_index": i,
-                }
-            )
-
-            # Move forward by (max_chunk_tokens - overlap_tokens)
-            step = max(1, max_chunk_tokens - overlap_tokens)
-            i += step
-            chunk_id += 1
-
-        return chunks
-
-    async def _create_chunk_embeddings(
-        self, chunks: list[dict[str, Any]]
-    ) -> list[list[float]]:
-        """Create embeddings for text chunks."""
-        embeddings = []
-
-        for chunk in chunks:
-            # Use existing embedding generation logic
-            embedding = create_random_embedding(chunk["text"], dimensions=1536)
-            embedding = normalize_embedding(embedding)
-            embeddings.append(embedding)
-
-        return embeddings
-
-    async def _search_vector_store(
-        self,
-        vs_id: str,
-        query_text: str,
-        top_k: int = 10,
-        score_threshold: float = 0.0,
-    ) -> list[dict[str, Any]]:
-        """Search a vector store using cosine similarity."""
-        vector_store = self.vector_stores.get(vs_id)
-        if not vector_store:
-            raise ValueError(f"Vector store {vs_id} not found")
-
-        # Generate query embedding
-        query_embedding = create_random_embedding(query_text, dimensions=1536)
-        query_embedding = normalize_embedding(query_embedding)
-
-        # Search across all files in the vector store
-        results = []
-
-        vs_files = self.vector_store_files.get(vs_id, [])
-        for vs_file in vs_files:
-            if vs_file.status != "completed":
-                continue
-
-            # Get file from vector store file object
-            # Note: In real implementation, we'd need to track the file_id
-            # For now, we'll search across all embeddings
-            for file_id, embeddings in self.vector_store_embeddings.items():
-                chunks = self.vector_store_chunks.get(file_id, [])
-
-                for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-                    # Calculate cosine similarity (dot product of normalized vectors)
-                    similarity = float(np.dot(query_embedding, embedding))
-
-                    if similarity >= score_threshold:
-                        results.append(
-                            {
-                                "chunk_id": chunk["id"],
-                                "text": chunk["text"],
-                                "score": similarity,
-                                "file_id": file_id,
-                            }
-                        )
-
-        # Sort by score descending
-        results.sort(key=lambda x: x["score"], reverse=True)
-
-        # Return top_k results
-        return results[:top_k]
+        return await self.vector_store_service.create_vector_store(request)
 
     async def list_vector_stores(
         self,
@@ -5498,194 +4971,29 @@ class RealtimeSessionHandler:
         before: str | None = None,
     ) -> VectorStoreListResponse:
         """List all vector stores."""
-        # Get all vector stores
-        all_stores = list(self.vector_stores.values())
-
-        # Sort by created_at
-        reverse = order == "desc"
-        all_stores.sort(key=lambda vs: vs.created_at, reverse=reverse)
-
-        # Apply pagination
-        if after:
-            try:
-                after_idx = next(i for i, vs in enumerate(all_stores) if vs.id == after)
-                all_stores = all_stores[after_idx + 1 :]
-            except StopIteration:
-                pass
-
-        if before:
-            try:
-                before_idx = next(
-                    i for i, vs in enumerate(all_stores) if vs.id == before
-                )
-                all_stores = all_stores[:before_idx]
-            except StopIteration:
-                pass
-
-        # Limit results
-        stores = all_stores[:limit]
-        has_more = len(all_stores) > limit
-
-        first_id = stores[0].id if stores else None
-        last_id = stores[-1].id if stores else None
-
-        await asyncio.sleep(random.uniform(0.05, 0.1))
-
-        return VectorStoreListResponse(
-            data=stores,
-            first_id=first_id,
-            last_id=last_id,
-            has_more=has_more,
+        return await self.vector_store_service.list_vector_stores(
+            limit=limit, order=order, after=after, before=before
         )
 
     async def retrieve_vector_store(self, vs_id: str) -> VectorStore:
         """Retrieve a vector store by ID."""
-        await asyncio.sleep(random.uniform(0.05, 0.1))
-
-        vector_store = self.vector_stores.get(vs_id)
-        if not vector_store:
-            raise ValueError(f"Vector store {vs_id} not found")
-
-        # Update last_active_at
-        vector_store.last_active_at = int(time.time())
-
-        return vector_store
+        return await self.vector_store_service.retrieve_vector_store(vs_id)
 
     async def modify_vector_store(
         self, vs_id: str, request: ModifyVectorStoreRequest
     ) -> VectorStore:
         """Modify a vector store."""
-        vector_store = self.vector_stores.get(vs_id)
-        if not vector_store:
-            raise ValueError(f"Vector store {vs_id} not found")
-
-        # Update fields
-        if request.name is not None:
-            vector_store.name = request.name
-
-        if request.expires_after is not None:
-            vector_store.expires_after = request.expires_after
-            vector_store.expires_at = vector_store.last_active_at + (
-                request.expires_after.days * 86400
-            )
-
-        if request.metadata is not None:
-            vector_store.metadata = request.metadata
-
-        vector_store.last_active_at = int(time.time())
-
-        await asyncio.sleep(random.uniform(0.05, 0.1))
-
-        logger.info(f"Modified vector store {vs_id}")
-        return vector_store
+        return await self.vector_store_service.modify_vector_store(vs_id, request)
 
     async def delete_vector_store(self, vs_id: str) -> dict[str, Any]:
         """Delete a vector store."""
-        await asyncio.sleep(random.uniform(0.05, 0.1))
-
-        if vs_id not in self.vector_stores:
-            raise ValueError(f"Vector store {vs_id} not found")
-
-        # Remove vector store and associated data
-        del self.vector_stores[vs_id]
-        if vs_id in self.vector_store_files:
-            del self.vector_store_files[vs_id]
-
-        # Remove chunks and embeddings for files in this vector store
-        # (In production, we'd track file_id -> vs_id mapping)
-
-        logger.info(f"Deleted vector store {vs_id}")
-
-        return {
-            "id": vs_id,
-            "object": "vector_store.deleted",
-            "deleted": True,
-        }
+        return await self.vector_store_service.delete_vector_store(vs_id)
 
     async def create_vector_store_file(
         self, vs_id: str, request: CreateVectorStoreFileRequest
     ) -> VectorStoreFile:
         """Add a file to a vector store."""
-        vector_store = self.vector_stores.get(vs_id)
-        if not vector_store:
-            raise ValueError(f"Vector store {vs_id} not found")
-
-        # Validate file exists
-        file_obj = next((f for f in self.files if f.id == request.file_id), None)
-        if not file_obj:
-            raise ValueError(f"File {request.file_id} not found")
-
-        # Create vector store file
-        vs_file = VectorStoreFile(
-            id=f"vsf_{uuid.uuid4().hex}",
-            created_at=int(time.time()),
-            vector_store_id=vs_id,
-            usage_bytes=file_obj.bytes,
-            status="in_progress",
-            chunking_strategy=request.chunking_strategy or AutoChunkingStrategy(),
-        )
-
-        self.vector_store_files[vs_id].append(vs_file)
-
-        # Update vector store counts
-        vector_store.file_counts.in_progress += 1
-        vector_store.file_counts.total += 1
-        vector_store.last_active_at = int(time.time())
-
-        # Process file in background
-        asyncio.create_task(
-            self._process_single_vector_store_file(
-                vs_id,
-                request.file_id,
-                vs_file,
-                request.chunking_strategy or AutoChunkingStrategy(),
-            )
-        )
-
-        logger.info(f"Added file {request.file_id} to vector store {vs_id}")
-        return vs_file
-
-    async def _process_single_vector_store_file(
-        self,
-        vs_id: str,
-        file_id: str,
-        vs_file: VectorStoreFile,
-        chunking_strategy,
-    ) -> None:
-        """Process a single file for a vector store."""
-        try:
-            vector_store = self.vector_stores.get(vs_id)
-            if not vector_store:
-                return
-
-            # Simulate processing
-            await asyncio.sleep(random.uniform(0.2, 0.5))
-
-            # Generate chunks
-            chunks = await self._simulate_chunking(file_id, chunking_strategy)
-            self.vector_store_chunks[file_id] = chunks
-
-            # Generate embeddings
-            embeddings = await self._create_chunk_embeddings(chunks)
-            self.vector_store_embeddings[file_id] = embeddings
-
-            # Update status
-            vs_file.status = "completed"
-            vector_store.file_counts.completed += 1
-            vector_store.file_counts.in_progress -= 1
-
-            # Update vector store status if all files are done
-            if vector_store.file_counts.in_progress == 0:
-                vector_store.status = "completed"
-
-            logger.info(f"Completed processing file {file_id} for vector store {vs_id}")
-
-        except Exception as e:
-            logger.error(f"Failed to process file {file_id}: {e}")
-            vs_file.status = "failed"
-            vs_file.last_error = {"message": str(e), "type": "processing_error"}
-            vector_store.file_counts.failed += 1
-            vector_store.file_counts.in_progress -= 1
+        return await self.vector_store_service.add_file_to_vector_store(vs_id, request)
 
     async def list_vector_store_files(
         self,
@@ -5695,191 +5003,37 @@ class RealtimeSessionHandler:
         after: str | None = None,
         before: str | None = None,
     ) -> VectorStoreFileListResponse:
-        """List files in a vector store."""
-        if vs_id not in self.vector_stores:
-            raise ValueError(f"Vector store {vs_id} not found")
-
-        # Get files for this vector store
-        all_files = self.vector_store_files.get(vs_id, [])
-
-        # Sort by created_at
-        reverse = order == "desc"
-        all_files_sorted = sorted(
-            all_files, key=lambda f: f.created_at, reverse=reverse
-        )
-
-        # Apply pagination
-        if after:
-            try:
-                after_idx = next(
-                    i for i, f in enumerate(all_files_sorted) if f.id == after
-                )
-                all_files_sorted = all_files_sorted[after_idx + 1 :]
-            except StopIteration:
-                pass
-
-        if before:
-            try:
-                before_idx = next(
-                    i for i, f in enumerate(all_files_sorted) if f.id == before
-                )
-                all_files_sorted = all_files_sorted[:before_idx]
-            except StopIteration:
-                pass
-
-        # Limit results
-        files = all_files_sorted[:limit]
-        has_more = len(all_files_sorted) > limit
-
-        first_id = files[0].id if files else None
-        last_id = files[-1].id if files else None
-
-        await asyncio.sleep(random.uniform(0.05, 0.1))
-
-        return VectorStoreFileListResponse(
-            data=files,
-            first_id=first_id,
-            last_id=last_id,
-            has_more=has_more,
+        """List all files in a vector store."""
+        return await self.vector_store_service.list_vector_store_files(
+            vs_id, limit=limit, order=order, after=after, before=before
         )
 
     async def retrieve_vector_store_file(
         self, vs_id: str, file_id: str
     ) -> VectorStoreFile:
-        """Retrieve a specific file from a vector store."""
-        if vs_id not in self.vector_stores:
-            raise ValueError(f"Vector store {vs_id} not found")
-
-        files = self.vector_store_files.get(vs_id, [])
-        vs_file = next((f for f in files if f.id == file_id), None)
-
-        if not vs_file:
-            raise ValueError(f"File {file_id} not found in vector store {vs_id}")
-
-        await asyncio.sleep(random.uniform(0.05, 0.1))
-
-        return vs_file
+        """Retrieve a file from a vector store."""
+        return await self.vector_store_service.retrieve_vector_store_file(vs_id, file_id)
 
     async def delete_vector_store_file(
         self, vs_id: str, file_id: str
     ) -> dict[str, Any]:
-        """Remove a file from a vector store."""
-        if vs_id not in self.vector_stores:
-            raise ValueError(f"Vector store {vs_id} not found")
-
-        files = self.vector_store_files.get(vs_id, [])
-        vs_file = next((f for f in files if f.id == file_id), None)
-
-        if not vs_file:
-            raise ValueError(f"File {file_id} not found in vector store {vs_id}")
-
-        # Remove file
-        self.vector_store_files[vs_id].remove(vs_file)
-
-        # Update vector store counts
-        vector_store = self.vector_stores[vs_id]
-        vector_store.file_counts.total -= 1
-        if vs_file.status == "completed":
-            vector_store.file_counts.completed -= 1
-        elif vs_file.status == "failed":
-            vector_store.file_counts.failed -= 1
-        elif vs_file.status == "in_progress":
-            vector_store.file_counts.in_progress -= 1
-
-        await asyncio.sleep(random.uniform(0.05, 0.1))
-
-        logger.info(f"Deleted file {file_id} from vector store {vs_id}")
-
-        return {
-            "id": file_id,
-            "object": "vector_store.file.deleted",
-            "deleted": True,
-        }
+        """Delete a file from a vector store."""
+        return await self.vector_store_service.delete_vector_store_file(vs_id, file_id)
 
     async def create_vector_store_file_batch(
         self, vs_id: str, request: CreateVectorStoreFileBatchRequest
     ) -> VectorStoreFileBatch:
         """Create a batch of files in a vector store."""
-        vector_store = self.vector_stores.get(vs_id)
-        if not vector_store:
-            raise ValueError(f"Vector store {vs_id} not found")
-
-        # Create batch object
-        batch = VectorStoreFileBatch(
-            id=f"vsfb_{uuid.uuid4().hex}",
-            created_at=int(time.time()),
-            vector_store_id=vs_id,
-            status="in_progress",
-            file_counts=FileCounts(
-                in_progress=len(request.file_ids),
-                completed=0,
-                failed=0,
-                cancelled=0,
-                total=len(request.file_ids),
-            ),
-        )
-
-        # Process files
-        chunking_strategy = request.chunking_strategy or AutoChunkingStrategy()
-        asyncio.create_task(
-            self._process_vector_store_files(vs_id, request.file_ids, chunking_strategy)
-        )
-
-        logger.info(
-            f"Created file batch for vector store {vs_id} with {len(request.file_ids)} files"
-        )
-        return batch
+        return await self.vector_store_service.create_file_batch(vs_id, request)
 
     async def retrieve_vector_store_file_batch(
         self, vs_id: str, batch_id: str
     ) -> VectorStoreFileBatch:
         """Retrieve a file batch from a vector store."""
-        # For simplicity, we'll create a mock batch based on current file counts
-        vector_store = self.vector_stores.get(vs_id)
-        if not vector_store:
-            raise ValueError(f"Vector store {vs_id} not found")
-
-        batch = VectorStoreFileBatch(
-            id=batch_id,
-            created_at=vector_store.created_at,
-            vector_store_id=vs_id,
-            status=(
-                "completed"
-                if vector_store.file_counts.in_progress == 0
-                else "in_progress"
-            ),
-            file_counts=vector_store.file_counts,
-        )
-
-        await asyncio.sleep(random.uniform(0.05, 0.1))
-
-        return batch
+        return await self.vector_store_service.retrieve_file_batch(vs_id, batch_id)
 
     async def cancel_vector_store_file_batch(
         self, vs_id: str, batch_id: str
     ) -> VectorStoreFileBatch:
         """Cancel a file batch in a vector store."""
-        vector_store = self.vector_stores.get(vs_id)
-        if not vector_store:
-            raise ValueError(f"Vector store {vs_id} not found")
-
-        # Mark in_progress files as cancelled
-        files = self.vector_store_files.get(vs_id, [])
-        for vs_file in files:
-            if vs_file.status == "in_progress":
-                vs_file.status = "cancelled"
-                vector_store.file_counts.cancelled += 1
-                vector_store.file_counts.in_progress -= 1
-
-        batch = VectorStoreFileBatch(
-            id=batch_id,
-            created_at=vector_store.created_at,
-            vector_store_id=vs_id,
-            status="cancelled",
-            file_counts=vector_store.file_counts,
-        )
-
-        await asyncio.sleep(random.uniform(0.05, 0.1))
-
-        logger.info(f"Cancelled file batch {batch_id} for vector store {vs_id}")
-        return batch
+        return await self.vector_store_service.cancel_file_batch(vs_id, batch_id)

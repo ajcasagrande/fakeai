@@ -7,7 +7,6 @@ This script modifies the key components of the FakeAI server to fix streaming is
 #  SPDX-License-Identifier: Apache-2.0
 
 import os
-import sys
 
 
 def fix_app_py():

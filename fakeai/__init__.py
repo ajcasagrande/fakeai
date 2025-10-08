@@ -21,6 +21,7 @@ __all__ = [
 ]
 # Make key modules available at the package level for convenience
 
+# Import app (now safe with flat config)
 from fakeai.app import app as app
 from fakeai.cli import main as run_server
 from fakeai.config import AppConfig as AppConfig
@@ -34,14 +35,13 @@ from fakeai.semantic_embeddings import (
 try:
     from fakeai.client import (
         FakeAIClient,
-        assert_cache_hit,
-        assert_moderation_flagged,
+        temporary_server,
         assert_response_valid,
         assert_streaming_valid,
         assert_tokens_in_range,
+        assert_cache_hit,
         collect_stream_content,
         measure_stream_timing,
-        temporary_server,
     )
 
     __all__.extend(
@@ -49,8 +49,11 @@ try:
             "FakeAIClient",
             "temporary_server",
             "assert_response_valid",
+            "assert_streaming_valid",
             "assert_tokens_in_range",
             "assert_cache_hit",
+            "collect_stream_content",
+            "measure_stream_timing",
             "assert_moderation_flagged",
             "assert_streaming_valid",
             "collect_stream_content",

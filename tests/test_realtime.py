@@ -7,7 +7,6 @@ conversations with audio and text support, voice activity detection, and functio
 
 #  SPDX-License-Identifier: Apache-2.0
 
-import asyncio
 import base64
 import json
 
@@ -15,13 +14,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from fakeai.app import app
-from fakeai.models import (
-    RealtimeContentType,
-    RealtimeEventType,
-    RealtimeItemRole,
-    RealtimeItemType,
-    RealtimeModality,
-)
 
 
 @pytest.fixture

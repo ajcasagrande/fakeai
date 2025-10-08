@@ -5,7 +5,6 @@ These tests verify that KV cache hits significantly reduce Time To First Token (
 in streaming responses, simulating the performance benefits of AI-Dynamo's KV cache reuse.
 """
 
-import asyncio
 import time
 
 import pytest

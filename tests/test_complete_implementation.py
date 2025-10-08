@@ -15,7 +15,6 @@ def test_schema_compliance():
     print()
 
     from fakeai.models import (  # Enhanced models; Multi-modal; Logprobs; Streaming; Structured outputs; Responses API; NIM Rankings; Updated models
-        AudioConfig,
         ChatCompletionRequest,
         ChatLogprob,
         ChatLogprobs,
@@ -32,9 +31,7 @@ def test_schema_compliance():
         RankingPassage,
         RankingQuery,
         RankingRequest,
-        RankingResponse,
         ResponsesRequest,
-        ResponsesResponse,
         Role,
         StreamOptions,
         TextContent,

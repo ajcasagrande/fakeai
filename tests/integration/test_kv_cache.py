@@ -22,17 +22,13 @@ Tests cover:
 Target: 22+ tests
 """
 
-import asyncio
 import json
 import random
 import threading
 import time
-from typing import Any
 
 import pytest
-import requests
 
-from fakeai.config import AppConfig
 from fakeai.config.kv_cache import KVCacheConfig
 from fakeai.kv_cache import (
     KVCacheMetrics,
@@ -47,7 +43,6 @@ from fakeai.kv_cache_advanced import (
     CacheCoordinator,
     CacheMemoryManager,
 )
-
 
 # ============================================================================
 # Basic KV Cache Tests

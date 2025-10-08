@@ -26,6 +26,9 @@ All models are re-exported at the package level for backward compatibility.
 """
 #  SPDX-License-Identifier: Apache-2.0
 
+# Rebuild all BaseModel subclasses to resolve forward references
+from pydantic import BaseModel as _BaseModel
+
 # Import from base module
 from ._base import (
     AudioOutput,
@@ -56,10 +59,30 @@ from ._content import (
     VideoUrl,
 )
 
+# Import from assistants module
+from .assistants import (
+    Assistant,
+    AssistantList,
+    AssistantToolResources,
+    CreateAssistantRequest,
+    CreateMessageRequest,
+    CreateRunRequest,
+    CreateThreadRequest,
+    MessageList,
+    ModifyAssistantRequest,
+    ModifyRunRequest,
+    ModifyThreadRequest,
+    Run,
+    RunList,
+    RunStatus,
+    RunStep,
+    RunStepList,
+    Thread,
+    ThreadMessage,
+)
+
 # Import from audio module
 from .audio import (
-    AudioSpeechesUsageResponse,
-    AudioTranscriptionsUsageResponse,
     AudioTranslationRequest,
     SpeechRequest,
     TranscriptionRequest,
@@ -67,6 +90,12 @@ from .audio import (
     TranscriptionSegment,
     TranscriptionWord,
     VerboseTranscriptionResponse,
+)
+
+# Import from azure module
+from .azure import (
+    TextGenerationRequest,
+    TextGenerationResponse,
 )
 
 # Import from batches module
@@ -77,6 +106,22 @@ from .batches import (
     BatchRequest,
     BatchRequestCounts,
     CreateBatchRequest,
+)
+
+# Import from billing module
+from .billing import (
+    AudioSpeechesUsageResponse,
+    AudioTranscriptionsUsageResponse,
+    CompletionsUsageResponse,
+    CostAmount,
+    CostBucket,
+    CostResult,
+    CostsResponse,
+    EmbeddingsUsageResponse,
+    ImagesUsageResponse,
+    UsageAggregationBucket,
+    UsageResultItem,
+    UsageTimeBucket,
 )
 
 # Import from chat module
@@ -105,39 +150,55 @@ from .chat import (
     TopLogprob,
 )
 
+# Import from completions module
+from .completions import (
+    CompletionChoice,
+    CompletionChunk,
+    CompletionRequest,
+    CompletionResponse,
+    LogProbs,
+)
+
 # Import from embeddings module
 from .embeddings import (
     Embedding,
     EmbeddingRequest,
     EmbeddingResponse,
-    EmbeddingsUsageResponse,
-)
-
-# Import from images module
-from .images import (
-    GeneratedImage,
-    ImageGenerationRequest,
-    ImageGenerationResponse,
-    ImageQuality,
-    ImageResponseFormat,
-    ImageSize,
-    ImageStyle,
-    ImagesUsageResponse,
-)
-
-# Import from completions module
-from .completions import (
-    CompletionChunk,
-    CompletionChoice,
-    CompletionRequest,
-    CompletionResponse,
-    LogProbs,
 )
 
 # Import from files module
 from .files import (
     FileListResponse,
     FileObject,
+)
+
+# Import from fine_tuning module
+from .fine_tuning import (
+    FineTuningCheckpoint,
+    FineTuningCheckpointList,
+    FineTuningEvent,
+    FineTuningEventList,
+    FineTuningJob,
+    FineTuningJobError,
+    FineTuningJobList,
+    FineTuningJobRequest,
+    Hyperparameters,
+)
+
+# Import from images module
+from .images import (
+    GeneratedImage,
+    GeneratedVideo,
+    ImageGenerationRequest,
+    ImageGenerationResponse,
+    ImageQuality,
+    ImageResponseFormat,
+    ImageSize,
+    ImageStyle,
+    VideoFormat,
+    VideoGenerationRequest,
+    VideoGenerationResponse,
+    VideoSize,
 )
 
 # Import from moderation module
@@ -147,26 +208,6 @@ from .moderation import (
     ModerationRequest,
     ModerationResponse,
     ModerationResult,
-)
-
-# Import from vector_stores module
-from .vector_stores import (
-    AutoChunkingStrategy,
-    ChunkingStrategy,
-    ChunkingStrategyType,
-    CreateVectorStoreFileBatchRequest,
-    CreateVectorStoreFileRequest,
-    CreateVectorStoreRequest,
-    ExpiresAfter,
-    FileCounts,
-    ModifyVectorStoreRequest,
-    RankingOptions,
-    StaticChunkingStrategy,
-    VectorStore,
-    VectorStoreFile,
-    VectorStoreFileBatch,
-    VectorStoreFileListResponse,
-    VectorStoreListResponse,
 )
 
 # Import from organization module
@@ -198,20 +239,15 @@ from .organization import (
     ServiceAccountRole,
 )
 
-# Import from billing module
-from .billing import (
-    AudioSpeechesUsageResponse,
-    AudioTranscriptionsUsageResponse,
-    CompletionsUsageResponse,
-    CostAmount,
-    CostBucket,
-    CostResult,
-    CostsResponse,
-    EmbeddingsUsageResponse,
-    ImagesUsageResponse,
-    UsageAggregationBucket,
-    UsageResultItem,
-    UsageTimeBucket,
+# Import from rankings module
+from .rankings import (
+    RankingObject,
+    RankingPassage,
+    RankingQuery,
+    RankingRequest,
+    RankingResponse,
+    SolidoRagRequest,
+    SolidoRagResponse,
 )
 
 # Import from realtime module
@@ -240,41 +276,6 @@ from .realtime import (
     RealtimeVoice,
 )
 
-# Import from fine_tuning module
-from .fine_tuning import (
-    FineTuningCheckpoint,
-    FineTuningCheckpointList,
-    FineTuningEvent,
-    FineTuningEventList,
-    FineTuningJob,
-    FineTuningJobError,
-    FineTuningJobList,
-    FineTuningJobRequest,
-    Hyperparameters,
-)
-
-# Import from assistants module
-from .assistants import (
-    Assistant,
-    AssistantList,
-    AssistantToolResources,
-    CreateAssistantRequest,
-    CreateMessageRequest,
-    CreateRunRequest,
-    CreateThreadRequest,
-    MessageList,
-    ModifyAssistantRequest,
-    ModifyRunRequest,
-    ModifyThreadRequest,
-    Run,
-    RunList,
-    RunStatus,
-    RunStep,
-    RunStepList,
-    Thread,
-    ThreadMessage,
-)
-
 # Import from responses module
 from .responses import (
     ResponseFunctionCallOutput,
@@ -285,32 +286,32 @@ from .responses import (
     ResponsesResponse,
 )
 
-# Import from rankings module
-from .rankings import (
-    RankingObject,
-    RankingPassage,
-    RankingQuery,
-    RankingRequest,
-    RankingResponse,
-    SolidoRagRequest,
-    SolidoRagResponse,
+# Import from vector_stores module
+from .vector_stores import (
+    AutoChunkingStrategy,
+    ChunkingStrategy,
+    ChunkingStrategyType,
+    CreateVectorStoreFileBatchRequest,
+    CreateVectorStoreFileRequest,
+    CreateVectorStoreRequest,
+    ExpiresAfter,
+    FileCounts,
+    ModifyVectorStoreRequest,
+    RankingOptions,
+    StaticChunkingStrategy,
+    VectorStore,
+    VectorStoreFile,
+    VectorStoreFileBatch,
+    VectorStoreFileListResponse,
+    VectorStoreListResponse,
 )
-
-# Import from azure module
-from .azure import (
-    TextGenerationRequest,
-    TextGenerationResponse,
-)
-
-# Rebuild all BaseModel subclasses to resolve forward references
-from pydantic import BaseModel as _BaseModel
 
 for _name, _obj in list(globals().items()):
     if (
-        not _name.startswith("_")
-        and isinstance(_obj, type)
-        and issubclass(_obj, _BaseModel)
-        and hasattr(_obj, "model_rebuild")
+        not _name.startswith("_") and
+        isinstance(_obj, type) and
+        issubclass(_obj, _BaseModel) and
+        hasattr(_obj, "model_rebuild")
     ):
         try:
             _obj.model_rebuild()
@@ -397,6 +398,11 @@ __all__ = [
     "GeneratedImage",
     "ImageGenerationRequest",
     "ImageGenerationResponse",
+    "VideoGenerationRequest",
+    "VideoGenerationResponse",
+    "VideoSize",
+    "VideoFormat",
+    "GeneratedVideo",
     "ImagesUsageResponse",
     # Completion models (legacy)
     "CompletionRequest",

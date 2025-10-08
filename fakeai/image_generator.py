@@ -16,7 +16,7 @@ import random
 import threading
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Literal
 
 from PIL import Image, ImageDraw, ImageFont
@@ -82,7 +82,7 @@ class ImageGenerator:
 
     def __init__(
         self,
-        base_url: str = "http://localhost:8000",
+        base_url: str = "http://localhost:8765",
         storage_backend: Literal["memory", "disk"] = "memory",
         retention_hours: int = 1,
     ):
@@ -98,7 +98,8 @@ class ImageGenerator:
         self.storage_backend = storage_backend
         self.retention_hours = retention_hours
 
-        # In-memory storage: {image_id: {"data": bytes, "created_at": timestamp}}
+        # In-memory storage: {image_id: {"data": bytes, "created_at":
+        # timestamp}}
         self._storage: dict[str, dict] = {}
         self._storage_lock = threading.Lock()
 
@@ -205,7 +206,10 @@ class ImageGenerator:
         colors = self.VIVID_COLORS if style == "vivid" else self.NATURAL_COLORS
 
         # Use prompt hash + index to seed randomness for reproducibility
-        seed = int(hashlib.md5(f"{prompt}_{index}".encode()).hexdigest()[:8], 16)
+        seed = int(
+            hashlib.md5(
+                f"{prompt}_{index}".encode()).hexdigest()[
+                :8], 16)
         rng = random.Random(seed)
 
         # Create image
@@ -341,9 +345,8 @@ class ImageGenerator:
             for y in range(0, height, 5):
                 points = []
                 for x in range(0, width, 10):
-                    wave_y = y + int(
-                        amplitude * rng.random() * (1 + 0.5 * (x * frequency % 1))
-                    )
+                    wave_y = y + int(amplitude * rng.random() *
+                                     (1 + 0.5 * (x * frequency % 1)))
                     points.append((x, wave_y))
                 if len(points) > 1:
                     draw.line(points, fill=overlay_color, width=2)
@@ -368,8 +371,8 @@ class ImageGenerator:
         try:
             # Try to load a nice font (fallback to default if not available)
             font = ImageFont.truetype(
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", base_font_size
-            )
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                base_font_size)
         except (OSError, IOError):
             # Fallback to default font
             font = ImageFont.load_default()
@@ -475,7 +478,9 @@ class ImageGenerator:
             # Check if expired
             age_hours = (time.time() - entry["created_at"]) / 3600
             if age_hours > self.retention_hours:
-                logger.info(f"Image expired: {image_id} (age: {age_hours:.1f}h)")
+                logger.info(
+                    f"Image expired: {image_id} (age: {
+                        age_hours:.1f}h)")
                 del self._storage[image_id]
                 return None
 
@@ -500,7 +505,9 @@ class ImageGenerator:
                         del self._storage[image_id]
 
                 if expired_ids:
-                    logger.info(f"Cleaned up {len(expired_ids)} expired images")
+                    logger.info(
+                        f"Cleaned up {
+                            len(expired_ids)} expired images")
 
             except Exception as e:
                 logger.error(f"Error in image cleanup thread: {e}")
@@ -513,7 +520,8 @@ class ImageGenerator:
             Dict with storage stats
         """
         with self._storage_lock:
-            total_size = sum(len(entry["data"]) for entry in self._storage.values())
+            total_size = sum(len(entry["data"])
+                             for entry in self._storage.values())
 
             return {
                 "total_images": len(self._storage),

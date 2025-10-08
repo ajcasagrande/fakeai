@@ -34,6 +34,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "cyclopts>=3.0.0",
     "aiohttp>=3.9.0",
+    "PyJWT>=2.8.0",
 ]
 
 [project.urls]
@@ -67,8 +68,12 @@ vector = [
     "faiss-cpu>=1.7.4",
     "numpy>=1.24.0",
 ]
+dashboard = [
+    # No Python dependencies required for dashboard
+    # Dashboard requires Node.js and npm at build time only
+]
 all = [
-    "fakeai[dev,llm,embeddings,vector]",
+    "fakeai[dev,llm,embeddings,vector,dashboard]",
 ]
 publish = [
     "build>=1.0.0",
@@ -81,7 +86,17 @@ package-dir = {"" = "."}
 include-package-data = true
 
 [tool.setuptools.package-data]
-fakeai = ["py.typed"]
+fakeai = [
+    "py.typed",
+    "static/**/*",
+    "static/spa/**/*",
+    "config/*.json",
+    "config/*.yaml",
+    "config/*.yml",
+    "models_registry/*.json",
+    "models_registry/*.yaml",
+    "models_registry/*.yml",
+]
 
 [tool.setuptools.exclude-package-data]
 fakeai = ["__pycache__/*"]
@@ -135,6 +150,8 @@ markers = [
     "stress: Stress and load tests for performance validation",
     "server_config: Configure server settings for test",
     "dynamo: AI-Dynamo LLM inference metrics tests",
+    "performance: Performance and load tests for metrics system",
+    "benchmark: Benchmark tests using pytest-benchmark",
 ]
 log_cli = false
 log_cli_level = "INFO"
@@ -149,3 +166,38 @@ filterwarnings = [
 [project.scripts]
 fakeai = "fakeai.cli:main"
 fakeai-server = "fakeai.cli:main"  # Deprecated: kept for backward compatibility
+
+[tool.coverage.run]
+source = ["fakeai"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+    "fakeai/cli.py",
+    "fakeai/server.py",
+]
+branch = true
+parallel = true
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.json]
+output = "coverage.json"
+pretty_print = true

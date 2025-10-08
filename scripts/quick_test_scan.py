@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Quick integration test scanner - runs all tests at once with detailed output."""
 
-import subprocess
 import re
-from pathlib import Path
+import subprocess
 from collections import defaultdict
+from pathlib import Path
+
 
 def main():
     integration_dir = Path('tests/integration')

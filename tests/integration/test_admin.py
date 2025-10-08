@@ -14,7 +14,6 @@ This module tests administrative endpoints including:
 
 import json
 import time
-from typing import Any
 
 import pytest
 

@@ -45,7 +45,8 @@ class ValidationPipeline:
         """Get the name of this pipeline."""
         return self._name
 
-    def add_validator(self, validator: Validator | AsyncValidator) -> "ValidationPipeline":
+    def add_validator(self, validator: Validator |
+                      AsyncValidator) -> "ValidationPipeline":
         """
         Add a validator to the pipeline.
 
@@ -204,7 +205,9 @@ class ParallelValidationPipeline:
         """Get the name of this pipeline."""
         return self._name
 
-    def add_validator(self, validator: AsyncValidator) -> "ParallelValidationPipeline":
+    def add_validator(
+            self,
+            validator: AsyncValidator) -> "ParallelValidationPipeline":
         """
         Add a validator to the pipeline.
 
@@ -242,7 +245,8 @@ class ParallelValidationPipeline:
             return result
 
         # Execute all validators in parallel
-        tasks = [validator.validate(request, context) for validator in self._validators]
+        tasks = [validator.validate(request, context)
+                 for validator in self._validators]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Merge all results
@@ -250,7 +254,8 @@ class ParallelValidationPipeline:
             if isinstance(validator_result, Exception):
                 # Handle exceptions from validators
                 result.add_error(
-                    message=f"Validator '{self._validators[i].name}' raised an exception: {validator_result}",
+                    message=f"Validator '{
+                        self._validators[i].name}' raised an exception: {validator_result}",
                     code="validator_exception",
                 )
             else:
@@ -265,4 +270,5 @@ class ParallelValidationPipeline:
     def __repr__(self) -> str:
         """Return a string representation of the pipeline."""
         validator_names = [v.name for v in self._validators]
-        return f"ParallelValidationPipeline(name='{self._name}', validators={validator_names})"
+        return f"ParallelValidationPipeline(name='{
+            self._name}', validators={validator_names})"

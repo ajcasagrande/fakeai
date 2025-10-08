@@ -12,11 +12,8 @@ import pytest
 from fakeai import AppConfig
 from fakeai.fakeai_service import FakeAIService
 from fakeai.models import (
-    Batch,
     BatchListResponse,
-    BatchRequestCounts,
     CreateBatchRequest,
-    FileObject,
 )
 
 

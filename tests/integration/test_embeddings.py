@@ -14,7 +14,6 @@ This module tests the embeddings endpoint with TestClient including:
 
 import numpy as np
 import pytest
-from fastapi.testclient import TestClient
 
 
 @pytest.mark.integration
@@ -542,6 +541,7 @@ class TestEmbeddingsIntegration:
         # Should have usage for all inputs
         assert data["usage"]["prompt_tokens"] > 3  # At least one token per input
 
+    @pytest.mark.slow
     def test_normalization_across_dimensions(self, client_no_auth):
         """L2 normalization should work across all dimension sizes."""
         test_cases = [

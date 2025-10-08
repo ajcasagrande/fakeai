@@ -8,7 +8,6 @@ the FakeAI configuration system.
 #  SPDX-License-Identifier: Apache-2.0
 
 import time
-from unittest.mock import patch
 
 import pytest
 

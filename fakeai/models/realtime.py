@@ -196,7 +196,8 @@ class RealtimeTool(BaseModel):
         description="The type of the tool.",
     )
     name: str = Field(description="The name of the function.")
-    description: str = Field(description="Description of what the function does.")
+    description: str = Field(
+        description="Description of what the function does.")
     parameters: dict[str, Any] = Field(
         default_factory=dict,
         description="JSON Schema for the function parameters.",
@@ -318,8 +319,10 @@ class RealtimeContent(BaseModel):
 
     type: RealtimeContentType = Field(description="The type of content.")
     text: str | None = Field(default=None, description="Text content.")
-    audio: str | None = Field(default=None, description="Base64-encoded audio data.")
-    transcript: str | None = Field(default=None, description="Transcript of audio.")
+    audio: str | None = Field(default=None,
+                              description="Base64-encoded audio data.")
+    transcript: str | None = Field(
+        default=None, description="Transcript of audio.")
 
 
 class RealtimeItem(BaseModel):
@@ -368,7 +371,8 @@ class RealtimeResponse(BaseModel):
         default="realtime.response",
         description="The object type.",
     )
-    status: RealtimeItemStatus = Field(description="The status of the response.")
+    status: RealtimeItemStatus = Field(
+        description="The status of the response.")
     status_details: dict[str, Any] | None = Field(
         default=None,
         description="Additional status details.",
@@ -377,7 +381,8 @@ class RealtimeResponse(BaseModel):
         default_factory=list,
         description="Output items from the response.",
     )
-    usage: Usage | None = Field(default=None, description="Token usage information.")
+    usage: Usage | None = Field(default=None,
+                                description="Token usage information.")
 
 
 class RealtimeRateLimits(BaseModel):
@@ -410,18 +415,22 @@ class RealtimeEvent(BaseModel):
     event_id: str = Field(description="Unique event identifier.")
 
     # Session fields
-    session: RealtimeSession | None = Field(default=None, description="Session object.")
+    session: RealtimeSession | None = Field(
+        default=None, description="Session object.")
 
     # Audio fields
-    audio: str | None = Field(default=None, description="Base64-encoded audio data.")
+    audio: str | None = Field(default=None,
+                              description="Base64-encoded audio data.")
 
     # Item fields
-    item: RealtimeItem | None = Field(default=None, description="Conversation item.")
+    item: RealtimeItem | None = Field(
+        default=None, description="Conversation item.")
     item_id: str | None = Field(default=None, description="Item identifier.")
     previous_item_id: str | None = Field(
         default=None, description="Previous item identifier."
     )
-    content_index: int | None = Field(default=None, description="Content part index.")
+    content_index: int | None = Field(
+        default=None, description="Content part index.")
     audio_end_ms: int | None = Field(
         default=None, description="End time of audio in ms."
     )
@@ -430,13 +439,17 @@ class RealtimeEvent(BaseModel):
     response: RealtimeResponse | None = Field(
         default=None, description="Response object."
     )
-    response_id: str | None = Field(default=None, description="Response identifier.")
-    output_index: int | None = Field(default=None, description="Output item index.")
+    response_id: str | None = Field(
+        default=None, description="Response identifier.")
+    output_index: int | None = Field(
+        default=None, description="Output item index.")
 
     # Delta fields (for streaming)
     delta: str | None = Field(default=None, description="Delta content.")
-    transcript: str | None = Field(default=None, description="Audio transcript.")
-    arguments: str | None = Field(default=None, description="Function call arguments.")
+    transcript: str | None = Field(
+        default=None, description="Audio transcript.")
+    arguments: str | None = Field(
+        default=None, description="Function call arguments.")
 
     # Rate limits
     rate_limits: list[RealtimeRateLimits] | None = Field(
@@ -445,4 +458,5 @@ class RealtimeEvent(BaseModel):
     )
 
     # Error fields
-    error: RealtimeError | None = Field(default=None, description="Error details.")
+    error: RealtimeError | None = Field(
+        default=None, description="Error details.")

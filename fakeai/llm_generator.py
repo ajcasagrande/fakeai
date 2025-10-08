@@ -10,11 +10,16 @@ realistic responses.
 
 import hashlib
 import logging
+import re
 import threading
+from collections import deque
 from collections.abc import Generator
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# Pre-compiled regex pattern for streaming tokenization (used in generate_stream)
+_STREAMING_TOKEN_PATTERN = re.compile(r"\b\w+\b|[^\w\s]")
 
 
 class LightweightLLMGenerator:
@@ -75,7 +80,7 @@ class LightweightLLMGenerator:
 
         # Response cache (LRU-style with dict)
         self._response_cache: dict[str, str] = {}
-        self._cache_order: list[str] = []
+        self._cache_order: deque[str] = deque()  # Use deque for O(1) popleft
         self._cache_lock = threading.Lock()
 
         self._initialized = True
@@ -172,8 +177,9 @@ class LightweightLLMGenerator:
             self._model.eval()  # Set to evaluation mode
 
             logger.info(
-                f"Successfully loaded model {self.model_name} on {self._device}"
-            )
+                f"Successfully loaded model {
+                    self.model_name} on {
+                    self._device}")
             return True
 
         except Exception as e:
@@ -250,7 +256,7 @@ class LightweightLLMGenerator:
         with self._cache_lock:
             # Remove oldest if cache is full
             if len(self._response_cache) >= self.cache_size:
-                oldest_key = self._cache_order.pop(0)
+                oldest_key = self._cache_order.popleft()  # O(1) instead of O(n)
                 del self._response_cache[oldest_key]
 
             # Add new entry
@@ -288,7 +294,8 @@ class LightweightLLMGenerator:
             return ""
 
         # Check cache
-        cache_key = self._get_cache_key(prompt, max_tokens, temperature, top_p, seed)
+        cache_key = self._get_cache_key(
+            prompt, max_tokens, temperature, top_p, seed)
         cached_response = self._get_from_cache(cache_key)
         if cached_response is not None:
             logger.debug(f"Cache hit for prompt: {prompt[:50]}...")
@@ -335,7 +342,7 @@ class LightweightLLMGenerator:
 
             # Remove prompt from output
             if generated_text.startswith(prompt):
-                response = generated_text[len(prompt) :].strip()
+                response = generated_text[len(prompt):].strip()
             else:
                 response = generated_text.strip()
 
@@ -411,11 +418,8 @@ class LightweightLLMGenerator:
                     if token_text:
                         yield token_text
             else:
-                # Fallback: split by words and punctuation
-                import re
-
-                pattern = r"\b\w+\b|[^\w\s]"
-                tokens = re.findall(pattern, response)
+                # Fallback: split by words and punctuation using pre-compiled pattern
+                tokens = _STREAMING_TOKEN_PATTERN.findall(response)
                 for token in tokens:
                     yield token
         except Exception as e:

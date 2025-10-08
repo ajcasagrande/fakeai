@@ -75,9 +75,12 @@ class VectorStoreService:
 
         # In-memory storage
         self._vector_stores: dict[str, VectorStore] = {}
-        self._vector_store_files: dict[str, list[VectorStoreFile]] = {}  # vs_id -> files
-        self._file_batches: dict[str, VectorStoreFileBatch] = {}  # batch_id -> batch
-        self._batch_files: dict[str, list[VectorStoreFile]] = {}  # batch_id -> files
+        # vs_id -> files
+        self._vector_store_files: dict[str, list[VectorStoreFile]] = {}
+        # batch_id -> batch
+        self._file_batches: dict[str, VectorStoreFileBatch] = {}
+        # batch_id -> files
+        self._batch_files: dict[str, list[VectorStoreFile]] = {}
 
         logger.info("VectorStoreService initialized")
 
@@ -168,15 +171,14 @@ class VectorStoreService:
         endpoint = "/v1/vector_stores"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             # Generate ID and timestamps
             vs_id = self._generate_vector_store_id()
             created_at = int(time.time())
 
             # Calculate expiration
-            expires_at = self._calculate_expiration(created_at, request.expires_after)
+            expires_at = self._calculate_expiration(
+                created_at, request.expires_after)
 
             # Create vector store
             vector_store = VectorStore(
@@ -219,7 +221,8 @@ class VectorStoreService:
                 # Update vector store status and counts
                 with self._lock:
                     vector_store.file_counts = self._update_file_counts(vs_id)
-                    vector_store.usage_bytes = self._calculate_usage_bytes(vs_id)
+                    vector_store.usage_bytes = self._calculate_usage_bytes(
+                        vs_id)
 
                     # Check if any files are still in progress
                     if vector_store.file_counts.in_progress > 0:
@@ -231,7 +234,8 @@ class VectorStoreService:
             latency_ms = (time.time() - start_time) * 1000
             self.metrics_tracker.record_request(endpoint, latency_ms)
 
-            logger.info(f"Created vector store {vs_id} with {len(request.file_ids or [])} files")
+            logger.info(
+                f"Created vector store {vs_id} with {len(request.file_ids or [])} files")
             return vector_store
 
         except FileNotFoundError:
@@ -263,8 +267,6 @@ class VectorStoreService:
         endpoint = "/v1/vector_stores"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             with self._lock:
                 # Get all vector stores
@@ -277,14 +279,16 @@ class VectorStoreService:
             # Apply cursor filtering
             if after:
                 try:
-                    after_index = next(i for i, s in enumerate(stores) if s.id == after)
-                    stores = stores[after_index + 1 :]
+                    after_index = next(
+                        i for i, s in enumerate(stores) if s.id == after)
+                    stores = stores[after_index + 1:]
                 except StopIteration:
                     stores = []
 
             if before:
                 try:
-                    before_index = next(i for i, s in enumerate(stores) if s.id == before)
+                    before_index = next(
+                        i for i, s in enumerate(stores) if s.id == before)
                     stores = stores[:before_index]
                 except StopIteration:
                     pass
@@ -329,8 +333,6 @@ class VectorStoreService:
         endpoint = f"/v1/vector_stores/{vs_id}"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             with self._lock:
                 if vs_id not in self._vector_stores:
@@ -377,8 +379,6 @@ class VectorStoreService:
         endpoint = f"/v1/vector_stores/{vs_id}"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             with self._lock:
                 if vs_id not in self._vector_stores:
@@ -433,8 +433,6 @@ class VectorStoreService:
         endpoint = f"/v1/vector_stores/{vs_id}"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             with self._lock:
                 if vs_id not in self._vector_stores:
@@ -535,8 +533,6 @@ class VectorStoreService:
         endpoint = f"/v1/vector_stores/{vs_id}/files"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             # Validate vector store exists
             with self._lock:
@@ -559,7 +555,9 @@ class VectorStoreService:
             latency_ms = (time.time() - start_time) * 1000
             self.metrics_tracker.record_request(endpoint, latency_ms)
 
-            logger.info(f"Added file {request.file_id} to vector store {vs_id}")
+            logger.info(
+                f"Added file {
+                    request.file_id} to vector store {vs_id}")
             return vs_file
 
         except (ValueError, FileNotFoundError):
@@ -598,8 +596,6 @@ class VectorStoreService:
         endpoint = f"/v1/vector_stores/{vs_id}/files"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             with self._lock:
                 if vs_id not in self._vector_stores:
@@ -619,14 +615,16 @@ class VectorStoreService:
             # Apply cursor filtering
             if after:
                 try:
-                    after_index = next(i for i, f in enumerate(files) if f.id == after)
-                    files = files[after_index + 1 :]
+                    after_index = next(
+                        i for i, f in enumerate(files) if f.id == after)
+                    files = files[after_index + 1:]
                 except StopIteration:
                     files = []
 
             if before:
                 try:
-                    before_index = next(i for i, f in enumerate(files) if f.id == before)
+                    before_index = next(
+                        i for i, f in enumerate(files) if f.id == before)
                     files = files[:before_index]
                 except StopIteration:
                     pass
@@ -676,8 +674,6 @@ class VectorStoreService:
         endpoint = f"/v1/vector_stores/{vs_id}/files/{file_id}"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             with self._lock:
                 if vs_id not in self._vector_stores:
@@ -687,7 +683,8 @@ class VectorStoreService:
                 vs_file = next((f for f in files if f.id == file_id), None)
 
                 if not vs_file:
-                    raise ValueError(f"File {file_id} not found in vector store {vs_id}")
+                    raise ValueError(
+                        f"File {file_id} not found in vector store {vs_id}")
 
             # Track latency
             latency_ms = (time.time() - start_time) * 1000
@@ -721,8 +718,6 @@ class VectorStoreService:
         endpoint = f"/v1/vector_stores/{vs_id}/files/{file_id}"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             with self._lock:
                 if vs_id not in self._vector_stores:
@@ -734,7 +729,8 @@ class VectorStoreService:
                 )
 
                 if file_index is None:
-                    raise ValueError(f"File {file_id} not found in vector store {vs_id}")
+                    raise ValueError(
+                        f"File {file_id} not found in vector store {vs_id}")
 
                 # Remove file
                 del self._vector_store_files[vs_id][file_index]
@@ -783,8 +779,6 @@ class VectorStoreService:
         endpoint = f"/v1/vector_stores/{vs_id}/file_batches"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             # Validate vector store exists
             with self._lock:
@@ -839,7 +833,8 @@ class VectorStoreService:
             latency_ms = (time.time() - start_time) * 1000
             self.metrics_tracker.record_request(endpoint, latency_ms)
 
-            logger.info(f"Created file batch {batch_id} with {len(request.file_ids)} files")
+            logger.info(
+                f"Created file batch {batch_id} with {len(request.file_ids)} files")
             return batch
 
         except (ValueError, FileNotFoundError):
@@ -868,8 +863,6 @@ class VectorStoreService:
         endpoint = f"/v1/vector_stores/{vs_id}/file_batches/{batch_id}"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             with self._lock:
                 if batch_id not in self._file_batches:
@@ -879,7 +872,8 @@ class VectorStoreService:
 
                 # Verify it belongs to this vector store
                 if batch.vector_store_id != vs_id:
-                    raise ValueError(f"Batch {batch_id} does not belong to vector store {vs_id}")
+                    raise ValueError(
+                        f"Batch {batch_id} does not belong to vector store {vs_id}")
 
             # Track latency
             latency_ms = (time.time() - start_time) * 1000
@@ -913,8 +907,6 @@ class VectorStoreService:
         endpoint = f"/v1/vector_stores/{vs_id}/file_batches/{batch_id}/cancel"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             with self._lock:
                 if batch_id not in self._file_batches:
@@ -924,7 +916,8 @@ class VectorStoreService:
 
                 # Verify it belongs to this vector store
                 if batch.vector_store_id != vs_id:
-                    raise ValueError(f"Batch {batch_id} does not belong to vector store {vs_id}")
+                    raise ValueError(
+                        f"Batch {batch_id} does not belong to vector store {vs_id}")
 
                 # Update status
                 batch.status = "cancelled"
@@ -979,8 +972,6 @@ class VectorStoreService:
         endpoint = f"/v1/vector_stores/{vs_id}/file_batches/{batch_id}/files"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             with self._lock:
                 if batch_id not in self._file_batches:
@@ -1000,14 +991,16 @@ class VectorStoreService:
             # Apply cursor filtering
             if after:
                 try:
-                    after_index = next(i for i, f in enumerate(files) if f.id == after)
-                    files = files[after_index + 1 :]
+                    after_index = next(
+                        i for i, f in enumerate(files) if f.id == after)
+                    files = files[after_index + 1:]
                 except StopIteration:
                     files = []
 
             if before:
                 try:
-                    before_index = next(i for i, f in enumerate(files) if f.id == before)
+                    before_index = next(
+                        i for i, f in enumerate(files) if f.id == before)
                     files = files[:before_index]
                 except StopIteration:
                     pass

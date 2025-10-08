@@ -12,7 +12,6 @@ Usage:
     python examples/model_metrics_demo.py
 """
 
-import json
 import time
 
 import requests

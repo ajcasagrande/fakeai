@@ -220,13 +220,16 @@ class ToolDecisionEngine:
         if not relevant_tools:
             return []
 
-        # If parallel calls not allowed or only one relevant tool, return just the best
+        # If parallel calls not allowed or only one relevant tool, return just
+        # the best
         if not parallel_tool_calls or len(relevant_tools) == 1:
             return [relevant_tools[0]]
 
         # For parallel calls, return up to 3 highly relevant tools
         # (only if they have score > 3)
-        high_relevance_tools = [tool for tool, score in tool_scores if score > 3]
+        high_relevance_tools = [
+            tool for tool,
+            score in tool_scores if score > 3]
 
         if len(high_relevance_tools) > 1:
             # Return 2-3 tools for parallel calling
@@ -235,7 +238,10 @@ class ToolDecisionEngine:
 
         return [relevant_tools[0]]
 
-    def _calculate_tool_relevance(self, message_text: str, tool: Tool) -> float:
+    def _calculate_tool_relevance(
+            self,
+            message_text: str,
+            tool: Tool) -> float:
         """
         Calculate relevance score for a tool given the message text.
 
@@ -439,9 +445,13 @@ class ToolCallGenerator:
             items_schema = param_schema.get("items", {})
             # Generate 1-3 items
             return [
-                self._generate_parameter_value(param_name, items_schema, context)
-                for _ in range(random.randint(1, 3))
-            ]
+                self._generate_parameter_value(
+                    param_name,
+                    items_schema,
+                    context) for _ in range(
+                    random.randint(
+                        1,
+                        3))]
         elif param_type == "object":
             # Recursively generate object properties
             obj_properties = param_schema.get("properties", {})
@@ -477,13 +487,20 @@ class ToolCallGenerator:
         # Location extraction
         if "location" in param_name.lower() or "city" in param_name.lower():
             # Look for city names in context
-            cities = ["San Francisco", "New York", "London", "Paris", "Tokyo", "Berlin"]
+            cities = [
+                "San Francisco",
+                "New York",
+                "London",
+                "Paris",
+                "Tokyo",
+                "Berlin"]
             for city in cities:
                 if city.lower() in context_lower:
                     return city
 
             # Look for "in <location>" pattern
-            match = re.search(r"\bin\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)", context)
+            match = re.search(
+                r"\bin\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)", context)
             if match:
                 return match.group(1)
 
@@ -506,7 +523,9 @@ class ToolCallGenerator:
             # Look for numbers in context
             numbers = re.findall(r"\b\d+(?:\.\d+)?\b", context)
             if numbers:
-                value = float(numbers[0]) if param_type == "number" else int(numbers[0])
+                value = float(
+                    numbers[0]) if param_type == "number" else int(
+                    numbers[0])
                 return value
 
         # Email extraction
@@ -532,7 +551,10 @@ class ToolCallGenerator:
 
         return None
 
-    def _generate_string_value(self, param_name: str, param_description: str) -> str:
+    def _generate_string_value(
+            self,
+            param_name: str,
+            param_description: str) -> str:
         """Generate a string value based on parameter name and description."""
         param_name_lower = param_name.lower()
         param_description_lower = param_description.lower()

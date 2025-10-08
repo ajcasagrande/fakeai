@@ -779,6 +779,7 @@ FAKEAI_DEBUG=false                     # Debug mode
 FAKEAI_REQUIRE_API_KEY=true            # Require API key
 FAKEAI_API_KEYS=key1,key2,key3         # Comma-separated keys
 FAKEAI_HASH_API_KEYS=false             # SHA-256 hashing
+FAKEAI_JWT_SECRET=your-secret-key      # JWT secret for admin auth (required for persistent tokens)
 
 # Timing
 FAKEAI_TTFT_MS=20                      # Time to first token (ms)

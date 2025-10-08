@@ -6,8 +6,6 @@ This script makes requests to the metrics endpoint and prints the output.
 """
 
 import asyncio
-import json
-import time
 
 import aiohttp
 

@@ -11,7 +11,7 @@ import time
 
 from fakeai.dcgm_metrics import DCGMMetricsSimulator
 from fakeai.dynamo_metrics import DynamoMetricsCollector
-from fakeai.kv_cache import KVCacheMetrics, SmartRouter
+from fakeai.kv_cache import KVCacheMetrics
 from fakeai.metrics import MetricsTracker
 from fakeai.metrics_aggregator import MetricsAggregator
 

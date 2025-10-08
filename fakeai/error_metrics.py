@@ -58,7 +58,8 @@ class RecoveryMetrics:
     recovery_attempts: deque = field(default_factory=lambda: deque(maxlen=100))
     time_to_recovery: deque = field(default_factory=lambda: deque(maxlen=100))
     success_after_error: int = 0
-    retry_patterns: dict[str, int] = field(default_factory=lambda: defaultdict(int))
+    retry_patterns: dict[str, int] = field(
+        default_factory=lambda: defaultdict(int))
 
 
 class ErrorMetricsTracker:
@@ -74,78 +75,84 @@ class ErrorMetricsTracker:
 
     def __new__(cls):
         """Ensure only one instance exists (singleton pattern)."""
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = super(ErrorMetricsTracker, cls).__new__(cls)
-                cls._instance._initialized = False
-            return cls._instance
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(
+                        ErrorMetricsTracker, cls).__new__(cls)
+                    cls._instance._initialized = False
+        return cls._instance
 
     def __init__(self):
         """Initialize the error metrics tracker (only once)."""
-        if self._initialized:
-            return
+        # Move _initialized check inside lock to prevent TOCTOU race condition
+        with self._lock:
+            if self._initialized:
+                return
 
-        # Error storage (last 10,000 events)
-        self._error_history: deque[ErrorEvent] = deque(maxlen=10000)
-        self._error_lock = threading.Lock()
+            # Error storage (last 10,000 events)
+            self._error_history: deque[ErrorEvent] = deque(maxlen=10000)
+            self._error_lock = threading.Lock()
 
-        # Error classification counters
-        self._status_code_counts: dict[int, int] = defaultdict(int)
-        self._error_type_counts: dict[str, int] = defaultdict(int)
-        self._endpoint_errors: dict[str, int] = defaultdict(int)
-        self._model_errors: dict[str, int] = defaultdict(int)
-        self._api_key_errors: dict[str, int] = defaultdict(int)
+            # Error classification counters
+            self._status_code_counts: dict[int, int] = defaultdict(int)
+            self._error_type_counts: dict[str, int] = defaultdict(int)
+            self._endpoint_errors: dict[str, int] = defaultdict(int)
+            self._model_errors: dict[str, int] = defaultdict(int)
+            self._api_key_errors: dict[str, int] = defaultdict(int)
 
-        # Error patterns (detected recurring errors)
-        self._error_patterns: dict[str, ErrorPattern] = {}
-        self._pattern_lock = threading.Lock()
+            # Error patterns (detected recurring errors)
+            self._error_patterns: dict[str, ErrorPattern] = {}
+            self._pattern_lock = threading.Lock()
 
-        # Time-series data for rate tracking (numpy arrays)
-        self._error_timestamps = np.array([], dtype=np.float64)
-        self._success_timestamps = np.array([], dtype=np.float64)
-        self._request_timestamps = np.array([], dtype=np.float64)
+            # Time-series data for rate tracking (numpy arrays)
+            self._error_timestamps = np.array([], dtype=np.float64)
+            self._success_timestamps = np.array([], dtype=np.float64)
+            self._request_timestamps = np.array([], dtype=np.float64)
 
-        # Per-endpoint time-series
-        self._endpoint_errors_ts: dict[str, np.ndarray] = defaultdict(
-            lambda: np.array([], dtype=np.float64)
-        )
-        self._endpoint_requests_ts: dict[str, np.ndarray] = defaultdict(
-            lambda: np.array([], dtype=np.float64)
-        )
+            # Per-endpoint time-series
+            self._endpoint_errors_ts: dict[str, np.ndarray] = defaultdict(
+                lambda: np.array([], dtype=np.float64)
+            )
+            self._endpoint_requests_ts: dict[str, np.ndarray] = defaultdict(
+                lambda: np.array([], dtype=np.float64)
+            )
 
-        # Error burst detection
-        self._burst_threshold = 10  # errors per second
-        self._burst_events: deque = deque(maxlen=100)
+            # Error burst detection
+            self._burst_threshold = 10  # errors per second
+            self._burst_events: deque = deque(maxlen=100)
 
-        # Recovery tracking
-        self._recovery_metrics = RecoveryMetrics()
-        self._pending_recovery: dict[str, float] = {}  # api_key -> error_timestamp
+            # Recovery tracking
+            self._recovery_metrics = RecoveryMetrics()
+            # api_key -> error_timestamp
+            self._pending_recovery: dict[str, float] = {}
 
-        # SLO configuration
-        self._slo_config = {
-            "availability_target": 0.999,  # 99.9% availability (1 nine)
-            "error_rate_target": 0.01,  # 1% error rate max
-            "error_budget_window": 30 * 24 * 3600,  # 30 days
-            "p99_latency_target_ms": 1000,  # Not tracked here, but included for consistency
-        }
+            # SLO configuration
+            self._slo_config = {
+                "availability_target": 0.999,  # 99.9% availability (1 nine)
+                "error_rate_target": 0.01,  # 1% error rate max
+                "error_budget_window": 30 * 24 * 3600,  # 30 days
+                "p99_latency_target_ms": 1000,  # Not tracked here, but included for consistency
+            }
 
-        # SLO tracking
-        self._slo_violations: deque = deque(maxlen=1000)
-        self._error_budget_consumed = 0.0
-        self._error_budget_total = 0.0
+            # SLO tracking
+            self._slo_violations: deque = deque(maxlen=1000)
+            self._error_budget_consumed = 0.0
+            self._error_budget_total = 0.0
 
-        # Correlation tracking (which errors happen together)
-        self._error_correlations: dict[tuple[str, str], int] = defaultdict(int)
-        self._correlation_window_seconds = 60.0
+            # Correlation tracking (which errors happen together)
+            self._error_correlations: dict[tuple[str, str], int] = defaultdict(
+                int)
+            self._correlation_window_seconds = 60.0
 
-        # Window for sliding calculations
-        self._window_size = 60.0  # 60 seconds
+            # Window for sliding calculations
+            self._window_size = 60.0  # 60 seconds
 
-        # Error message clustering (for pattern detection)
-        self._message_signatures: dict[str, list[str]] = defaultdict(list)
+            # Error message clustering (for pattern detection)
+            self._message_signatures: dict[str, list[str]] = defaultdict(list)
 
-        self._initialized = True
-        logger.info("Error metrics tracker initialized")
+            self._initialized = True
+            logger.info("Error metrics tracker initialized")
 
     def record_error(
         self,
@@ -196,10 +203,12 @@ class ErrorMetricsTracker:
             if api_key:
                 self._api_key_errors[api_key] += 1
 
-            # Update time-series data
-            self._error_timestamps = np.append(self._error_timestamps, current_time)
-            self._endpoint_errors_ts[endpoint] = np.append(
-                self._endpoint_errors_ts[endpoint], current_time
+            # Update time-series data (use np.concatenate for better
+            # performance)
+            self._error_timestamps = np.concatenate(
+                [self._error_timestamps, [current_time]])
+            self._endpoint_errors_ts[endpoint] = np.concatenate(
+                [self._endpoint_errors_ts[endpoint], [current_time]]
             )
 
             # Cleanup old data
@@ -238,10 +247,13 @@ class ErrorMetricsTracker:
         current_time = time.time()
 
         with self._error_lock:
-            self._success_timestamps = np.append(self._success_timestamps, current_time)
-            self._request_timestamps = np.append(self._request_timestamps, current_time)
-            self._endpoint_requests_ts[endpoint] = np.append(
-                self._endpoint_requests_ts[endpoint], current_time
+            # Use np.concatenate for better performance
+            self._success_timestamps = np.concatenate(
+                [self._success_timestamps, [current_time]])
+            self._request_timestamps = np.concatenate(
+                [self._request_timestamps, [current_time]])
+            self._endpoint_requests_ts[endpoint] = np.concatenate(
+                [self._endpoint_requests_ts[endpoint], [current_time]]
             )
 
             # Cleanup old data
@@ -273,9 +285,11 @@ class ErrorMetricsTracker:
         current_time = time.time()
 
         with self._error_lock:
-            self._request_timestamps = np.append(self._request_timestamps, current_time)
-            self._endpoint_requests_ts[endpoint] = np.append(
-                self._endpoint_requests_ts[endpoint], current_time
+            # Use np.concatenate for better performance
+            self._request_timestamps = np.concatenate(
+                [self._request_timestamps, [current_time]])
+            self._endpoint_requests_ts[endpoint] = np.concatenate(
+                [self._endpoint_requests_ts[endpoint], [current_time]]
             )
 
             # Cleanup old data
@@ -302,14 +316,15 @@ class ErrorMetricsTracker:
             if endpoint:
                 # Endpoint-specific error rate
                 error_ts = self._endpoint_errors_ts.get(endpoint, np.array([]))
-                request_ts = self._endpoint_requests_ts.get(endpoint, np.array([]))
+                request_ts = self._endpoint_requests_ts.get(
+                    endpoint, np.array([]))
 
                 recent_errors = (
                     np.sum(error_ts >= cutoff_time) if len(error_ts) > 0 else 0
                 )
                 recent_requests = (
-                    np.sum(request_ts >= cutoff_time) if len(request_ts) > 0 else 0
-                )
+                    np.sum(
+                        request_ts >= cutoff_time) if len(request_ts) > 0 else 0)
             else:
                 # Overall error rate
                 recent_errors = (
@@ -347,7 +362,8 @@ class ErrorMetricsTracker:
         with self._error_lock:
             if endpoint:
                 error_ts = self._endpoint_errors_ts.get(endpoint, np.array([]))
-                request_ts = self._endpoint_requests_ts.get(endpoint, np.array([]))
+                request_ts = self._endpoint_requests_ts.get(
+                    endpoint, np.array([]))
             else:
                 error_ts = self._error_timestamps
                 request_ts = self._request_timestamps
@@ -365,11 +381,11 @@ class ErrorMetricsTracker:
                 bucket_end = bucket_start + bucket_seconds
 
                 errors_in_bucket = np.sum(
-                    (recent_errors >= bucket_start) & (recent_errors < bucket_end)
-                )
+                    (recent_errors >= bucket_start) & (
+                        recent_errors < bucket_end))
                 requests_in_bucket = np.sum(
-                    (recent_requests >= bucket_start) & (recent_requests < bucket_end)
-                )
+                    (recent_requests >= bucket_start) & (
+                        recent_requests < bucket_end))
 
                 error_rate = (
                     (errors_in_bucket / requests_in_bucket) * 100.0
@@ -417,9 +433,9 @@ class ErrorMetricsTracker:
                 # Impact = frequency × endpoints affected × recency factor
                 current_time = time.time()
                 patterns.sort(
-                    key=lambda p: p.count
-                    * len(p.affected_endpoints)
-                    * (1.0 / (1.0 + (current_time - p.last_occurrence) / 3600)),
+                    key=lambda p: p.count *
+                    len(p.affected_endpoints) *
+                    (1.0 / (1.0 + (current_time - p.last_occurrence) / 3600)),
                     reverse=True,
                 )
 
@@ -477,8 +493,10 @@ class ErrorMetricsTracker:
         """
         with self._error_lock:
             correlations = sorted(
-                self._error_correlations.items(), key=lambda x: x[1], reverse=True
-            )[:limit]
+                self._error_correlations.items(),
+                key=lambda x: x[1],
+                reverse=True)[
+                :limit]
 
             return [
                 {
@@ -500,17 +518,21 @@ class ErrorMetricsTracker:
             Dictionary with recovery statistics
         """
         with self._error_lock:
-            time_to_recovery_list = list(self._recovery_metrics.time_to_recovery)
+            time_to_recovery_list = list(
+                self._recovery_metrics.time_to_recovery)
 
             if time_to_recovery_list:
                 recovery_stats = {
-                    "avg_seconds": float(np.mean(time_to_recovery_list)),
-                    "min_seconds": float(np.min(time_to_recovery_list)),
-                    "max_seconds": float(np.max(time_to_recovery_list)),
-                    "p50_seconds": float(np.percentile(time_to_recovery_list, 50)),
-                    "p90_seconds": float(np.percentile(time_to_recovery_list, 90)),
-                    "p99_seconds": float(np.percentile(time_to_recovery_list, 99)),
-                }
+                    "avg_seconds": float(
+                        np.mean(time_to_recovery_list)), "min_seconds": float(
+                        np.min(time_to_recovery_list)), "max_seconds": float(
+                        np.max(time_to_recovery_list)), "p50_seconds": float(
+                        np.percentile(
+                            time_to_recovery_list, 50)), "p90_seconds": float(
+                            np.percentile(
+                                time_to_recovery_list, 90)), "p99_seconds": float(
+                                    np.percentile(
+                                        time_to_recovery_list, 99)), }
             else:
                 recovery_stats = {
                     "avg_seconds": 0.0,
@@ -523,10 +545,10 @@ class ErrorMetricsTracker:
 
             recovery_rate = (
                 (
-                    self._recovery_metrics.total_recoveries
-                    / self._recovery_metrics.total_errors
-                )
-                * 100.0
+                    self._recovery_metrics.total_recoveries /
+                    self._recovery_metrics.total_errors
+                ) *
+                100.0
                 if self._recovery_metrics.total_errors > 0
                 else 0.0
             )
@@ -536,9 +558,11 @@ class ErrorMetricsTracker:
                 "total_recoveries": self._recovery_metrics.total_recoveries,
                 "recovery_rate_percentage": recovery_rate,
                 "success_after_error": self._recovery_metrics.success_after_error,
-                "pending_recoveries": len(self._pending_recovery),
+                "pending_recoveries": len(
+                    self._pending_recovery),
                 "time_to_recovery": recovery_stats,
-                "retry_patterns": dict(self._recovery_metrics.retry_patterns),
+                "retry_patterns": dict(
+                    self._recovery_metrics.retry_patterns),
             }
 
     def get_slo_status(self) -> dict[str, Any]:
@@ -554,7 +578,8 @@ class ErrorMetricsTracker:
         # Calculate error budget
         error_budget_target = 1.0 - self._slo_config["availability_target"]
         if error_budget_target > 0:
-            budget_consumed_pct = (current_error_rate / error_budget_target) * 100.0
+            budget_consumed_pct = (
+                current_error_rate / error_budget_target) * 100.0
         else:
             budget_consumed_pct = 0.0
 
@@ -576,8 +601,7 @@ class ErrorMetricsTracker:
             "targets": {
                 "availability": self._slo_config["availability_target"],
                 "error_rate_max": self._slo_config["error_rate_target"],
-                "error_budget_window_days": self._slo_config["error_budget_window"]
-                / 86400,
+                "error_budget_window_days": self._slo_config["error_budget_window"] / 86400,
             },
             "current_status": {
                 "availability": availability,
@@ -588,11 +612,16 @@ class ErrorMetricsTracker:
             },
             "error_budget": {
                 "target": error_budget_target,
-                "consumed_percentage": min(budget_consumed_pct, 100.0),
-                "remaining_percentage": max(100.0 - budget_consumed_pct, 0.0),
+                "consumed_percentage": min(
+                    budget_consumed_pct,
+                    100.0),
+                "remaining_percentage": max(
+                    100.0 - budget_consumed_pct,
+                    0.0),
             },
             "violations": {
-                "total": len(self._slo_violations),
+                "total": len(
+                    self._slo_violations),
                 "last_hour": recent_violations,
             },
         }
@@ -653,52 +682,58 @@ class ErrorMetricsTracker:
         lines.append("# HELP fakeai_errors_by_type Total errors by error type")
         lines.append("# TYPE fakeai_errors_by_type counter")
         for error_type, count in self._error_type_counts.items():
-            lines.append(f'fakeai_errors_by_type{{error_type="{error_type}"}} {count}')
+            lines.append(
+                f'fakeai_errors_by_type{{error_type="{error_type}"}} {count}')
 
         # Error rate by endpoint
-        lines.append("# HELP fakeai_errors_by_endpoint Total errors by endpoint")
+        lines.append(
+            "# HELP fakeai_errors_by_endpoint Total errors by endpoint")
         lines.append("# TYPE fakeai_errors_by_endpoint counter")
         for endpoint, count in list(self._endpoint_errors.items())[:20]:
-            lines.append(f'fakeai_errors_by_endpoint{{endpoint="{endpoint}"}} {count}')
+            lines.append(
+                f'fakeai_errors_by_endpoint{{endpoint="{endpoint}"}} {count}')
 
         # Overall error rate
         lines.append(
             "# HELP fakeai_error_rate_percentage Current error rate percentage"
         )
         lines.append("# TYPE fakeai_error_rate_percentage gauge")
-        lines.append(f"fakeai_error_rate_percentage {self.get_error_rate():.6f}")
+        lines.append(
+            f"fakeai_error_rate_percentage {
+                self.get_error_rate():.6f}")
 
         # SLO metrics
         slo_status = self.get_slo_status()
         lines.append("# HELP fakeai_availability Current availability")
         lines.append("# TYPE fakeai_availability gauge")
         lines.append(
-            f"fakeai_availability {slo_status['current_status']['availability']:.6f}"
-        )
+            f"fakeai_availability {
+                slo_status['current_status']['availability']:.6f}")
 
         lines.append(
             "# HELP fakeai_error_budget_consumed_percentage Error budget consumed"
         )
         lines.append("# TYPE fakeai_error_budget_consumed_percentage gauge")
         lines.append(
-            f"fakeai_error_budget_consumed_percentage {slo_status['error_budget']['consumed_percentage']:.6f}"
-        )
+            f"fakeai_error_budget_consumed_percentage {
+                slo_status['error_budget']['consumed_percentage']:.6f}")
 
         lines.append(
             "# HELP fakeai_slo_compliant SLO compliance status (1=compliant, 0=non-compliant)"
         )
         lines.append("# TYPE fakeai_slo_compliant gauge")
         lines.append(
-            f"fakeai_slo_compliant {1 if slo_status['current_status']['overall_compliant'] else 0}"
-        )
+            f"fakeai_slo_compliant {
+                1 if slo_status['current_status']['overall_compliant'] else 0}")
 
         # Recovery metrics
         recovery = self.get_recovery_metrics()
-        lines.append("# HELP fakeai_error_recovery_rate_percentage Error recovery rate")
+        lines.append(
+            "# HELP fakeai_error_recovery_rate_percentage Error recovery rate")
         lines.append("# TYPE fakeai_error_recovery_rate_percentage gauge")
         lines.append(
-            f"fakeai_error_recovery_rate_percentage {recovery['recovery_rate_percentage']:.6f}"
-        )
+            f"fakeai_error_recovery_rate_percentage {
+                recovery['recovery_rate_percentage']:.6f}")
 
         lines.append(
             "# HELP fakeai_time_to_recovery_seconds Time to recover from errors"
@@ -732,7 +767,8 @@ class ErrorMetricsTracker:
             event: The error event to analyze
         """
         # Create error signature (simplified message)
-        signature = self._create_error_signature(event.error_message, event.error_type)
+        signature = self._create_error_signature(
+            event.error_message, event.error_type)
 
         with self._pattern_lock:
             if signature in self._error_patterns:
@@ -760,7 +796,10 @@ class ErrorMetricsTracker:
                 pattern.sample_messages.append(event.error_message)
                 self._error_patterns[signature] = pattern
 
-    def _create_error_signature(self, error_message: str, error_type: str) -> str:
+    def _create_error_signature(
+            self,
+            error_message: str,
+            error_type: str) -> str:
         """
         Create a normalized signature for error message clustering.
 
@@ -791,7 +830,9 @@ class ErrorMetricsTracker:
         """
         # Count errors in last second
         with self._error_lock:
-            recent_errors = np.sum(self._error_timestamps >= (current_time - 1.0))
+            recent_errors = np.sum(
+                self._error_timestamps >= (
+                    current_time - 1.0))
 
             if recent_errors >= self._burst_threshold:
                 # Burst detected
@@ -803,8 +844,8 @@ class ErrorMetricsTracker:
                 }
                 self._burst_events.append(burst_event)
                 logger.warning(
-                    f"Error burst detected: {recent_errors} errors in 1 second (threshold: {self._burst_threshold})"
-                )
+                    f"Error burst detected: {recent_errors} errors in 1 second (threshold: {
+                        self._burst_threshold})")
 
     def _detect_correlations(self, event: ErrorEvent) -> None:
         """
@@ -828,7 +869,8 @@ class ErrorMetricsTracker:
             for other_error in recent_errors:
                 if other_error.error_type != event.error_type:
                     # Create correlation key (sorted to avoid duplicates)
-                    key = tuple(sorted([event.error_type, other_error.error_type]))
+                    key = tuple(
+                        sorted([event.error_type, other_error.error_type]))
                     self._error_correlations[key] += 1
 
     def _check_slo_violation(self) -> None:
@@ -845,8 +887,9 @@ class ErrorMetricsTracker:
             }
             self._slo_violations.append(violation)
             logger.warning(
-                f"SLO violation: Availability {availability:.4f} below target {self._slo_config['availability_target']:.4f}"
-            )
+                f"SLO violation: Availability {
+                    availability:.4f} below target {
+                    self._slo_config['availability_target']:.4f}")
 
     def _cleanup_timeseries(self) -> None:
         """Remove data older than the window size using vectorized operations."""

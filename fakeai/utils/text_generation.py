@@ -19,40 +19,111 @@ from fakeai.utils.tokens import calculate_token_count
 class SimulatedGenerator:
     """Generator for simulated responses."""
 
+    # Pre-compiled regex patterns for better performance
+    _GREETING_PATTERNS = [
+        re.compile(r"\bhello\b"),
+        re.compile(r"\bhi\b"),
+        re.compile(r"\bhey\b"),
+        re.compile(r"\bgreetings\b"),
+        re.compile(r"\bgood (morning|afternoon|evening)\b"),
+    ]
+
+    _QUESTION_PATTERNS = [
+        re.compile(r"\bwhat\b"),
+        re.compile(r"\bwho\b"),
+        re.compile(r"\bwhen\b"),
+        re.compile(r"\bwhere\b"),
+        re.compile(r"\bwhy\b"),
+        re.compile(r"\bhow\b"),
+        re.compile(r"\bcan you\b"),
+        re.compile(r"\bcould you\b"),
+    ]
+
+    _CODING_PATTERNS = [
+        re.compile(r"\bcode\b"),
+        re.compile(r"\bfunction\b"),
+        re.compile(r"\bclass\b"),
+        re.compile(r"\bpython\b"),
+        re.compile(r"\bjavascript\b"),
+        re.compile(r"\btypescript\b"),
+        re.compile(r"\bjava\b"),
+        re.compile(r"\bc\+\+\b"),
+        re.compile(r"\bruby\b"),
+        re.compile(r"\brust\b"),
+        re.compile(r"\bgo\b"),
+        re.compile(r"\bprogram\b"),
+        re.compile(r"\balgorithm\b"),
+    ]
+
+    _TOPIC_PHRASE_PATTERN = re.compile(
+        r"(?:about|regarding|on) (\w+(?:\s+\w+){0,3})")
+    _NOUN_PHRASE_PATTERN = re.compile(
+        r"(?:what|who|when|where|why|how) (?:is|are|was|were) (\w+(?:\s+\w+){0,3})"
+    )
+    _KEYWORD_PATTERN = re.compile(r"\b\w{4,}\b")
+    _CODE_CONCEPT_PATTERN = re.compile(
+        r"\b(function|class|object|array|list|dictionary|map|sort|search|algorithm|api|http|request|response|json|xml|database|sql|query|insert|update|delete|select|from|where|join|group by|order by|file|read|write|input|output|print|log|debug|error|exception|try|catch|if|else|for|while|loop|recursion|callback|promise|async|await|thread|process|parallel)\b"
+    )
+
+    # Language detection patterns (pre-compiled)
+    _LANGUAGE_PATTERNS = {
+        "python": re.compile(r"\bpython\b"),
+        "javascript": re.compile(r"\b(?:javascript|js)\b"),
+        "typescript": re.compile(r"\b(?:typescript|ts)\b"),
+        "java": re.compile(r"\bjava\b"),
+        "c++": re.compile(r"\b(?:c\+\+|cpp)\b"),
+        "rust": re.compile(r"\brust\b"),
+        "go": re.compile(r"\b(?:golang|go)\b"),
+        "ruby": re.compile(r"\bruby\b"),
+        "php": re.compile(r"\bphp\b"),
+        "c#": re.compile(r"\b(?:c#|csharp)\b"),
+        "swift": re.compile(r"\bswift\b"),
+        "kotlin": re.compile(r"\bkotlin\b"),
+    }
+
     def __init__(self):
         """Initialize the simulated generator."""
         self.fake = Faker()
 
-        # Common AI responses for different types of prompts
+        # Common AI responses for different types of prompts with emojis and
+        # markdown
         self.responses = {
             "greeting": [
-                "Hello! How can I assist you today?",
-                "Hi there! I'm here to help you with any questions you might have.",
-                "Greetings! How may I be of service?",
-                "Hello! I'm your AI assistant. What can I help you with?",
+                "👋 **Hello!** How can I assist you today?",
+                "🎯 **Hi there!** I'm here to help you with any questions you might have.",
+                "✨ **Greetings!** How may I be of service?",
+                "🚀 **Hello!** I'm your AI assistant. What can I help you with?",
             ],
             "question": [
-                "That's an interesting question. Let me think about it...\n\n{}",
-                "I'd be happy to answer that for you.\n\n{}",
-                "Great question! Here's what I know:\n\n{}",
+                "💡 **Great Question!**\n\nLet me provide you with a comprehensive answer.\n\n{}",
+                "📚 **I'd Be Happy to Help**\n\nHere's what you need to know:\n\n{}",
+                "🎯 **Excellent Inquiry!**\n\nLet me break this down for you:\n\n{}",
             ],
             "coding": [
-                "Here's a code example that might help:\n\n```{}\n{}\n```\n\nLet me explain how this works...",
-                "I can help you with that coding challenge. Consider this approach:\n\n```{}\n{}\n```\n\nThe key concept here is...",
+                "💻 **Code Solution**\n\nHere's an example that should help:\n\n```{}\n{}\n```\n\n**How it works:**\n\nLet me explain the key concepts...",
+                "🔧 **Implementation Guide**\n\nConsider this approach:\n\n```{}\n{}\n```\n\n**Key Points:**\n\n- The code demonstrates proper structure\n- Error handling is included\n- Best practices are followed",
             ],
             "default": [
-                "I understand you're asking about {}. Let me provide some information...\n\n{}",
-                "When it comes to {}, there are several important aspects to consider:\n\n{}",
-                "I'd be happy to share what I know about {}.\n\n{}",
+                "🤔 **Understanding {}**\n\nLet me provide comprehensive information:\n\n{}",
+                "📖 **About {}**\n\nThere are several important aspects to consider:\n\n{}",
+                "✨ **Exploring {}**\n\nHere's what you should know:\n\n{}",
             ],
+        }
+
+        # Emojis for various contexts
+        self.emojis = {
+            "start": ["👋", "🎯", "💡", "✨", "🚀", "📚", "🔍", "💬"],
+            "important": ["⚡", "🎯", "💎", "🌟", "🔥"],
+            "tip": ["💡", "💭", "🔔", "📌"],
+            "warning": ["⚠️", "⚡", "🚨"],
+            "success": ["✅", "🎉", "✨", "🌟"],
+            "technical": ["⚙️", "🔧", "💻", "🖥️", "📊"],
         }
 
     def generate_response(
         self,
         prompt: str,
-        system_prompt: str | None = None,
         max_tokens: int = 100,
-        delay: float = 0,
     ) -> str:
         """Generate a simulated response based on the prompt."""
         # Identify the type of prompt
@@ -84,17 +155,32 @@ class SimulatedGenerator:
         # If over limit, trim by sentences
         if current_tokens > max_tokens:
             sentences = response.split(". ")
-            trimmed = ""
-            for sentence in sentences:
-                test_text = trimmed + sentence + ". "
+            trimmed_sentences = []
+            for i, sentence in enumerate(sentences):
+                # Reconstruct with proper delimiters: add ". " only between
+                # sentences, not at end
+                if trimmed_sentences:
+                    test_text = ". ".join(trimmed_sentences + [sentence])
+                    # Add final period if this isn't the last sentence
+                    if i < len(sentences) - 1 or response.endswith("."):
+                        test_text += "."
+                else:
+                    test_text = sentence
+                    if i < len(sentences) - 1 or response.endswith("."):
+                        test_text += "."
+
                 if calculate_token_count(test_text) <= max_tokens:
-                    trimmed = test_text
+                    trimmed_sentences.append(sentence)
                 else:
                     break
 
             # If we got at least something, use it
-            if trimmed:
-                return trimmed.strip()
+            if trimmed_sentences:
+                result = ". ".join(trimmed_sentences)
+                # Add final period if original had one
+                if response.endswith(".") and not result.endswith("."):
+                    result += "."
+                return result
 
             # Otherwise, hard trim by characters (fallback)
             max_chars = max_tokens * 4
@@ -104,51 +190,16 @@ class SimulatedGenerator:
 
     def _identify_prompt_type(self, prompt: str) -> str:
         """Identify the type of prompt."""
-        greeting_patterns = [
-            r"\bhello\b",
-            r"\bhi\b",
-            r"\bhey\b",
-            r"\bgreetings\b",
-            r"\bgood (morning|afternoon|evening)\b",
-        ]
-
-        question_patterns = [
-            r"\bwhat\b",
-            r"\bwho\b",
-            r"\bwhen\b",
-            r"\bwhere\b",
-            r"\bwhy\b",
-            r"\bhow\b",
-            r"\bcan you\b",
-            r"\bcould you\b",
-        ]
-
-        coding_patterns = [
-            r"\bcode\b",
-            r"\bfunction\b",
-            r"\bclass\b",
-            r"\bpython\b",
-            r"\bjavascript\b",
-            r"\btypescript\b",
-            r"\bjava\b",
-            r"\bc\+\+\b",
-            r"\bruby\b",
-            r"\brust\b",
-            r"\bgo\b",
-            r"\bprogram\b",
-            r"\balgorithm\b",
-        ]
-
-        for pattern in greeting_patterns:
-            if re.search(pattern, prompt):
+        for pattern in self._GREETING_PATTERNS:
+            if pattern.search(prompt):
                 return "greeting"
 
-        for pattern in coding_patterns:
-            if re.search(pattern, prompt):
+        for pattern in self._CODING_PATTERNS:
+            if pattern.search(prompt):
                 return "coding"
 
-        for pattern in question_patterns:
-            if re.search(pattern, prompt):
+        for pattern in self._QUESTION_PATTERNS:
+            if pattern.search(prompt):
                 return "question"
 
         return "default"
@@ -156,17 +207,12 @@ class SimulatedGenerator:
     def _extract_topic(self, prompt: str) -> str:
         """Extract a topic from the prompt."""
         # Simple topic extraction based on keywords
-        topic_phrases = re.findall(
-            r"(?:about|regarding|on) (\w+(?:\s+\w+){0,3})", prompt
-        )
+        topic_phrases = self._TOPIC_PHRASE_PATTERN.findall(prompt)
         if topic_phrases:
             return topic_phrases[0]
 
         # Look for nouns following question words
-        noun_phrases = re.findall(
-            r"(?:what|who|when|where|why|how) (?:is|are|was|were) (\w+(?:\s+\w+){0,3})",
-            prompt,
-        )
+        noun_phrases = self._NOUN_PHRASE_PATTERN.findall(prompt)
         if noun_phrases:
             return noun_phrases[0]
 
@@ -177,64 +223,265 @@ class SimulatedGenerator:
         else:
             return " ".join(words[:3]) + "..."
 
-    def _generate_content_from_keywords(self, prompt: str, max_tokens: int) -> str:
-        """Generate content based on keywords in the prompt."""
+    def _generate_content_from_keywords(
+            self, prompt: str, max_tokens: int) -> str:
+        """Generate content based on keywords in the prompt with markdown formatting."""
         # Extract keywords from the prompt
-        words = re.findall(r"\b\w{4,}\b", prompt.lower())
-        relevant_words = [word for word in words if word not in self.fake.words()]
+        words = self._KEYWORD_PATTERN.findall(prompt.lower())
+        relevant_words = [
+            word for word in words if word not in self.fake.words()]
 
         if not relevant_words:
             relevant_words = ["topic"]
 
-        # Generate paragraphs
-        num_paragraphs = min(3, max(1, max_tokens // 100))
-        paragraphs = []
+        # Detect prompt intent for contextual formatting
+        prompt_lower = prompt.lower()
+        is_how_to = any(
+            word in prompt_lower for word in [
+                "how to", "how do", "how can"])
+        is_what_is = any(
+            word in prompt_lower for word in [
+                "what is",
+                "what are",
+                "define",
+                "explain"])
+        is_comparison = any(
+            word in prompt_lower for word in [
+                "compare",
+                "versus",
+                "vs",
+                "difference",
+                "better"])
+        is_code_request = any(
+            word in prompt_lower for word in [
+                "code",
+                "example",
+                "implement",
+                "function",
+                "program"])
 
-        for _ in range(num_paragraphs):
-            paragraph = self.fake.paragraph(
-                nb_sentences=min(10, max(3, max_tokens // 50))
-            )
-            for word in relevant_words[:3]:  # Use up to 3 keywords
-                # Insert the keyword in a relevant context
-                replacement = random.choice(
-                    [
-                        f"the {word}",
-                        f"this {word}",
-                        f"a {word}",
-                        f"{word} concept",
-                        f"{word} process",
-                    ]
-                )
-                paragraph = paragraph.replace(
+        # Vary token count based on max_tokens
+        # Short: 10-200, Medium: 200-500, Long: 500-1000+
+        if max_tokens < 50:
+            # Very short responses (10-50 tokens)
+            target_tokens = min(max_tokens, random.randint(10, 50))
+        elif max_tokens < 200:
+            target_tokens = random.randint(50, min(200, max_tokens))
+        elif max_tokens < 500:
+            target_tokens = random.randint(200, min(500, max_tokens))
+        else:
+            target_tokens = random.randint(500, max_tokens)
+
+        # Generate sections with markdown formatting
+        sections = []
+
+        # Start with emoji and engaging intro
+        start_emoji = random.choice(self.emojis["start"])
+
+        # Contextual opening based on prompt type
+        if is_how_to:
+            sections.append(
+                f"{start_emoji} **How to Get Started**\n\nLet me walk you through this step by step.")
+        elif is_what_is:
+            sections.append(
+                f"{start_emoji} **Understanding the Concept**\n\nLet me explain this clearly.")
+        elif is_comparison:
+            sections.append(
+                f"{start_emoji} **Comparison Overview**\n\nLet me break down the key differences and similarities.")
+        else:
+            sections.append(
+                f"{start_emoji} **Overview**\n\nLet me provide you with comprehensive information about this.")
+
+        # For "how to" questions, use numbered steps (always)
+        if is_how_to:
+            sections.append(
+                f"\n## {
                     random.choice(
-                        paragraph.split()[:5]
-                    ),  # Replace a word near the beginning
-                    replacement,
-                    1,
-                )
-            paragraphs.append(paragraph)
+                        self.emojis['technical'])} **Step-by-Step Guide**\n")
+            num_steps = random.randint(
+                4, 6) if target_tokens > 300 else random.randint(
+                3, 4)
+            for i in range(1, num_steps + 1):
+                keyword = relevant_words[(i - 1) % len(relevant_words)]
+                sections.append(
+                    f"{i}. **{keyword.capitalize()} Phase**: Start by understanding and implementing the {keyword} component. This is crucial for the overall process.")
 
-        return "\n\n".join(paragraphs)
+        # For "what is" questions, use bullet points (always)
+        elif is_what_is:
+            sections.append(
+                f"\n## {
+                    random.choice(
+                        self.emojis['important'])} **Key Characteristics**\n")
+            num_bullets = random.randint(
+                4, 6) if target_tokens > 300 else random.randint(
+                3, 4)
+            for i in range(num_bullets):
+                keyword = relevant_words[i % len(relevant_words)]
+                sections.append(
+                    f"- **{keyword.capitalize()}**: A fundamental aspect that defines how this works")
+
+        # For comparison questions, use table (always)
+        elif is_comparison:
+            sections.append(
+                f"\n## {
+                    random.choice(
+                        self.emojis['technical'])} **Side-by-Side Comparison**\n")
+            sections.append("| Feature | Option A | Option B |")
+            sections.append("|---------|----------|----------|")
+            for i in range(min(4, len(relevant_words))):
+                keyword = relevant_words[i % len(relevant_words)]
+                sections.append(
+                    f"| {
+                        keyword.capitalize()} | Excellent support | Good support |")
+
+        # For other questions, mix bullet points and numbered lists
+        else:
+            # Add bullet points
+            if target_tokens > 150:
+                sections.append(
+                    f"\n## {
+                        random.choice(
+                            self.emojis['important'])} **Key Points**\n")
+                num_bullets = random.randint(3, 5)
+                for i in range(num_bullets):
+                    keyword = relevant_words[i % len(relevant_words)]
+                    sections.append(
+                        f"- **{keyword.capitalize()}**: Understanding the {keyword} is essential for mastery")
+
+            # Add numbered list for medium/long responses
+            if target_tokens > 300:
+                sections.append(
+                    f"\n## {
+                        random.choice(
+                            self.emojis['technical'])} **Implementation Steps**\n")
+                num_steps = random.randint(3, 5)
+                for i in range(1, num_steps + 1):
+                    keyword = relevant_words[(i - 1) % len(relevant_words)]
+                    sections.append(
+                        f"{i}. *{keyword.capitalize()}* - Apply this concept with careful attention to detail")
+
+        # Add code block for code requests (high priority)
+        if is_code_request or (random.random() > 0.6 and target_tokens > 250):
+            # Detect language from prompt
+            lang = "python"  # default
+            if "javascript" in prompt_lower or "js" in prompt_lower:
+                lang = "javascript"
+            elif "typescript" in prompt_lower or "ts" in prompt_lower:
+                lang = "typescript"
+            elif "bash" in prompt_lower or "shell" in prompt_lower:
+                lang = "bash"
+            elif "java" in prompt_lower:
+                lang = "java"
+
+            sections.append(
+                f"\n## {
+                    random.choice(
+                        self.emojis['technical'])} **Code Example**\n")
+            keyword = relevant_words[0]
+
+            if lang == "python":
+                sections.append(
+                    f"```python\n# Example implementation\ndef process_{keyword}(data):\n    \"\"\"\n    Process {keyword} with the given data.\n    \"\"\"\n    result = {{\n        '{keyword}': data,\n        'status': 'success',\n        'processed': True\n    }}\n    return result\n\n# Usage\noutput = process_{keyword}(input_data)\nprint(f'Result: {{output}}')\n```")
+            elif lang == "javascript":
+                sections.append(
+                    f"```javascript\n// Example implementation\nfunction process{
+                        keyword.capitalize()}(data) {{\n  const result = {{\n    {keyword}: data,\n    status: 'success',\n    processed: true\n  }};\n  return result;\n}}\n\n// Usage\nconst output = process{
+                        keyword.capitalize()}(inputData);\nconsole.log(`Result: ${{JSON.stringify(output)}}`);\n```")
+            elif lang == "bash":
+                sections.append(
+                    f"```bash\n#!/bin/bash\n# Example script for {keyword}\n\n{keyword}_process() {{\n  local input=$1\n  echo \"Processing $input...\"\n  # Add your logic here\n  echo \"Done!\"\n}}\n\n# Usage\n{keyword}_process \"example_data\"\n```")
+            else:
+                sections.append(
+                    f"```{lang}\n// Example {keyword} implementation\npublic class {
+                        keyword.capitalize()}Processor {{\n  public Result process(Data input) {{\n    // Implementation here\n    return new Result(input);\n  }}\n}}\n```")
+
+            sections.append(
+                f"\n**How it works:**\n\nThe code demonstrates a practical implementation of {keyword}. Key features include proper structure, error handling, and clear documentation.")
+
+        # Add a comparison table for non-comparison questions (occasionally)
+        if not is_comparison and random.random() > 0.7 and target_tokens > 400:
+            sections.append(
+                f"\n## {
+                    random.choice(
+                        self.emojis['technical'])} **Quick Reference**\n")
+            sections.append("| Aspect | Description | Status |")
+            sections.append("|--------|-------------|--------|")
+            for i in range(min(3, len(relevant_words))):
+                keyword = relevant_words[i % len(relevant_words)]
+                status = random.choice(
+                    ["✅ Available", "⚡ Recommended", "🔧 In Progress"])
+                sections.append(
+                    f"| {
+                        keyword.capitalize()} | Core functionality | {status} |")
+
+        # Add a blockquote tip (medium/high frequency)
+        if random.random() > 0.4 and target_tokens > 200:
+            tip_emoji = random.choice(self.emojis["tip"])
+            tips = [
+                f"\n> {tip_emoji} **Pro Tip**: Always test your implementation thoroughly when working with `{relevant_words[0]}`.",
+                f"\n> {tip_emoji} **Best Practice**: Consider edge cases and error handling for optimal `{relevant_words[0]}` usage.",
+                f"\n> {tip_emoji} **Remember**: Performance optimization is key when dealing with `{relevant_words[0]}` at scale.",
+            ]
+            sections.append(random.choice(tips))
+
+        # Add inline code in a descriptive paragraph (for variety)
+        if target_tokens > 250 and random.random() > 0.6:
+            sections.append(
+                f"\n### **Additional Considerations**\n\nWhen working with `{
+                    relevant_words[0]}`, it's important to consider the `{
+                    relevant_words[
+                        min(
+                            1,
+                            len(relevant_words) -
+                            1)]}` aspect. You can use inline methods like `.configure()` and `.execute()` to streamline your workflow.")
+
+        # Add concluding section with emoji
+        if target_tokens > 200:
+            conclusion_emoji = random.choice(self.emojis["success"])
+            conclusions = [
+                f"\n{conclusion_emoji} **Summary**\n\nYou now have a comprehensive understanding of this topic. Apply these concepts to achieve the best results!",
+                f"\n{conclusion_emoji} **Conclusion**\n\nThese fundamentals will help you master the topic effectively. Keep practicing and experimenting!",
+                f"\n{conclusion_emoji} **Next Steps**\n\nWith this knowledge, you're ready to implement these concepts in your projects. Good luck!",
+            ]
+            sections.append(random.choice(conclusions))
+        else:
+            # Short conclusion for brief responses
+            conclusion_emoji = random.choice(self.emojis["success"])
+            sections.append(f"\n{conclusion_emoji} Hope this helps!")
+
+        # Join all sections
+        content = "\n".join(sections)
+
+        # Ensure we don't exceed max_tokens
+        current_tokens = calculate_token_count(content)
+        if current_tokens > max_tokens:
+            # Trim by sections (keep intro and at least one main section)
+            trimmed_sections = [sections[0]]  # Always keep intro
+            for section in sections[1:]:
+                test_content = "\n".join(trimmed_sections + [section])
+                if calculate_token_count(test_content) <= max_tokens:
+                    trimmed_sections.append(section)
+                else:
+                    break
+
+            # If we have room, try to add a short conclusion
+            if len(trimmed_sections) > 1:
+                final_emoji = random.choice(self.emojis["success"])
+                short_conclusion = f"\n{final_emoji} Hope this helps!"
+                test_with_conclusion = "\n".join(
+                    trimmed_sections + [short_conclusion])
+                if calculate_token_count(test_with_conclusion) <= max_tokens:
+                    trimmed_sections.append(short_conclusion)
+
+            content = "\n".join(trimmed_sections)
+
+        return content
 
     def _identify_coding_language(self, prompt: str) -> str:
         """Identify the coding language from the prompt."""
-        languages = {
-            "python": r"\bpython\b",
-            "javascript": r"\b(?:javascript|js)\b",
-            "typescript": r"\b(?:typescript|ts)\b",
-            "java": r"\bjava\b",
-            "c++": r"\b(?:c\+\+|cpp)\b",
-            "rust": r"\brust\b",
-            "go": r"\b(?:golang|go)\b",
-            "ruby": r"\bruby\b",
-            "php": r"\bphp\b",
-            "c#": r"\b(?:c#|csharp)\b",
-            "swift": r"\bswift\b",
-            "kotlin": r"\bkotlin\b",
-        }
-
-        for lang, pattern in languages.items():
-            if re.search(pattern, prompt.lower()):
+        prompt_lower = prompt.lower()
+        for lang, pattern in self._LANGUAGE_PATTERNS.items():
+            if pattern.search(prompt_lower):
                 return lang
 
         # Default to Python if no language is specified
@@ -243,12 +490,7 @@ class SimulatedGenerator:
     def _generate_simulated_code(self, language: str, prompt: str) -> str:
         """Generate simulated code in the specified language."""
         # Extract relevant code concepts from the prompt
-        concepts = set(
-            re.findall(
-                r"\b(function|class|object|array|list|dictionary|map|sort|search|algorithm|api|http|request|response|json|xml|database|sql|query|insert|update|delete|select|from|where|join|group by|order by|file|read|write|input|output|print|log|debug|error|exception|try|catch|if|else|for|while|loop|recursion|callback|promise|async|await|thread|process|parallel)\b",
-                prompt.lower(),
-            )
-        )
+        concepts = set(self._CODE_CONCEPT_PATTERN.findall(prompt.lower()))
 
         if language == "python":
             return self._generate_python_code(concepts, prompt)
@@ -377,8 +619,7 @@ class SimulatedGenerator:
             code += "  }\n"
             code += "}\n\n"
             code += (
-                f"// Create an instance\nconst obj = new {class_name}('example', 42);\n"
-            )
+                f"// Create an instance\nconst obj = new {class_name}('example', 42);\n")
             code += "console.log(obj.getInfo());"
             return code
         elif "async" in concepts or "await" in concepts or "promise" in concepts:
@@ -507,9 +748,9 @@ class SimulatedGenerator:
             code += "  }\n\n"
 
             code += (
-                "  update(id: string, updates: Partial<"
-                + interface_name
-                + ">): boolean {\n"
+                "  update(id: string, updates: Partial<" +
+                interface_name +
+                ">): boolean {\n"
             )
             code += "    const item = this.items.get(id);\n"
             code += "    if (!item) return false;\n\n"
@@ -535,14 +776,16 @@ class SimulatedGenerator:
         else:
             # Default to JS-style with TypeScript types
             return (
-                self._generate_javascript_code(concepts, prompt)
-                .replace("function", "function")
-                .replace(
+                self._generate_javascript_code(
+                    concepts,
+                    prompt) .replace(
+                    "function",
+                    "function") .replace(
                     "const utils = {",
                     "interface Utils {\n  formatDate(date: Date | string): string;\n  generateId(prefix?: string): string;\n  debounce<T extends (...args: any[]) => any>(func: T, wait: number): (...args: Parameters<T>) => void;\n}\n\nconst utils: Utils = {",
-                )
-                .replace(".padStart(2, '0')", ".padStart(2, '0' as string)")
-            )
+                ) .replace(
+                    ".padStart(2, '0')",
+                    ".padStart(2, '0' as string)"))
 
     def _generate_java_code(self, concepts: set, prompt: str) -> str:
         """Generate Java code based on concepts."""
@@ -646,14 +889,14 @@ class SimulatedGenerator:
         code += "    }\n\n"
 
         code += (
-            "    friend std::ostream& operator<<(std::ostream& os, const "
-            + class_name
-            + "& obj) {\n"
+            "    friend std::ostream& operator<<(std::ostream& os, const " +
+            class_name +
+            "& obj) {\n"
         )
         code += (
-            '        os << "'
-            + class_name
-            + '(name=\'" << obj.name << "\', value=" << obj.value << ", ";\n'
+            '        os << "' +
+            class_name +
+            '(name=\'" << obj.name << "\', value=" << obj.value << ", ";\n'
         )
         code += '        os << "createdAt=\'" << std::ctime(&obj.createdAt) << "\', properties={";\n'
         code += "        \n"
@@ -680,7 +923,11 @@ class SimulatedGenerator:
 
         return code
 
-    def _generate_generic_code(self, language: str, concepts: set, prompt: str) -> str:
+    def _generate_generic_code(
+            self,
+            language: str,
+            concepts: set,
+            prompt: str) -> str:
         """Generate generic code for other languages."""
         func_name = random.choice(
             ["processData", "calculateValue", "transformInput", "handleRequest"]

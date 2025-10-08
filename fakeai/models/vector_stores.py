@@ -53,9 +53,15 @@ class FileCounts(BaseModel):
     in_progress: int = Field(
         default=0, description="Number of files currently being processed."
     )
-    completed: int = Field(default=0, description="Number of files successfully processed.")
-    failed: int = Field(default=0, description="Number of files that failed processing.")
-    cancelled: int = Field(default=0, description="Number of files that were cancelled.")
+    completed: int = Field(
+        default=0,
+        description="Number of files successfully processed.")
+    failed: int = Field(
+        default=0,
+        description="Number of files that failed processing.")
+    cancelled: int = Field(
+        default=0,
+        description="Number of files that were cancelled.")
     total: int = Field(default=0, description="Total number of files.")
 
 
@@ -66,8 +72,9 @@ class ExpiresAfter(BaseModel):
         description="Anchor timestamp for expiration (e.g., 'last_active_at')."
     )
     days: int = Field(
-        description="Number of days after anchor before expiration.", ge=1, le=365
-    )
+        description="Number of days after anchor before expiration.",
+        ge=1,
+        le=365)
 
 
 class RankingOptions(BaseModel):
@@ -96,8 +103,8 @@ class VectorStore(BaseModel):
     )
     name: str = Field(description="The name of the vector store.")
     usage_bytes: int = Field(
-        default=0, description="Total size of files in the vector store in bytes."
-    )
+        default=0,
+        description="Total size of files in the vector store in bytes.")
     file_counts: FileCounts = Field(
         default_factory=FileCounts, description="File counts by status."
     )
@@ -108,8 +115,8 @@ class VectorStore(BaseModel):
         default=None, description="Expiration policy for the vector store."
     )
     expires_at: int | None = Field(
-        default=None, description="Unix timestamp when the vector store will expire."
-    )
+        default=None,
+        description="Unix timestamp when the vector store will expire.")
     last_active_at: int | None = Field(
         default=None, description="Unix timestamp of last activity."
     )
@@ -122,8 +129,7 @@ class CreateVectorStoreRequest(BaseModel):
     """Request to create a new vector store."""
 
     file_ids: list[str] | None = Field(
-        default=None, description="List of file IDs to add to the vector store."
-    )
+        default=None, description="List of file IDs to add to the vector store.")
     name: str = Field(description="The name of the vector store.")
     expires_after: ExpiresAfter | None = Field(
         default=None, description="Expiration policy for the vector store."
@@ -151,10 +157,14 @@ class ModifyVectorStoreRequest(BaseModel):
 class VectorStoreListResponse(BaseModel):
     """Response for listing vector stores."""
 
-    object: Literal["list"] = Field(default="list", description="The object type.")
-    data: list[VectorStore] = Field(description="List of vector store objects.")
-    first_id: str | None = Field(default=None, description="ID of the first vector store.")
-    last_id: str | None = Field(default=None, description="ID of the last vector store.")
+    object: Literal["list"] = Field(
+        default="list", description="The object type.")
+    data: list[VectorStore] = Field(
+        description="List of vector store objects.")
+    first_id: str | None = Field(default=None,
+                                 description="ID of the first vector store.")
+    last_id: str | None = Field(default=None,
+                                description="ID of the last vector store.")
     has_more: bool = Field(
         default=False, description="Whether there are more vector stores."
     )
@@ -171,8 +181,7 @@ class VectorStoreFile(BaseModel):
         default=0, description="Size of the file in bytes after processing."
     )
     created_at: int = Field(
-        description="Unix timestamp when the file was added to the vector store."
-    )
+        description="Unix timestamp when the file was added to the vector store.")
     vector_store_id: str = Field(
         description="The ID of the vector store this file belongs to."
     )
@@ -199,11 +208,19 @@ class CreateVectorStoreFileRequest(BaseModel):
 class VectorStoreFileListResponse(BaseModel):
     """Response for listing vector store files."""
 
-    object: Literal["list"] = Field(default="list", description="The object type.")
-    data: list[VectorStoreFile] = Field(description="List of vector store file objects.")
-    first_id: str | None = Field(default=None, description="ID of the first file.")
-    last_id: str | None = Field(default=None, description="ID of the last file.")
-    has_more: bool = Field(default=False, description="Whether there are more files.")
+    object: Literal["list"] = Field(
+        default="list", description="The object type.")
+    data: list[VectorStoreFile] = Field(
+        description="List of vector store file objects.")
+    first_id: str | None = Field(
+        default=None,
+        description="ID of the first file.")
+    last_id: str | None = Field(
+        default=None,
+        description="ID of the last file.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more files.")
 
 
 class VectorStoreFileBatch(BaseModel):

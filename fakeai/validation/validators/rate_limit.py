@@ -82,12 +82,30 @@ class RateLimitValidator:
                 }
             )
         else:
-            # Determine which limit was exceeded
-            if context.get("rpm_exceeded", False):
+            # Determine which limit was exceeded by checking remaining counts
+            # If requests remaining is 0, RPM was exceeded
+            # If tokens remaining is 0, TPM was exceeded
+            rpm_remaining = int(
+                headers.get(
+                    "x-ratelimit-remaining-requests",
+                    "0"))
+            tpm_remaining = int(
+                headers.get(
+                    "x-ratelimit-remaining-tokens",
+                    "0"))
+
+            # Determine the primary limit that was hit
+            if rpm_remaining == 0 and tokens == 0:
+                # RPM limit hit (no tokens were requested)
                 limit_type = "requests per minute"
-            elif context.get("tpm_exceeded", False):
+            elif tpm_remaining < tokens:
+                # TPM limit hit (not enough tokens available)
                 limit_type = "tokens per minute"
+            elif rpm_remaining == 0:
+                # RPM limit hit
+                limit_type = "requests per minute"
             else:
+                # Fallback - general rate limit
                 limit_type = "rate"
 
             return ValidationResult.failure(

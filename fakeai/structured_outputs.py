@@ -8,7 +8,6 @@ structured outputs feature, supporting strict schema compliance.
 #  SPDX-License-Identifier: Apache-2.0
 
 import random
-import re
 from typing import Any
 
 from faker import Faker
@@ -18,8 +17,6 @@ fake = Faker()
 
 class SchemaValidationError(Exception):
     """Raised when a JSON schema fails validation for strict mode."""
-
-    pass
 
 
 def validate_strict_schema(schema: dict[str, Any]) -> None:
@@ -64,8 +61,8 @@ def validate_strict_schema(schema: dict[str, Any]) -> None:
                     f"required contains non-existent properties: {', '.join(sorted(extra))}"
                 )
             raise SchemaValidationError(
-                f"Strict mode requires all properties to be in required array. {'; '.join(msg_parts)}"
-            )
+                f"Strict mode requires all properties to be in required array. {
+                    '; '.join(msg_parts)}")
 
         # Validate nested objects
         for prop_name, prop_schema in properties.items():
@@ -119,8 +116,8 @@ def _validate_nested_schema(schema: dict[str, Any], path: str) -> None:
                     f"required contains non-existent properties: {', '.join(sorted(extra))}"
                 )
             raise SchemaValidationError(
-                f"Strict mode requires all properties to be in required array at {path}. {'; '.join(msg_parts)}"
-            )
+                f"Strict mode requires all properties to be in required array at {path}. {
+                    '; '.join(msg_parts)}")
 
         # Recursively validate nested properties
         for prop_name, prop_schema in properties.items():
@@ -205,9 +202,17 @@ def _generate_string(schema: dict[str, Any]) -> str:
     if pattern:
         # Simple patterns we can handle
         if pattern == r"^\d{3}-\d{2}-\d{4}$":
-            return f"{random.randint(100,999)}-{random.randint(10,99)}-{random.randint(1000,9999)}"
+            return f"{random.randint(100,
+                                     999)}-{random.randint(10,
+                                                           99)}-{random.randint(1000,
+                                                                                9999)}"
         elif pattern == r"^[A-Z]{2}\d{4}$":
-            return f"{fake.random_uppercase_letter()}{fake.random_uppercase_letter()}{random.randint(1000,9999)}"
+            return f"{
+                fake.random_uppercase_letter()}{
+                fake.random_uppercase_letter()}{
+                random.randint(
+                    1000,
+                    9999)}"
         # For other patterns, ignore and generate based on other constraints
 
     # Use description as a hint
@@ -250,7 +255,8 @@ def _generate_string(schema: dict[str, Any]) -> str:
     return value
 
 
-def _generate_number(schema: dict[str, Any], is_float: bool = True) -> int | float:
+def _generate_number(schema: dict[str, Any],
+                     is_float: bool = True) -> int | float:
     """Generate a number value based on schema constraints."""
     minimum = schema.get("minimum", 0)
     maximum = schema.get("maximum", 1000)

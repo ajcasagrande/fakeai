@@ -180,7 +180,6 @@ class ModerationService:
 
         # Track token usage
         total_tokens = sum(calculate_token_count(text) for text, _ in inputs)
-        self.metrics_tracker.track_tokens("/v1/moderations", total_tokens)
 
         return ModerationResponse(
             id=f"modr-{uuid.uuid4().hex}",
@@ -270,7 +269,8 @@ class ModerationService:
                 types = []
                 base_cat = cat.split("/")[0]
                 if base_cat in multimodal_categories:
-                    # For multimodal categories, determine if text and/or image triggered it
+                    # For multimodal categories, determine if text and/or image
+                    # triggered it
                     if text and random.random() > 0.4:
                         types.append("text")
                     if has_image and random.random() > 0.3:
@@ -332,14 +332,14 @@ class ModerationService:
         text_lower = text.lower()
 
         # Violence keywords
-        if any(word in text_lower for word in self.harmful_keywords["violence"]):
+        if any(
+                word in text_lower for word in self.harmful_keywords["violence"]):
             scores["violence"] = random.uniform(0.6, 0.9)
             scores["violence_graphic"] = random.uniform(0.4, 0.7)
 
         # Violence graphic keywords
         if any(
-            word in text_lower for word in self.harmful_keywords["violence_graphic"]
-        ):
+                word in text_lower for word in self.harmful_keywords["violence_graphic"]):
             scores["violence_graphic"] = random.uniform(0.7, 0.95)
 
         # Hate keywords
@@ -349,8 +349,7 @@ class ModerationService:
 
         # Hate threatening keywords
         if any(
-            word in text_lower for word in self.harmful_keywords["hate_threatening"]
-        ):
+                word in text_lower for word in self.harmful_keywords["hate_threatening"]):
             scores["hate_threatening"] = random.uniform(0.7, 0.95)
             # Also elevate base category if not already high
             scores["hate"] = max(scores["hate"], random.uniform(0.5, 0.7))
@@ -360,17 +359,19 @@ class ModerationService:
             scores["sexual"] = random.uniform(0.6, 0.9)
 
         # Self-harm keywords
-        if any(word in text_lower for word in self.harmful_keywords["self_harm"]):
+        if any(
+                word in text_lower for word in self.harmful_keywords["self_harm"]):
             scores["self_harm"] = random.uniform(0.7, 0.95)
             scores["self_harm_intent"] = random.uniform(0.5, 0.8)
 
         # Self-harm intent keywords
         if any(
-            word in text_lower for word in self.harmful_keywords["self_harm_intent"]
-        ):
+                word in text_lower for word in self.harmful_keywords["self_harm_intent"]):
             scores["self_harm_intent"] = random.uniform(0.8, 0.98)
             # Also elevate base category if not already high
-            scores["self_harm"] = max(scores["self_harm"], random.uniform(0.5, 0.7))
+            scores["self_harm"] = max(
+                scores["self_harm"], random.uniform(
+                    0.5, 0.7))
 
         # Self-harm instructions keywords
         if any(
@@ -379,10 +380,13 @@ class ModerationService:
         ):
             scores["self_harm_instructions"] = random.uniform(0.8, 0.98)
             # Also elevate base category if not already high
-            scores["self_harm"] = max(scores["self_harm"], random.uniform(0.5, 0.7))
+            scores["self_harm"] = max(
+                scores["self_harm"], random.uniform(
+                    0.5, 0.7))
 
         # Harassment keywords
-        if any(word in text_lower for word in self.harmful_keywords["harassment"]):
+        if any(
+                word in text_lower for word in self.harmful_keywords["harassment"]):
             scores["harassment"] = random.uniform(0.5, 0.8)
             scores["harassment_threatening"] = random.uniform(0.3, 0.6)
 
@@ -393,22 +397,28 @@ class ModerationService:
         ):
             scores["harassment_threatening"] = random.uniform(0.7, 0.95)
             # Also elevate base category if not already high
-            scores["harassment"] = max(scores["harassment"], random.uniform(0.5, 0.7))
+            scores["harassment"] = max(
+                scores["harassment"], random.uniform(
+                    0.5, 0.7))
 
         # Illicit keywords
-        if any(word in text_lower for word in self.harmful_keywords["illicit"]):
+        if any(
+                word in text_lower for word in self.harmful_keywords["illicit"]):
             scores["illicit"] = random.uniform(0.6, 0.9)
 
         # Illicit violent keywords
-        if any(word in text_lower for word in self.harmful_keywords["illicit_violent"]):
+        if any(
+                word in text_lower for word in self.harmful_keywords["illicit_violent"]):
             scores["illicit_violent"] = random.uniform(0.8, 0.98)
             # Also elevate base category if not already high
-            scores["illicit"] = max(scores["illicit"], random.uniform(0.5, 0.7))
+            scores["illicit"] = max(
+                scores["illicit"], random.uniform(
+                    0.5, 0.7))
 
         # Minors keywords (only flag if sexual content is already detected)
         if (
-            any(word in text_lower for word in self.harmful_keywords["sexual_minors"])
-            and scores["sexual"] > 0.5
+            any(word in text_lower for word in self.harmful_keywords["sexual_minors"]) and
+            scores["sexual"] > 0.5
         ):
             scores["sexual_minors"] = random.uniform(0.7, 0.95)
 

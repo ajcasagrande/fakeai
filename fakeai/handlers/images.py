@@ -5,7 +5,10 @@ This handler delegates to the ImageGenerationService for generating images.
 """
 #  SPDX-License-Identifier: Apache-2.0
 
+from typing import Optional
+
 from fakeai.config import AppConfig
+from fakeai.events import AsyncEventBus
 from fakeai.handlers.base import EndpointHandler, RequestContext
 from fakeai.handlers.registry import register_handler
 from fakeai.metrics import MetricsTracker
@@ -34,9 +37,10 @@ class ImageGenerationHandler(
         self,
         config: AppConfig,
         metrics_tracker: MetricsTracker,
+        event_bus: Optional[AsyncEventBus] = None,
     ):
         """Initialize the handler."""
-        super().__init__(config, metrics_tracker)
+        super().__init__(config, metrics_tracker, event_bus=event_bus)
         self.image_service = ImageGenerationService(
             config=config,
             metrics_tracker=metrics_tracker,

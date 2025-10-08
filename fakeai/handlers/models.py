@@ -5,7 +5,10 @@ This handler provides model listing and retrieval operations.
 """
 #  SPDX-LICENSE-Identifier: Apache-2.0
 
+from typing import Optional
+
 from fakeai.config import AppConfig
+from fakeai.events import AsyncEventBus
 from fakeai.fakeai_service import FakeAIService
 from fakeai.handlers.base import EndpointHandler, RequestContext
 from fakeai.handlers.registry import register_handler
@@ -33,9 +36,10 @@ class ModelHandler(EndpointHandler[None, ModelListResponse]):
         self,
         config: AppConfig,
         metrics_tracker: MetricsTracker,
+        event_bus: Optional[AsyncEventBus] = None,
     ):
         """Initialize the handler."""
-        super().__init__(config, metrics_tracker)
+        super().__init__(config, metrics_tracker, event_bus=event_bus)
         self.service = FakeAIService(config)
 
     def endpoint_path(self) -> str:
@@ -76,9 +80,10 @@ class ModelRetrievalHandler(EndpointHandler[str, Model]):
         self,
         config: AppConfig,
         metrics_tracker: MetricsTracker,
+        event_bus: Optional[AsyncEventBus] = None,
     ):
         """Initialize the handler."""
-        super().__init__(config, metrics_tracker)
+        super().__init__(config, metrics_tracker, event_bus=event_bus)
         self.service = FakeAIService(config)
 
     def endpoint_path(self) -> str:

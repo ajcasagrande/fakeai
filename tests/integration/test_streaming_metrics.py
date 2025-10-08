@@ -24,12 +24,10 @@ Coverage:
 
 import asyncio
 import time
-from typing import List
 
 import pytest
 
 from fakeai.metrics import MetricsTracker
-from fakeai.model_metrics import ModelMetricsTracker
 from fakeai.streaming_metrics import StreamingMetricsTracker
 
 

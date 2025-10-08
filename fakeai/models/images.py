@@ -9,9 +9,8 @@ quality modes, style presets, and response formats (URL or base64).
 #  SPDX-License-Identifier: Apache-2.0
 
 from enum import Enum
-from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ImageSize(str, Enum):
@@ -48,21 +47,23 @@ class ImageResponseFormat(str, Enum):
 class GeneratedImage(BaseModel):
     """A generated image."""
 
-    url: str | None = Field(default=None, description="The URL of the generated image.")
+    url: str | None = Field(
+        default=None,
+        description="The URL of the generated image.")
     b64_json: str | None = Field(
-        default=None, description="The base64-encoded JSON of the generated image."
-    )
+        default=None,
+        description="The base64-encoded JSON of the generated image.")
     revised_prompt: str | None = Field(
-        default=None, description="The revised prompt used to generate the image."
-    )
+        default=None,
+        description="The revised prompt used to generate the image.")
 
 
 class ImageGenerationRequest(BaseModel):
     """Request for image generation."""
 
     prompt: str = Field(
-        max_length=1000, description="A text description of the desired image(s)."
-    )
+        max_length=1000,
+        description="A text description of the desired image(s).")
     model: str | None = Field(
         default="stabilityai/stable-diffusion-2-1",
         description="The model to use for image generation.",
@@ -78,14 +79,22 @@ class ImageGenerationRequest(BaseModel):
         description="The format in which the images are returned.",
     )
     size: ImageSize | None = Field(
-        default=ImageSize.SIZE_1024, description="The size of the generated images."
-    )
+        default=ImageSize.SIZE_1024,
+        description="The size of the generated images.")
     style: ImageStyle | None = Field(
-        default=ImageStyle.VIVID, description="The style of the generated images."
-    )
+        default=ImageStyle.VIVID,
+        description="The style of the generated images.")
     user: str | None = Field(
         default=None, description="A unique identifier for the end-user."
     )
+
+    @field_validator("prompt")
+    @classmethod
+    def validate_prompt_length(cls, v: str) -> str:
+        """Validate prompt length."""
+        if len(v) > 1000:
+            raise ValueError("Prompt must not exceed 1000 characters")
+        return v
 
 
 class ImageGenerationResponse(BaseModel):
@@ -94,13 +103,86 @@ class ImageGenerationResponse(BaseModel):
     created: int = Field(
         description="The Unix timestamp of when the images were created."
     )
-    data: list[GeneratedImage] = Field(description="The list of generated images.")
+    data: list[GeneratedImage] = Field(
+        description="The list of generated images.")
 
 
-class ImagesUsageResponse(BaseModel):
-    """Response for images usage data."""
+# Note: ImagesUsageResponse is now in billing.py to avoid duplication with
+# other usage models
 
-    object: Literal["page"] = Field(default="page", description="The object type.")
-    data: list = Field(description="List of usage buckets.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
-    next_page: str | None = Field(default=None, description="URL for next page.")
+
+# Video Generation Models
+class VideoSize(str, Enum):
+    """Available video sizes."""
+
+    SIZE_512_512 = "512x512"
+    SIZE_1024_576 = "1024x576"
+    SIZE_576_1024 = "576x1024"
+    SIZE_1280_720 = "1280x720"
+    SIZE_720_1280 = "720x1280"
+
+
+class VideoFormat(str, Enum):
+    """Available video formats."""
+
+    MP4 = "mp4"
+    WEBM = "webm"
+    MOV = "mov"
+
+
+class GeneratedVideo(BaseModel):
+    """A generated video."""
+
+    url: str | None = Field(
+        default=None,
+        description="The URL of the generated video.")
+    b64_json: str | None = Field(
+        default=None,
+        description="The base64-encoded JSON of the generated video.")
+
+
+class VideoGenerationRequest(BaseModel):
+    """Request for video generation."""
+
+    prompt: str = Field(
+        max_length=1000, description="A text description of the desired video."
+    )
+    model: str | None = Field(
+        default="runway-gen3",
+        description="The model to use for video generation.",
+    )
+    duration: float | None = Field(
+        default=5.0,
+        ge=1.0,
+        le=10.0,
+        description="Duration of the video in seconds.")
+    size: VideoSize | None = Field(
+        default=VideoSize.SIZE_1280_720,
+        description="The size of the generated video.")
+    format: VideoFormat | None = Field(
+        default=VideoFormat.MP4,
+        description="The format of the generated video.")
+    fps: int | None = Field(
+        default=24, ge=12, le=60, description="Frames per second."
+    )
+    user: str | None = Field(
+        default=None, description="A unique identifier for the end-user."
+    )
+
+    @field_validator("prompt")
+    @classmethod
+    def validate_prompt_length(cls, v: str) -> str:
+        """Validate prompt length."""
+        if len(v) > 1000:
+            raise ValueError("Prompt must not exceed 1000 characters")
+        return v
+
+
+class VideoGenerationResponse(BaseModel):
+    """Response for video generation."""
+
+    created: int = Field(
+        description="The Unix timestamp of when the video was created."
+    )
+    data: list[GeneratedVideo] = Field(
+        description="The list of generated videos.")

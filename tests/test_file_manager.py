@@ -6,19 +6,15 @@ validation, and quota enforcement.
 """
 
 import json
-import os
 import tempfile
-import time
 
 import pytest
 
 from fakeai.file_manager import (
-    DiskStorage,
     FileManager,
     FileNotFoundError,
     FileQuotaError,
     FileValidationError,
-    InMemoryStorage,
 )
 
 
@@ -447,7 +443,6 @@ class TestFileList:
     async def test_list_files_order_desc(self, file_manager):
         """Should list files in descending order by creation time."""
         import asyncio
-        import time
 
         # Use time.time() manipulation to ensure different timestamps
         file1 = await file_manager.upload_file(

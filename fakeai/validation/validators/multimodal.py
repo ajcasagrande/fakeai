@@ -186,7 +186,8 @@ class MultiModalValidator:
 
         # Check if model supports each modality
         if "image_url" in content_types:
-            supported, error_msg = self._check_model_supports_modality(model, "vision")
+            supported, error_msg = self._check_model_supports_modality(
+                model, "vision")
             if not supported:
                 result.add_error(
                     message=error_msg,
@@ -195,7 +196,8 @@ class MultiModalValidator:
                 )
 
         if "input_audio" in content_types or "audio_url" in content_types:
-            supported, error_msg = self._check_model_supports_modality(model, "audio")
+            supported, error_msg = self._check_model_supports_modality(
+                model, "audio")
             if not supported:
                 result.add_error(
                     message=error_msg,
@@ -204,7 +206,8 @@ class MultiModalValidator:
                 )
 
         if "video_url" in content_types:
-            supported, error_msg = self._check_model_supports_modality(model, "video")
+            supported, error_msg = self._check_model_supports_modality(
+                model, "video")
             if not supported:
                 result.add_error(
                     message=error_msg,

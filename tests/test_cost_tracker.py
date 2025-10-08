@@ -4,12 +4,10 @@ Tests for the FakeAI cost tracking and billing simulation module.
 """
 #  SPDX-License-Identifier: Apache-2.0
 
-import time
 
 import pytest
 
 from fakeai.cost_tracker import (
-    IMAGE_PRICING,
     MODEL_PRICING,
     BudgetLimitType,
     BudgetPeriod,

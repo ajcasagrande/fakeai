@@ -11,11 +11,8 @@ Tests metrics performance under heavy load:
 
 import asyncio
 import gc
-import sys
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
-from unittest.mock import Mock
 
 import psutil
 import pytest
@@ -24,7 +21,7 @@ from fakeai.config import AppConfig
 from fakeai.dcgm_metrics import DCGMMetricsSimulator
 from fakeai.dynamo_metrics import DynamoMetricsCollector
 from fakeai.fakeai_service import FakeAIService
-from fakeai.kv_cache import KVCacheMetrics, SmartRouter
+from fakeai.kv_cache import KVCacheMetrics
 from fakeai.metrics import MetricsTracker
 from fakeai.metrics_aggregator import MetricsAggregator
 from fakeai.models import ChatCompletionRequest, Message, Role

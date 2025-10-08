@@ -21,11 +21,11 @@ from fakeai.streaming.base import (
     StreamContext,
     StreamError,
     StreamGenerationException,
+    StreamingGenerator,
     StreamMetrics,
     StreamStatus,
     StreamTimeoutException,
     StreamType,
-    StreamingGenerator,
 )
 
 logger = logging.getLogger(__name__)
@@ -153,8 +153,8 @@ class StreamManager:
             chunk_delay_seconds=chunk_delay_seconds,
             max_chunks=max_chunks,
             enable_metrics=self.enable_metrics and self.metrics_tracker is not None,
-            enable_latency_simulation=self.enable_latency_simulation
-            and self.latency_manager is not None,
+            enable_latency_simulation=self.enable_latency_simulation and
+            self.latency_manager is not None,
             kv_cache_enabled=self.kv_cache_router is not None,
             prompt_tokens=prompt_tokens,
             temperature=temperature,
@@ -198,18 +198,17 @@ class StreamManager:
                         timeout_seconds=timeout_seconds,
                     )
 
+                # Check max chunks limit before yielding
+                if max_chunks and stream_metrics.total_chunks >= max_chunks:
+                    logger.info(
+                        f"Stream {stream_id} reached max chunks limit: {max_chunks}")
+                    break
+
                 # Track chunk metrics
                 self._track_chunk(stream_metrics, chunk)
 
                 # Yield chunk to caller
                 yield chunk
-
-                # Check max chunks limit
-                if max_chunks and stream_metrics.total_chunks >= max_chunks:
-                    logger.info(
-                        f"Stream {stream_id} reached max chunks limit: {max_chunks}"
-                    )
-                    break
 
             # Complete stream successfully
             await self._complete_stream(context, stream_metrics)
@@ -235,7 +234,9 @@ class StreamManager:
             raise
 
         except Exception as e:
-            logger.error(f"Stream {stream_id} generation failed: {e}", exc_info=True)
+            logger.error(
+                f"Stream {stream_id} generation failed: {e}",
+                exc_info=True)
             await self._fail_stream(
                 context,
                 stream_metrics,
@@ -297,7 +298,8 @@ class StreamManager:
                 timeout_seconds=timeout,
             )
 
-    def _get_default_generator(self, stream_type: StreamType) -> StreamingGenerator:
+    def _get_default_generator(
+            self, stream_type: StreamType) -> StreamingGenerator:
         """
         Get default generator for stream type.
 
@@ -334,10 +336,7 @@ class StreamManager:
         Args:
             context: Stream context
         """
-        # Track request in basic metrics
-        if self.metrics_tracker:
-            self.metrics_tracker.track_request(context.endpoint)
-            self.metrics_tracker.start_stream(context.stream_id, context.endpoint)
+        # Metrics tracked via events
 
         # Track in detailed streaming metrics
         if self.streaming_metrics_tracker:
@@ -370,11 +369,7 @@ class StreamManager:
         if stream_metrics.first_chunk_time is None:
             stream_metrics.first_chunk_time = chunk.timestamp
 
-        # Track in basic metrics
-        if self.metrics_tracker:
-            self.metrics_tracker.track_stream_token(stream_metrics.stream_id)
-            if stream_metrics.first_chunk_time == chunk.timestamp:
-                self.metrics_tracker.track_stream_first_token(stream_metrics.stream_id)
+        # Metrics tracked via events
 
         # Track in detailed streaming metrics
         if self.streaming_metrics_tracker:
@@ -432,15 +427,7 @@ class StreamManager:
             self._active_streams[context.stream_id] = StreamStatus.COMPLETED
 
         # Complete metrics tracking
-        if self.metrics_tracker:
-            self.metrics_tracker.complete_stream(
-                context.stream_id, context.endpoint
-            )
-            latency = stream_metrics.total_duration_ms() / 1000 if stream_metrics.total_duration_ms() else 0
-            self.metrics_tracker.track_response(context.endpoint, latency)
-            self.metrics_tracker.track_tokens(
-                context.endpoint, stream_metrics.total_tokens
-            )
+        # Metrics tracked via events
 
         if self.streaming_metrics_tracker:
             self.streaming_metrics_tracker.complete_stream(
@@ -480,11 +467,7 @@ class StreamManager:
             self._active_streams[context.stream_id] = StreamStatus.FAILED
 
         # Track error in metrics
-        if self.metrics_tracker:
-            self.metrics_tracker.fail_stream(
-                context.stream_id, context.endpoint, error.message
-            )
-            self.metrics_tracker.track_error(context.endpoint)
+        # Metrics tracked via events
 
         if self.streaming_metrics_tracker:
             self.streaming_metrics_tracker.cancel_stream(
@@ -553,7 +536,8 @@ class StreamManager:
         async with self._lock:
             return self._active_streams.get(stream_id)
 
-    async def get_stream_metrics(self, stream_id: str) -> dict[str, Any] | None:
+    async def get_stream_metrics(
+            self, stream_id: str) -> dict[str, Any] | None:
         """
         Get metrics for a stream.
 

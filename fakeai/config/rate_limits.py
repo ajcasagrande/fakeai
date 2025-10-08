@@ -69,7 +69,8 @@ class RateLimitConfig(ModuleConfig):
             except ValueError:
                 valid = ", ".join([tier.value for tier in RateLimitTier])
                 raise ValueError(f"Rate limit tier must be one of: {valid}")
-        raise ValueError("Rate limit tier must be a string or RateLimitTier enum")
+        raise ValueError(
+            "Rate limit tier must be a string or RateLimitTier enum")
 
     @field_validator("rpm_override")
     @classmethod

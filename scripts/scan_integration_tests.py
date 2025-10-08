@@ -4,13 +4,14 @@ Comprehensive Integration Test Scanner
 Runs each test file individually and generates a detailed failure matrix.
 """
 
-import subprocess
 import json
 import re
-from pathlib import Path
-from dataclasses import dataclass, asdict
-from typing import List, Dict, Any
+import subprocess
 import sys
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any, Dict, List
+
 
 @dataclass
 class TestFileResult:

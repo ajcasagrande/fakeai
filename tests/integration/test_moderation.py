@@ -13,10 +13,7 @@ This module tests the /v1/moderations endpoint with comprehensive coverage of:
 - Category-specific filtering
 """
 
-import asyncio
-from typing import Any
 
-import httpx
 import pytest
 
 from .utils import FakeAIClient

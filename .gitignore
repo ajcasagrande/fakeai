@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+node_modules/
 # Distribution / packaging
 dist/
 build/
@@ -62,3 +63,14 @@ tmp/
 dmypy.json
 
 artifacts/
+
+# Dashboard build artifacts
+fakeai/static/spa/
+dashboard/dist/
+dashboard/node_modules/
+dashboard/.env
+dashboard/.env.local
+
+static/app/*.gz
+static/app/*.whl
+

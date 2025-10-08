@@ -124,7 +124,8 @@ class MetricsAggregator:
         }
 
         # Health history
-        self._health_history: deque[tuple[float, HealthScore]] = deque(maxlen=1000)
+        self._health_history: deque[tuple[float,
+                                          HealthScore]] = deque(maxlen=1000)
 
         self._lock = threading.Lock()
 
@@ -199,7 +200,8 @@ class MetricsAggregator:
         # GPU utilization vs token throughput
         if "dcgm" in sources and "metrics_tracker" in sources:
             gpu_util = self._extract_avg_gpu_utilization(sources["dcgm"])
-            token_rate = self._extract_token_throughput(sources["metrics_tracker"])
+            token_rate = self._extract_token_throughput(
+                sources["metrics_tracker"])
 
             if gpu_util is not None and token_rate is not None:
                 # Calculate efficiency: tokens/sec per % GPU util
@@ -215,14 +217,15 @@ class MetricsAggregator:
                             "tokens_per_gpu_percent": efficiency,
                         },
                         "relationship": "positive",
-                        "insight": f"GPU efficiency: {efficiency:.2f} tokens/sec per 1% GPU util",
-                    }
-                )
+                        "insight": f"GPU efficiency: {
+                            efficiency:.2f} tokens/sec per 1% GPU util",
+                    })
 
         # Cache hit rate vs latency improvement
         if "kv_cache" in sources and "dynamo" in sources:
             cache_hit_rate = sources["kv_cache"].get("cache_hit_rate", 0)
-            latency_stats = sources["dynamo"].get("latency", {}).get("ttft", {})
+            latency_stats = sources["dynamo"].get(
+                "latency", {}).get("ttft", {})
             avg_ttft = latency_stats.get("avg", 0)
 
             # Estimate latency reduction from cache
@@ -239,14 +242,15 @@ class MetricsAggregator:
                         "estimated_latency_reduction_ms": estimated_reduction,
                     },
                     "relationship": "negative",
-                    "insight": f"Cache saves ~{estimated_reduction:.2f}ms TTFT on average",
-                }
-            )
+                    "insight": f"Cache saves ~{
+                        estimated_reduction:.2f}ms TTFT on average",
+                })
 
         # Queue depth vs TTFT
         if "dynamo" in sources:
             queue_stats = sources["dynamo"].get("queue", {})
-            latency_stats = sources["dynamo"].get("latency", {}).get("ttft", {})
+            latency_stats = sources["dynamo"].get(
+                "latency", {}).get("ttft", {})
 
             queue_depth = queue_stats.get("current_depth", 0)
             avg_ttft = latency_stats.get("avg", 0)
@@ -264,14 +268,15 @@ class MetricsAggregator:
                         "estimated_queue_impact_ms": estimated_queue_impact,
                     },
                     "relationship": "positive",
-                    "insight": f"Queue adds ~{estimated_queue_impact:.0f}ms to TTFT",
-                }
-            )
+                    "insight": f"Queue adds ~{
+                        estimated_queue_impact:.0f}ms to TTFT",
+                })
 
         # Worker load vs response time
         if "dynamo" in sources and "metrics_tracker" in sources:
             batch_stats = sources["dynamo"].get("batch", {})
-            latency_stats = sources["dynamo"].get("latency", {}).get("total", {})
+            latency_stats = sources["dynamo"].get(
+                "latency", {}).get("total", {})
 
             batch_size = batch_stats.get("current_size", 0)
             avg_latency = latency_stats.get("avg", 0)
@@ -291,9 +296,9 @@ class MetricsAggregator:
                         "per_request_latency_ms": per_request_latency,
                     },
                     "relationship": "batch_efficiency",
-                    "insight": f"Batching: {per_request_latency:.2f}ms per request",
-                }
-            )
+                    "insight": f"Batching: {
+                        per_request_latency:.2f}ms per request",
+                })
 
         return {
             "timestamp": time.time(),
@@ -301,7 +306,8 @@ class MetricsAggregator:
             "derived_metrics": self._calculate_derived_metrics(unified),
         }
 
-    def _calculate_derived_metrics(self, unified: dict[str, Any]) -> dict[str, Any]:
+    def _calculate_derived_metrics(
+            self, unified: dict[str, Any]) -> dict[str, Any]:
         """Calculate derived efficiency metrics."""
         sources = unified.get("sources", {})
         derived = {}
@@ -325,12 +331,14 @@ class MetricsAggregator:
         # Cache effectiveness = (cache_hit_rate * latency_reduction) / 100
         if "kv_cache" in sources and "dynamo" in sources:
             cache_hit_rate = sources["kv_cache"].get("cache_hit_rate", 0)
-            latency_stats = sources["dynamo"].get("latency", {}).get("ttft", {})
+            latency_stats = sources["dynamo"].get(
+                "latency", {}).get("ttft", {})
             avg_ttft = latency_stats.get("avg", 0)
 
             # Estimate cache reduces TTFT by 50%
             latency_reduction_pct = 50.0
-            cache_effectiveness = (cache_hit_rate * latency_reduction_pct) / 100.0
+            cache_effectiveness = (
+                cache_hit_rate * latency_reduction_pct) / 100.0
 
             derived["cache_effectiveness"] = {
                 "value": cache_effectiveness,
@@ -341,7 +349,8 @@ class MetricsAggregator:
         # GPU efficiency = tokens_per_second / gpu_utilization
         if "dcgm" in sources and "metrics_tracker" in sources:
             gpu_util = self._extract_avg_gpu_utilization(sources["dcgm"])
-            token_rate = self._extract_token_throughput(sources["metrics_tracker"])
+            token_rate = self._extract_token_throughput(
+                sources["metrics_tracker"])
 
             if gpu_util and token_rate and gpu_util > 0:
                 gpu_efficiency = token_rate / gpu_util
@@ -354,8 +363,10 @@ class MetricsAggregator:
 
         # Cost efficiency = tokens_per_dollar (simulated: $1/GPU-hour)
         if "dcgm" in sources and "metrics_tracker" in sources:
-            token_rate = self._extract_token_throughput(sources["metrics_tracker"])
-            num_gpus = len(sources.get("dcgm", {})) - 1 if "dcgm" in sources else 1
+            token_rate = self._extract_token_throughput(
+                sources["metrics_tracker"])
+            num_gpus = len(sources.get("dcgm", {})) - \
+                1 if "dcgm" in sources else 1
 
             # Assume $1/GPU-hour
             cost_per_second = (num_gpus * 1.0) / 3600.0
@@ -465,7 +476,8 @@ class MetricsAggregator:
         responses = metrics.get("responses", {})
 
         total_errors = sum(stats.get("rate", 0) for stats in errors.values())
-        total_responses = sum(stats.get("rate", 0) for stats in responses.values())
+        total_responses = sum(stats.get("rate", 0)
+                              for stats in responses.values())
 
         if total_responses > 0:
             error_rate = (total_errors / total_responses) * 100
@@ -475,22 +487,28 @@ class MetricsAggregator:
         if error_rate > self.anomaly_thresholds["error_rate"]:
             score -= 30
             issues.append(f"High error rate: {error_rate:.2f}%")
-            recommendations.append("Investigate error logs and failing endpoints")
+            recommendations.append(
+                "Investigate error logs and failing endpoints")
 
         # Check latency
         for endpoint, stats in responses.items():
             p99_latency_ms = stats.get("p99", 0) * 1000
             if p99_latency_ms > self.anomaly_thresholds["latency_p99"]:
                 score -= 20
-                issues.append(f"High p99 latency on {endpoint}: {p99_latency_ms:.0f}ms")
-                recommendations.append(f"Optimize {endpoint} endpoint performance")
+                issues.append(
+                    f"High p99 latency on {endpoint}: {
+                        p99_latency_ms:.0f}ms")
+                recommendations.append(
+                    f"Optimize {endpoint} endpoint performance")
 
         score = max(0.0, score)
         status = self._score_to_status(score)
 
         return HealthScore(
-            score=score, status=status, issues=issues, recommendations=recommendations
-        )
+            score=score,
+            status=status,
+            issues=issues,
+            recommendations=recommendations)
 
     def _score_cache_health(self, metrics: dict[str, Any]) -> HealthScore:
         """Score cache health based on hit rate."""
@@ -503,14 +521,17 @@ class MetricsAggregator:
         if cache_hit_rate < self.anomaly_thresholds["cache_hit_rate"]:
             score -= 40
             issues.append(f"Low cache hit rate: {cache_hit_rate:.2f}%")
-            recommendations.append("Review cache configuration and request patterns")
+            recommendations.append(
+                "Review cache configuration and request patterns")
 
         score = max(0.0, score)
         status = self._score_to_status(score)
 
         return HealthScore(
-            score=score, status=status, issues=issues, recommendations=recommendations
-        )
+            score=score,
+            status=status,
+            issues=issues,
+            recommendations=recommendations)
 
     def _score_gpu_health(self, metrics: dict[str, Any]) -> HealthScore:
         """Score GPU health based on utilization and temperature."""
@@ -540,15 +561,19 @@ class MetricsAggregator:
             ecc_dbe = gpu_metrics.get("ecc_dbe_total", 0)
             if ecc_dbe > 0:
                 score -= 50
-                issues.append(f"{gpu_key}: {ecc_dbe} double-bit ECC errors detected")
-                recommendations.append(f"CRITICAL: Replace {gpu_key} immediately")
+                issues.append(
+                    f"{gpu_key}: {ecc_dbe} double-bit ECC errors detected")
+                recommendations.append(
+                    f"CRITICAL: Replace {gpu_key} immediately")
 
         score = max(0.0, score)
         status = self._score_to_status(score)
 
         return HealthScore(
-            score=score, status=status, issues=issues, recommendations=recommendations
-        )
+            score=score,
+            status=status,
+            issues=issues,
+            recommendations=recommendations)
 
     def _score_inference_health(self, metrics: dict[str, Any]) -> HealthScore:
         """Score inference health based on queue and latency."""
@@ -564,7 +589,8 @@ class MetricsAggregator:
         if queue_depth > max_queue * 0.8:
             score -= 30
             issues.append(f"Queue near capacity: {queue_depth}/{max_queue}")
-            recommendations.append("Scale prefill workers or increase queue capacity")
+            recommendations.append(
+                "Scale prefill workers or increase queue capacity")
 
         # Check TTFT
         latency_stats = metrics.get("latency", {}).get("ttft", {})
@@ -579,8 +605,10 @@ class MetricsAggregator:
         status = self._score_to_status(score)
 
         return HealthScore(
-            score=score, status=status, issues=issues, recommendations=recommendations
-        )
+            score=score,
+            status=status,
+            issues=issues,
+            recommendations=recommendations)
 
     def _score_to_status(self, score: float) -> HealthStatus:
         """Convert numeric score to health status."""
@@ -685,9 +713,11 @@ class MetricsAggregator:
             for metric_name, metric_data in derived.items():
                 lines.append(f"# TYPE fakeai_derived_{metric_name} gauge")
                 lines.append(
-                    f"# HELP fakeai_derived_{metric_name} {metric_data['description']}"
-                )
-                lines.append(f"fakeai_derived_{metric_name} {metric_data['value']:.6f}")
+                    f"# HELP fakeai_derived_{metric_name} {
+                        metric_data['description']}")
+                lines.append(
+                    f"fakeai_derived_{metric_name} {
+                        metric_data['value']:.6f}")
                 lines.append("")
         except Exception as e:
             logger.error(f"Error exporting derived metrics: {e}")
@@ -699,12 +729,14 @@ class MetricsAggregator:
             lines.append("# Health Scores")
             lines.append("# TYPE fakeai_health_score gauge")
             lines.append(
-                f"fakeai_health_score{{subsystem=\"overall\"}} {health['overall']['score']:.2f}"
+                f"fakeai_health_score{{subsystem=\"overall\"}} {
+                    health['overall']['score']:.2f}"
             )
 
             for subsystem, score_data in health["subsystems"].items():
                 lines.append(
-                    f"fakeai_health_score{{subsystem=\"{subsystem}\"}} {score_data['score']:.2f}"
+                    f"fakeai_health_score{{subsystem=\"{subsystem}\"}} {
+                        score_data['score']:.2f}"
                 )
 
             lines.append("")
@@ -759,34 +791,32 @@ class MetricsAggregator:
                 gpu_util = self._extract_avg_gpu_utilization(sources["dcgm"])
                 if gpu_util is not None:
                     with self._lock:
-                        storage["gpu_utilization"].append(
-                            MetricDataPoint(timestamp, gpu_util, "gpu_utilization")
-                        )
+                        storage["gpu_utilization"].append(MetricDataPoint(
+                            timestamp, gpu_util, "gpu_utilization"))
 
             # Sample token throughput
             if "metrics_tracker" in sources:
-                token_rate = self._extract_token_throughput(sources["metrics_tracker"])
+                token_rate = self._extract_token_throughput(
+                    sources["metrics_tracker"])
                 if token_rate is not None:
                     with self._lock:
-                        storage["token_throughput"].append(
-                            MetricDataPoint(timestamp, token_rate, "token_throughput")
-                        )
+                        storage["token_throughput"].append(MetricDataPoint(
+                            timestamp, token_rate, "token_throughput"))
 
             # Sample cache hit rate
             if "kv_cache" in sources:
                 cache_hit_rate = sources["kv_cache"].get("cache_hit_rate", 0)
                 with self._lock:
-                    storage["cache_hit_rate"].append(
-                        MetricDataPoint(timestamp, cache_hit_rate, "cache_hit_rate")
-                    )
+                    storage["cache_hit_rate"].append(MetricDataPoint(
+                        timestamp, cache_hit_rate, "cache_hit_rate"))
 
             # Sample queue depth
             if "dynamo" in sources:
-                queue_depth = sources["dynamo"].get("queue", {}).get("current_depth", 0)
+                queue_depth = sources["dynamo"].get(
+                    "queue", {}).get("current_depth", 0)
                 with self._lock:
-                    storage["queue_depth"].append(
-                        MetricDataPoint(timestamp, float(queue_depth), "queue_depth")
-                    )
+                    storage["queue_depth"].append(MetricDataPoint(
+                        timestamp, float(queue_depth), "queue_depth"))
 
         except Exception as e:
             logger.error(f"Error sampling metrics: {e}")
@@ -797,14 +827,17 @@ class MetricsAggregator:
         """Extract average GPU utilization from DCGM metrics."""
         utilizations = []
         for key, gpu_data in dcgm_metrics.items():
-            if isinstance(gpu_data, dict) and "gpu_utilization_pct" in gpu_data:
+            if isinstance(
+                    gpu_data,
+                    dict) and "gpu_utilization_pct" in gpu_data:
                 utilizations.append(gpu_data["gpu_utilization_pct"])
 
         if utilizations:
             return sum(utilizations) / len(utilizations)
         return None
 
-    def _extract_token_throughput(self, metrics: dict[str, Any]) -> float | None:
+    def _extract_token_throughput(
+            self, metrics: dict[str, Any]) -> float | None:
         """Extract total token throughput from metrics."""
         tokens = metrics.get("tokens", {})
         total_rate = sum(stats.get("rate", 0) for stats in tokens.values())

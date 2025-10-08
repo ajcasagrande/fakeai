@@ -26,7 +26,7 @@ import difflib
 import re
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any
+from typing import Optional
 
 
 @dataclass
@@ -51,9 +51,9 @@ class ModelCharacteristics:
     is_audio: bool = False
     is_video: bool = False
     is_fine_tuned: bool = False
-    base_model: str | None = None
-    estimated_size: str | None = None
-    provider: str | None = None
+    base_model: Optional[str] = None
+    estimated_size: Optional[str] = None
+    provider: Optional[str] = None
 
 
 @dataclass
@@ -118,7 +118,7 @@ class ModelMatcher:
 
     def match(
         self, query: str, available_models: list[str], threshold: float = 0.6
-    ) -> MatchResult | None:
+    ) -> Optional[MatchResult]:
         """Match a query to available models using learned preferences.
 
         Args:
@@ -142,14 +142,16 @@ class ModelMatcher:
                     normalized_match = normalize_model_id(model_id)
                     return MatchResult(
                         matched_model=model_id,
-                        confidence=min(1.0, 0.8 + (count * 0.05)),  # Boost by usage
+                        confidence=min(1.0, 0.8 + (count * 0.05)
+                                       ),  # Boost by usage
                         strategy="learned",
                         normalized_query=normalized_query,
                         normalized_match=normalized_match,
                     )
 
         # Fall back to standard fuzzy matching
-        match, confidence = fuzzy_match_model(query, available_models, threshold)
+        match, confidence = fuzzy_match_model(
+            query, available_models, threshold)
         if match:
             normalized_query = normalize_model_id(query)
             normalized_match = normalize_model_id(match)
@@ -248,7 +250,7 @@ def normalize_model_id(model_id: str) -> str:
     ]
     for prefix in provider_prefixes:
         if normalized.startswith(prefix):
-            normalized = normalized[len(prefix) :]
+            normalized = normalized[len(prefix):]
             break
 
     # Remove version suffixes like -v1, -v2, etc.
@@ -262,7 +264,7 @@ def normalize_model_id(model_id: str) -> str:
 
 def fuzzy_match_model(
     query: str, available_models: list[str], threshold: float = 0.6
-) -> tuple[str | None, float]:
+) -> tuple[Optional[str], float]:
     """Match a query to the best available model using fuzzy matching.
 
     Uses four matching strategies in order of preference:
@@ -318,9 +320,8 @@ def fuzzy_match_model(
 
         # Check if normalized query is substring of normalized model
         elif normalized_query_lower in normalized_model:
-            confidence = (
-                0.80 + (len(normalized_query_lower) / len(normalized_model)) * 0.1
-            )
+            confidence = (0.80 + (len(normalized_query_lower) /
+                                  len(normalized_model)) * 0.1)
             if confidence > best_substring_confidence:
                 best_substring_match = model
                 best_substring_confidence = confidence
@@ -420,7 +421,8 @@ def infer_model_characteristics(model_id: str) -> ModelCharacteristics:
 
     # Detect MoE models
     moe_patterns = [r"mixtral", r"gpt-oss", r"deepseek-v\d+", r"moe"]
-    chars.is_moe = any(re.search(pattern, model_lower) for pattern in moe_patterns)
+    chars.is_moe = any(re.search(pattern, model_lower)
+                       for pattern in moe_patterns)
 
     # Detect vision models
     vision_patterns = [
@@ -437,11 +439,13 @@ def infer_model_characteristics(model_id: str) -> ModelCharacteristics:
 
     # Detect audio models
     audio_patterns = [r"audio", r"whisper", r"speech"]
-    chars.is_audio = any(re.search(pattern, model_lower) for pattern in audio_patterns)
+    chars.is_audio = any(re.search(pattern, model_lower)
+                         for pattern in audio_patterns)
 
     # Detect video models
     video_patterns = [r"video", r"cosmos"]
-    chars.is_video = any(re.search(pattern, model_lower) for pattern in video_patterns)
+    chars.is_video = any(re.search(pattern, model_lower)
+                         for pattern in video_patterns)
 
     # Extract parameter size
     size_match = re.search(r"(\d+)b\b", model_lower)
@@ -516,7 +520,7 @@ def suggest_similar_models(
     return similarities[:limit]
 
 
-def parse_fine_tuned_model(model_id: str) -> FineTunedModelInfo | None:
+def parse_fine_tuned_model(model_id: str) -> Optional[FineTunedModelInfo]:
     """Parse a fine-tuned model ID in LoRA format.
 
     Format: ft:base_model:organization::job_id
@@ -554,7 +558,8 @@ def parse_fine_tuned_model(model_id: str) -> FineTunedModelInfo | None:
     base_model = parts[0]
     organization = parts[1]
 
-    # Handle case where base_model might contain colons (e.g., provider/model:version)
+    # Handle case where base_model might contain colons (e.g.,
+    # provider/model:version)
     if len(parts) > 2:
         # Reconstruct base_model with all parts except the last (organization)
         base_model = ":".join(parts[:-1])

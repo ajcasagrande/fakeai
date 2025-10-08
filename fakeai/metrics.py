@@ -12,9 +12,9 @@ import random
 import threading
 import time
 from collections import defaultdict, deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -84,9 +84,9 @@ class MetricsWindow:
         with self._lock:
             current_time = time.time()
 
-            # Append new data
-            self.timestamps = np.append(self.timestamps, current_time)
-            self.values = np.append(self.values, float(value))
+            # Use np.concatenate instead of np.append for better performance
+            self.timestamps = np.concatenate([self.timestamps, [current_time]])
+            self.values = np.concatenate([self.values, [float(value)]])
 
             # Cleanup old data beyond window
             self._cleanup()
@@ -96,9 +96,10 @@ class MetricsWindow:
         with self._lock:
             current_time = time.time()
 
-            # Append new latency
-            self.latency_timestamps = np.append(self.latency_timestamps, current_time)
-            self.latencies = np.append(self.latencies, latency)
+            # Use np.concatenate instead of np.append for better performance
+            self.latency_timestamps = np.concatenate(
+                [self.latency_timestamps, [current_time]])
+            self.latencies = np.concatenate([self.latencies, [latency]])
 
             # Cleanup old data beyond window
             self._cleanup()
@@ -116,8 +117,8 @@ class MetricsWindow:
 
             # If we exceed max samples, keep only the most recent
             if len(self.timestamps) > self.max_samples:
-                self.timestamps = self.timestamps[-self.max_samples :]
-                self.values = self.values[-self.max_samples :]
+                self.timestamps = self.timestamps[-self.max_samples:]
+                self.values = self.values[-self.max_samples:]
 
         # Filter timestamps for latencies
         if len(self.latency_timestamps) > 0:
@@ -127,8 +128,8 @@ class MetricsWindow:
 
             # If we exceed max samples, keep only the most recent
             if len(self.latency_timestamps) > self.max_samples:
-                self.latency_timestamps = self.latency_timestamps[-self.max_samples :]
-                self.latencies = self.latencies[-self.max_samples :]
+                self.latency_timestamps = self.latency_timestamps[-self.max_samples:]
+                self.latencies = self.latencies[-self.max_samples:]
 
     def get_rate(self) -> float:
         """
@@ -165,7 +166,7 @@ class MetricsWindow:
 
             return float(rate)
 
-    def get_latency_stats(self) -> Dict[str, float]:
+    def get_latency_stats(self) -> dict[str, float]:
         """Get latency statistics within the window using numpy percentiles."""
         with self._lock:
             if len(self.latency_timestamps) == 0:
@@ -205,7 +206,7 @@ class MetricsWindow:
                 "p99": float(np.percentile(valid_latencies, 99)),
             }
 
-    def get_stats(self) -> Dict[str, float]:
+    def get_stats(self) -> dict[str, float]:
         """Get all stats for this window."""
         return {
             "rate": self.get_rate(),
@@ -220,67 +221,72 @@ class MetricsTracker:
     _lock = threading.Lock()
 
     def __new__(cls):
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = super(MetricsTracker, cls).__new__(cls)
-                cls._instance._initialized = False
-            return cls._instance
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(MetricsTracker, cls).__new__(cls)
+                    cls._instance._initialized = False
+        return cls._instance
 
     def __init__(self):
-        if self._initialized:
-            return
+        # Move _initialized check inside lock to prevent TOCTOU race condition
+        with self._lock:
+            if self._initialized:
+                return
 
-        self._metrics = {
-            MetricType.REQUESTS: defaultdict(lambda: MetricsWindow()),
-            MetricType.RESPONSES: defaultdict(lambda: MetricsWindow()),
-            MetricType.TOKENS: defaultdict(lambda: MetricsWindow()),
-            MetricType.ERRORS: defaultdict(lambda: MetricsWindow()),
-            MetricType.LATENCY: defaultdict(lambda: MetricsWindow()),
-            MetricType.STREAMING: defaultdict(lambda: MetricsWindow()),
-        }
+            self._metrics = {
+                MetricType.REQUESTS: defaultdict(lambda: MetricsWindow()),
+                MetricType.RESPONSES: defaultdict(lambda: MetricsWindow()),
+                MetricType.TOKENS: defaultdict(lambda: MetricsWindow()),
+                MetricType.ERRORS: defaultdict(lambda: MetricsWindow()),
+                MetricType.LATENCY: defaultdict(lambda: MetricsWindow()),
+                MetricType.STREAMING: defaultdict(lambda: MetricsWindow()),
+            }
 
-        # Core API endpoints to track (allowlist)
-        self._tracked_endpoints = {
-            # OpenAI API endpoints
-            "/v1/chat/completions",
-            "/v1/completions",
-            "/v1/embeddings",
-            "/v1/images/generations",
-            "/v1/audio/speech",
-            "/v1/audio/transcriptions",
-            "/v1/moderations",
-            "/v1/files",
-            "/v1/batches",
-            "/v1/responses",
-            # NVIDIA NIM endpoints
-            "/v1/ranking",
-            "/v1/text/generation",
-            # Solido RAG endpoint
-            "/rag/api/prompt",
-            # Realtime (WebSocket is handled separately)
-            "/v1/realtime",
-        }
+            # Core API endpoints to track (allowlist)
+            self._tracked_endpoints = {
+                # OpenAI API endpoints
+                "/v1/chat/completions",
+                "/v1/completions",
+                "/v1/embeddings",
+                "/v1/images/generations",
+                "/v1/audio/speech",
+                "/v1/audio/transcriptions",
+                "/v1/moderations",
+                "/v1/files",
+                "/v1/batches",
+                "/v1/responses",
+                # NVIDIA NIM endpoints
+                "/v1/ranking",
+                "/v1/text/generation",
+                # Solido RAG endpoint
+                "/rag/api/prompt",
+                # Realtime (WebSocket is handled separately)
+                "/v1/realtime",
+            }
 
-        # Queue for response times (used for per-request timing)
-        self._response_times = defaultdict(lambda: deque(maxlen=1000))
+            # Queue for response times (used for per-request timing)
+            self._response_times = defaultdict(lambda: deque(maxlen=1000))
 
-        # Streaming metrics storage
-        self._streaming_metrics: Dict[str, StreamingMetrics] = {}
-        self._streaming_lock = threading.Lock()
+            # Streaming metrics storage
+            self._streaming_metrics: dict[str, StreamingMetrics] = {}
+            self._streaming_lock = threading.Lock()
 
-        # Aggregate streaming stats
-        self._completed_streams: deque[StreamingMetrics] = deque(maxlen=1000)
-        self._failed_streams: deque[StreamingMetrics] = deque(maxlen=1000)
+            # Aggregate streaming stats
+            self._completed_streams: deque[StreamingMetrics] = deque(
+                maxlen=1000)
+            self._failed_streams: deque[StreamingMetrics] = deque(maxlen=1000)
 
-        # Print metrics periodically in a separate thread
-        self._stop_thread = False
-        self._print_interval = 5  # Print metrics every 5 seconds
-        self._thread = threading.Thread(target=self._print_metrics_periodically)
-        self._thread.daemon = True
-        self._thread.start()
+            # Print metrics periodically in a separate thread
+            self._stop_thread = False
+            self._print_interval = 5  # Print metrics every 5 seconds
+            self._thread = threading.Thread(
+                target=self._print_metrics_periodically)
+            self._thread.daemon = True
+            self._thread.start()
 
-        self._initialized = True
-        logger.info("Metrics tracker initialized")
+            self._initialized = True
+            logger.info("Metrics tracker initialized")
 
     def _should_track_endpoint(self, endpoint: str) -> bool:
         """
@@ -301,7 +307,10 @@ class MetricsTracker:
             return
         self._metrics[MetricType.REQUESTS][endpoint].add()
 
-    def track_response(self, endpoint: str, latency: Optional[float] = None) -> None:
+    def track_response(
+            self,
+            endpoint: str,
+            latency: Optional[float] = None) -> None:
         """Track a new response from a specific endpoint."""
         if not self._should_track_endpoint(endpoint):
             return
@@ -352,7 +361,8 @@ class MetricsTracker:
         """Track the first token in a stream (TTFT)."""
         with self._streaming_lock:
             if stream_id in self._streaming_metrics:
-                self._streaming_metrics[stream_id].first_token_time = time.time()
+                self._streaming_metrics[stream_id].first_token_time = time.time(
+                )
 
     def track_stream_token(self, stream_id: str) -> None:
         """Track a token in a stream."""
@@ -382,7 +392,11 @@ class MetricsTracker:
                 # Remove from active
                 del self._streaming_metrics[stream_id]
 
-    def fail_stream(self, stream_id: str, endpoint: str, error_message: str) -> None:
+    def fail_stream(
+            self,
+            stream_id: str,
+            endpoint: str,
+            error_message: str) -> None:
         """Mark a stream as failed."""
         with self._streaming_lock:
             if stream_id in self._streaming_metrics:
@@ -405,7 +419,7 @@ class MetricsTracker:
         with self._streaming_lock:
             return len(self._streaming_metrics)
 
-    def get_streaming_stats(self) -> Dict[str, Any]:
+    def get_streaming_stats(self) -> dict[str, Any]:
         """Get aggregate streaming statistics."""
         with self._streaming_lock:
             active_count = len(self._streaming_metrics)
@@ -456,7 +470,8 @@ class MetricsTracker:
                 "tokens_per_second": tps_stats,
             }
 
-    def get_metrics(self) -> Dict[str, Dict[str, Dict[str, float]] | Dict[str, Any]]:
+    def get_metrics(self) -> dict[str, dict[str,
+                                            dict[str, float]] | dict[str, Any]]:
         """Get all current metrics."""
         result = {}
         for metric_type in MetricType:
@@ -481,7 +496,8 @@ class MetricsTracker:
         lines = []
 
         # Request rate metrics
-        lines.append("# HELP fakeai_requests_per_second Request rate per endpoint")
+        lines.append(
+            "# HELP fakeai_requests_per_second Request rate per endpoint")
         lines.append("# TYPE fakeai_requests_per_second gauge")
         for endpoint, window in self._metrics[MetricType.REQUESTS].items():
             stats = window.get_stats()
@@ -490,7 +506,8 @@ class MetricsTracker:
             )
 
         # Response metrics
-        lines.append("# HELP fakeai_responses_per_second Response rate per endpoint")
+        lines.append(
+            "# HELP fakeai_responses_per_second Response rate per endpoint")
         lines.append("# TYPE fakeai_responses_per_second gauge")
         for endpoint, window in self._metrics[MetricType.RESPONSES].items():
             stats = window.get_stats()
@@ -499,7 +516,8 @@ class MetricsTracker:
             )
 
         # Latency metrics
-        lines.append("# HELP fakeai_latency_seconds Response latency in seconds")
+        lines.append(
+            "# HELP fakeai_latency_seconds Response latency in seconds")
         lines.append("# TYPE fakeai_latency_seconds summary")
         for endpoint, window in self._metrics[MetricType.RESPONSES].items():
             stats = window.get_latency_stats()
@@ -540,7 +558,8 @@ class MetricsTracker:
 
         # Streaming metrics
         streaming_stats = self.get_streaming_stats()
-        lines.append("# HELP fakeai_active_streams Number of currently active streams")
+        lines.append(
+            "# HELP fakeai_active_streams Number of currently active streams")
         lines.append("# TYPE fakeai_active_streams gauge")
         lines.append(
             f'fakeai_active_streams {streaming_stats.get("active_streams", 0)}'
@@ -549,8 +568,10 @@ class MetricsTracker:
         lines.append("# HELP fakeai_completed_streams Total completed streams")
         lines.append("# TYPE fakeai_completed_streams gauge")
         lines.append(
-            f'fakeai_completed_streams {streaming_stats.get("completed_streams", 0)}'
-        )
+            f'fakeai_completed_streams {
+                streaming_stats.get(
+                    "completed_streams",
+                    0)}')
 
         lines.append("# HELP fakeai_failed_streams Total failed streams")
         lines.append("# TYPE fakeai_failed_streams gauge")
@@ -561,11 +582,18 @@ class MetricsTracker:
         # TTFT metrics
         ttft = streaming_stats.get("ttft", {})
         if ttft:
-            lines.append("# HELP fakeai_ttft_seconds Time to first token in seconds")
+            lines.append(
+                "# HELP fakeai_ttft_seconds Time to first token in seconds")
             lines.append("# TYPE fakeai_ttft_seconds summary")
-            lines.append(f'fakeai_ttft_seconds{{quantile="0.5"}} {ttft["p50"]:.6f}')
-            lines.append(f'fakeai_ttft_seconds{{quantile="0.9"}} {ttft["p90"]:.6f}')
-            lines.append(f'fakeai_ttft_seconds{{quantile="0.99"}} {ttft["p99"]:.6f}')
+            lines.append(
+                f'fakeai_ttft_seconds{{quantile="0.5"}} {
+                    ttft["p50"]:.6f}')
+            lines.append(
+                f'fakeai_ttft_seconds{{quantile="0.9"}} {
+                    ttft["p90"]:.6f}')
+            lines.append(
+                f'fakeai_ttft_seconds{{quantile="0.99"}} {
+                    ttft["p99"]:.6f}')
 
         # Tokens per second streaming metrics
         tps = streaming_stats.get("tokens_per_second", {})
@@ -685,7 +713,7 @@ class MetricsTracker:
 
         return output.getvalue()
 
-    def get_detailed_health(self) -> Dict[str, Any]:
+    def get_detailed_health(self) -> dict[str, Any]:
         """
         Get detailed health information including metrics summary.
 
@@ -702,7 +730,10 @@ class MetricsTracker:
             stats["rate"] for stats in metrics.get("errors", {}).values()
         )
 
-        error_rate = (total_errors / total_requests * 100) if total_requests > 0 else 0
+        error_rate = (
+            total_errors /
+            total_requests *
+            100) if total_requests > 0 else 0
 
         # Determine health status
         if error_rate > 10:
@@ -715,27 +746,27 @@ class MetricsTracker:
         # Calculate average latency
         response_metrics = metrics.get("responses", {})
         if response_metrics:
-            avg_latencies = [
-                stats["avg"] for stats in response_metrics.values() if stats["avg"] > 0
-            ]
+            avg_latencies = [stats["avg"]
+                             for stats in response_metrics.values() if stats["avg"] > 0]
             avg_latency = (
                 sum(avg_latencies) / len(avg_latencies) if avg_latencies else 0
             )
         else:
             avg_latency = 0
 
+        # Calculate uptime based on earliest timestamp in any window
+        uptime_seconds = 0.0
+        if self._metrics[MetricType.REQUESTS]:
+            for endpoint, window in self._metrics[MetricType.REQUESTS].items():
+                if len(window.timestamps) > 0:
+                    earliest_time = float(np.min(window.timestamps))
+                    current_uptime = time.time() - earliest_time
+                    uptime_seconds = max(uptime_seconds, current_uptime)
+
         return {
             "status": status,
             "timestamp": time.time(),
-            "uptime_seconds": time.time()
-            - (
-                self._metrics[MetricType.REQUESTS]["/health"].data.get(
-                    min(self._metrics[MetricType.REQUESTS]["/health"].data.keys()), 0
-                )
-                if self._metrics[MetricType.REQUESTS].get("/health")
-                and self._metrics[MetricType.REQUESTS]["/health"].data
-                else time.time()
-            ),
+            "uptime_seconds": uptime_seconds,
             "metrics_summary": {
                 "total_requests_per_second": total_requests,
                 "total_errors_per_second": total_errors,
@@ -788,7 +819,9 @@ class MetricsTracker:
 
                     # Add latency stats if available
                     if "avg" in stats:
-                        log_line += f" (avg: {stats['avg'] * 1000:.2f}ms, p99: {stats['p99'] * 1000:.2f}ms)"
+                        log_line += f" (avg: {stats['avg'] *
+                                              1000:.2f}ms, p99: {stats['p99'] *
+                                                                 1000:.2f}ms)"
 
                     log_lines.append(log_line)
 
@@ -796,26 +829,29 @@ class MetricsTracker:
         if "tokens" in metrics:
             for endpoint, stats in metrics["tokens"].items():
                 if stats["rate"] > 0:
-                    log_lines.append(f"  Tokens/sec [{endpoint}]: {stats['rate']:.2f}")
+                    log_lines.append(
+                        f"  Tokens/sec [{endpoint}]: {stats['rate']:.2f}")
 
         # Format errors per second
         if "errors" in metrics:
             for endpoint, stats in metrics["errors"].items():
                 if stats["rate"] > 0:
-                    log_lines.append(f"  Errors/sec [{endpoint}]: {stats['rate']:.2f}")
+                    log_lines.append(
+                        f"  Errors/sec [{endpoint}]: {stats['rate']:.2f}")
 
         # Format streaming statistics
         streaming_stats = metrics.get("streaming_stats", {})
         if (
-            streaming_stats.get("active_streams", 0) > 0
-            or streaming_stats.get("completed_streams", 0) > 0
+            streaming_stats.get("active_streams", 0) > 0 or
+            streaming_stats.get("completed_streams", 0) > 0
         ):
             log_lines.append(
                 f"  Active streams: {streaming_stats.get('active_streams', 0)}"
             )
             log_lines.append(
-                f"  Completed streams: {streaming_stats.get('completed_streams', 0)}"
-            )
+                f"  Completed streams: {
+                    streaming_stats.get(
+                        'completed_streams', 0)}")
             log_lines.append(
                 f"  Failed streams: {streaming_stats.get('failed_streams', 0)}"
             )
@@ -823,14 +859,21 @@ class MetricsTracker:
             ttft = streaming_stats.get("ttft", {})
             if ttft:
                 log_lines.append(
-                    f"  TTFT (ms): avg={ttft['avg']*1000:.2f}, p50={ttft['p50']*1000:.2f}, p99={ttft['p99']*1000:.2f}"
-                )
+                    f"  TTFT (ms): avg={
+                        ttft['avg'] *
+                        1000:.2f}, p50={
+                        ttft['p50'] *
+                        1000:.2f}, p99={
+                        ttft['p99'] *
+                        1000:.2f}")
 
             tps = streaming_stats.get("tokens_per_second", {})
             if tps:
                 log_lines.append(
-                    f"  Tokens/sec: avg={tps['avg']:.2f}, p50={tps['p50']:.2f}, p99={tps['p99']:.2f}"
-                )
+                    f"  Tokens/sec: avg={
+                        tps['avg']:.2f}, p50={
+                        tps['p50']:.2f}, p99={
+                        tps['p99']:.2f}")
 
         if len(log_lines) > 1:  # Only log if we have metrics beyond the header
             logger.info("\n".join(log_lines))

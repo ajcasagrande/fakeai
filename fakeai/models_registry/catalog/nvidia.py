@@ -8,7 +8,7 @@ NeMo models, and reranking with accurate capabilities.
 #  SPDX-License-Identifier: Apache-2.0
 
 from ..capabilities import CAPABILITY_PRESETS, LatencyProfile, ModelCapabilities
-from ..definition import ModelDefinition, create_model_definition
+from ..definition import ModelDefinition
 
 
 def _get_nvidia_models() -> list[ModelDefinition]:
@@ -133,8 +133,7 @@ def _get_nvidia_models() -> list[ModelDefinition]:
                 },
                 "reranking": True,
             },
-        )
-    )
+        ))
 
     return models
 

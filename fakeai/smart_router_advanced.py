@@ -12,6 +12,7 @@ This module extends the basic SmartRouter with:
 #  SPDX-License-Identifier: Apache-2.0
 
 import enum
+import hashlib
 import logging
 import threading
 import time
@@ -164,7 +165,8 @@ class AdvancedSmartRouter:
         self._lock = threading.Lock()
 
         # Affinity tracking
-        self.conversation_affinity: dict[str, str] = {}  # conversation_id -> worker_id
+        # conversation_id -> worker_id
+        self.conversation_affinity: dict[str, str] = {}
         self.user_affinity: dict[str, list[str]] = defaultdict(
             list
         )  # user_id -> [worker_ids]
@@ -182,7 +184,8 @@ class AdvancedSmartRouter:
         for i in range(num_workers):
             worker_id = f"worker-{i}"
             self.workers[worker_id] = AdvancedWorkerState(worker_id=worker_id)
-            self.worker_health[worker_id] = WorkerHealthMetrics(worker_id=worker_id)
+            self.worker_health[worker_id] = WorkerHealthMetrics(
+                worker_id=worker_id)
 
     def route_request(
         self,
@@ -231,9 +234,11 @@ class AdvancedSmartRouter:
                 tokens, estimated_output_tokens, affinity
             )
         elif self.strategy == RoutingStrategy.HYBRID:
-            decision = self._route_hybrid(tokens, estimated_output_tokens, affinity)
+            decision = self._route_hybrid(
+                tokens, estimated_output_tokens, affinity)
         elif self.strategy == RoutingStrategy.LEARNED:
-            decision = self._route_learned(tokens, estimated_output_tokens, affinity)
+            decision = self._route_learned(
+                tokens, estimated_output_tokens, affinity)
         else:
             raise ValueError(f"Unknown routing strategy: {self.strategy}")
 
@@ -278,7 +283,8 @@ class AdvancedSmartRouter:
             )
             worker_id = healthy_workers[self._round_robin_index]
 
-        matched_tokens, matched_blocks, _ = self.radix_tree.find_longest_prefix(tokens)
+        matched_tokens, matched_blocks, _ = self.radix_tree.find_longest_prefix(
+            tokens)
 
         return RoutingDecision(
             worker_id=worker_id,
@@ -313,7 +319,8 @@ class AdvancedSmartRouter:
             ),
         )
 
-        matched_tokens, matched_blocks, _ = self.radix_tree.find_longest_prefix(tokens)
+        matched_tokens, matched_blocks, _ = self.radix_tree.find_longest_prefix(
+            tokens)
 
         worker = self.workers[best_worker_id]
         return RoutingDecision(
@@ -321,13 +328,15 @@ class AdvancedSmartRouter:
             strategy=RoutingStrategy.LEAST_LOADED,
             matched_tokens=matched_tokens,
             matched_blocks=len(matched_blocks),
-            cost=float(worker.active_requests),
+            cost=float(
+                worker.active_requests),
             cache_hit_probability=0.0,
             estimated_duration_ms=0.0,
             worker_load=worker.active_requests,
             worker_health_score=self.worker_health[best_worker_id].get_success_rate(),
             affinity_bonus=0.0,
-            reasoning=f"Least loaded: {worker.active_requests} active requests",
+            reasoning=f"Least loaded: {
+                worker.active_requests} active requests",
         )
 
     def _route_cache_aware(
@@ -346,11 +355,13 @@ class AdvancedSmartRouter:
             healthy_workers = list(self.workers.keys())
 
         # Filter candidates to healthy workers
-        healthy_candidates = [w for w in candidate_workers if w in healthy_workers]
+        healthy_candidates = [
+            w for w in candidate_workers if w in healthy_workers]
 
         if not healthy_candidates:
             # No cache hit - use least loaded
-            return self._route_least_loaded(tokens, estimated_output_tokens, affinity)
+            return self._route_least_loaded(
+                tokens, estimated_output_tokens, affinity)
 
         # Choose candidate with most cache overlap and lowest load
         best_worker_id = min(
@@ -387,14 +398,13 @@ class AdvancedSmartRouter:
         """Route using weighted combination of all factors."""
         # Check conversation affinity first
         if (
-            affinity.conversation_id
-            and affinity.conversation_id in self.conversation_affinity
+            affinity.conversation_id and
+            affinity.conversation_id in self.conversation_affinity
         ):
             preferred_worker = self.conversation_affinity[affinity.conversation_id]
             if self._is_worker_available(preferred_worker):
                 matched_tokens, matched_blocks, _ = self.radix_tree.find_longest_prefix(
-                    tokens
-                )
+                    tokens)
                 worker = self.workers[preferred_worker]
                 return RoutingDecision(
                     worker_id=preferred_worker,
@@ -405,9 +415,7 @@ class AdvancedSmartRouter:
                     cache_hit_probability=1.0,
                     estimated_duration_ms=0.0,
                     worker_load=worker.active_requests,
-                    worker_health_score=self.worker_health[
-                        preferred_worker
-                    ].get_success_rate(),
+                    worker_health_score=self.worker_health[preferred_worker].get_success_rate(),
                     affinity_bonus=1.0,
                     reasoning=f"Conversation affinity: reusing worker {preferred_worker}",
                 )
@@ -448,28 +456,31 @@ class AdvancedSmartRouter:
                     if tokens and worker_id in candidate_workers
                     else 0.0
                 )
-                affinity_bonus = self._calculate_affinity_bonus(worker_id, affinity)
+                affinity_bonus = self._calculate_affinity_bonus(
+                    worker_id, affinity)
 
                 best_decision = RoutingDecision(
                     worker_id=worker_id,
                     strategy=RoutingStrategy.HYBRID,
                     matched_tokens=(
-                        matched_tokens if worker_id in candidate_workers else 0
-                    ),
+                        matched_tokens if worker_id in candidate_workers else 0),
                     matched_blocks=(
-                        len(matched_blocks) if worker_id in candidate_workers else 0
-                    ),
+                        len(matched_blocks) if worker_id in candidate_workers else 0),
                     cost=cost,
                     cache_hit_probability=cache_hit_prob,
                     estimated_duration_ms=self._predict_request_duration(
-                        tokens, estimated_output_tokens, worker
-                    ),
+                        tokens,
+                        estimated_output_tokens,
+                        worker),
                     worker_load=worker.active_requests,
                     worker_health_score=health.get_success_rate(),
                     affinity_bonus=affinity_bonus,
                     reasoning=self._explain_hybrid_decision(
-                        cost, cache_hit_prob, worker, health, affinity_bonus
-                    ),
+                        cost,
+                        cache_hit_prob,
+                        worker,
+                        health,
+                        affinity_bonus),
                 )
 
         return best_decision
@@ -497,12 +508,14 @@ class AdvancedSmartRouter:
             latency_score = 1.0 - min(avg_latency / 10000.0, 1.0)
 
             # Combined learned score
-            worker_scores[worker_id] = (success_rate * 0.7) + (latency_score * 0.3)
+            worker_scores[worker_id] = (
+                success_rate * 0.7) + (latency_score * 0.3)
 
         # Choose worker with highest learned score
         best_worker_id = max(worker_scores.items(), key=lambda x: x[1])[0]
 
-        matched_tokens, matched_blocks, _ = self.radix_tree.find_longest_prefix(tokens)
+        matched_tokens, matched_blocks, _ = self.radix_tree.find_longest_prefix(
+            tokens)
 
         worker = self.workers[best_worker_id]
         health = self.worker_health[best_worker_id]
@@ -512,14 +525,17 @@ class AdvancedSmartRouter:
             strategy=RoutingStrategy.LEARNED,
             matched_tokens=matched_tokens,
             matched_blocks=len(matched_blocks),
-            cost=1.0 - worker_scores[best_worker_id],
-            cache_hit_probability=matched_tokens / len(tokens) if tokens else 0.0,
+            cost=1.0 -
+            worker_scores[best_worker_id],
+            cache_hit_probability=matched_tokens /
+            len(tokens) if tokens else 0.0,
             estimated_duration_ms=health.get_average_latency_ms(),
             worker_load=worker.active_requests,
             worker_health_score=health.get_success_rate(),
             affinity_bonus=0.0,
-            reasoning=f"Learned: historical success rate {health.get_success_rate():.1%}, "
-            f"avg latency {health.get_average_latency_ms():.0f}ms",
+            reasoning=f"Learned: historical success rate {
+                health.get_success_rate():.1%}, " f"avg latency {
+                health.get_average_latency_ms():.0f}ms",
         )
 
     def _calculate_comprehensive_cost(
@@ -564,17 +580,18 @@ class AdvancedSmartRouter:
             slo_penalty = w.slo_violation_penalty
 
         # Affinity bonus (negative cost)
-        affinity_bonus = -self._calculate_affinity_bonus(worker.worker_id, affinity)
+        affinity_bonus = - \
+            self._calculate_affinity_bonus(worker.worker_id, affinity)
 
         total_cost = (
-            kv_cost
-            + decode_blocks
-            + load_cost
-            + memory_cost
-            + queue_cost
-            + perf_cost
-            + slo_penalty
-            + affinity_bonus
+            kv_cost +
+            decode_blocks +
+            load_cost +
+            memory_cost +
+            queue_cost +
+            perf_cost +
+            slo_penalty +
+            affinity_bonus
         )
 
         return max(0.0, total_cost)
@@ -587,7 +604,8 @@ class AdvancedSmartRouter:
 
         # Conversation affinity is strongest
         if affinity.conversation_id:
-            if self.conversation_affinity.get(affinity.conversation_id) == worker_id:
+            if self.conversation_affinity.get(
+                    affinity.conversation_id) == worker_id:
                 bonus += 0.5
 
         # User affinity
@@ -643,9 +661,8 @@ class AdvancedSmartRouter:
             return total_tokens * 20.0
 
         # Average historical latency
-        recent_latencies = [
-            req["latency_ms"] for req in worker.request_history if "latency_ms" in req
-        ]
+        recent_latencies = [req["latency_ms"]
+                            for req in worker.request_history if "latency_ms" in req]
         if recent_latencies:
             avg_latency = sum(recent_latencies) / len(recent_latencies)
             return avg_latency
@@ -726,18 +743,19 @@ class AdvancedSmartRouter:
 
         # Determine health status based on current metrics
         is_unhealthy = (
-            success_rate < thresholds.unhealthy_success_rate
-            or avg_latency > thresholds.unhealthy_latency_ms
-            or timeout_rate > thresholds.unhealthy_timeout_rate
+            success_rate < thresholds.unhealthy_success_rate or
+            avg_latency > thresholds.unhealthy_latency_ms or
+            timeout_rate > thresholds.unhealthy_timeout_rate
         )
 
         is_degraded = (
-            success_rate < thresholds.degraded_success_rate
-            or avg_latency > thresholds.degraded_latency_ms
-            or timeout_rate > thresholds.degraded_timeout_rate
+            success_rate < thresholds.degraded_success_rate or
+            avg_latency > thresholds.degraded_latency_ms or
+            timeout_rate > thresholds.degraded_timeout_rate
         )
 
-        # Check for recovery possibility if worker is currently unhealthy/degraded
+        # Check for recovery possibility if worker is currently
+        # unhealthy/degraded
         can_recover = False
         if not health.is_healthy or health.is_degraded:
             # Check if we have enough recent successes
@@ -747,9 +765,9 @@ class AdvancedSmartRouter:
                 if req.get("success", False)
             )
             can_recover = (
-                recent_successes >= thresholds.recovery_success_threshold
-                and not is_unhealthy
-                and not is_degraded
+                recent_successes >= thresholds.recovery_success_threshold and
+                not is_unhealthy and
+                not is_degraded
             )
             # Debug logging
             if recent_successes >= thresholds.recovery_success_threshold:
@@ -833,7 +851,10 @@ class AdvancedSmartRouter:
             with self._lock:
                 for i in range(0, len(tokens), self.block_size):
                     block_tokens = tokens[: i + self.block_size]
-                    block_id = f"block_{hash(tuple(block_tokens))}"
+                    # Use stable hashing for block IDs
+                    token_bytes = str(tuple(block_tokens)).encode()
+                    block_hash = hashlib.md5(token_bytes).hexdigest()[:16]
+                    block_id = f"block_{block_hash}"
                     self.workers[worker_id].cached_blocks.add(block_id)
 
     def get_routing_decision_explain(
@@ -930,8 +951,10 @@ class AdvancedSmartRouter:
             Optimization suggestions and pool analysis
         """
         with self._lock:
-            total_requests = sum(w.total_requests for w in self.workers.values())
-            total_active = sum(w.active_requests for w in self.workers.values())
+            total_requests = sum(
+                w.total_requests for w in self.workers.values())
+            total_active = sum(
+                w.active_requests for w in self.workers.values())
 
             worker_utilization = {}
             for worker_id, worker in self.workers.items():
@@ -957,8 +980,8 @@ class AdvancedSmartRouter:
 
             # Check for unhealthy workers
             unhealthy = [
-                w_id for w_id, h in self.worker_health.items() if not h.is_healthy
-            ]
+                w_id for w_id,
+                h in self.worker_health.items() if not h.is_healthy]
             if unhealthy:
                 warnings.append(
                     f"{len(unhealthy)} unhealthy worker(s): {', '.join(unhealthy)}"
@@ -984,9 +1007,9 @@ class AdvancedSmartRouter:
                 min_util = min(worker_utilization.values())
                 if max_util - min_util > 0.3:
                     suggestions.append(
-                        f"Imbalanced worker utilization detected (max={max_util:.1%}, min={min_util:.1%}). "
-                        "Consider adjusting routing strategy or rebalancing workers."
-                    )
+                        f"Imbalanced worker utilization detected (max={
+                            max_util:.1%}, min={
+                            min_util:.1%}). " "Consider adjusting routing strategy or rebalancing workers.")
 
             # Check cache efficiency
             tree_stats = self.radix_tree.get_stats()
@@ -998,8 +1021,7 @@ class AdvancedSmartRouter:
             if avg_blocks_per_worker < 10:
                 suggestions.append(
                     "Low cache utilization detected. Workers have few cached blocks. "
-                    "Consider using CACHE_AWARE or HYBRID routing strategy."
-                )
+                    "Consider using CACHE_AWARE or HYBRID routing strategy.")
 
         return {
             "total_workers": len(self.workers),
@@ -1027,15 +1049,24 @@ class AdvancedSmartRouter:
                     "active_requests": worker.active_requests,
                     "total_requests": worker.total_requests,
                     "queue_depth": worker.queue_depth,
-                    "memory_pressure": round(worker.memory_pressure, 2),
-                    "cached_blocks": len(worker.cached_blocks),
+                    "memory_pressure": round(
+                        worker.memory_pressure,
+                        2),
+                    "cached_blocks": len(
+                        worker.cached_blocks),
                     "tokens_processed": worker.total_tokens_processed,
                     "health": {
                         "is_healthy": health.is_healthy,
                         "is_degraded": health.is_degraded,
-                        "success_rate": round(health.get_success_rate(), 3),
-                        "average_latency_ms": round(health.get_average_latency_ms(), 1),
-                        "timeout_rate": round(health.get_timeout_rate(), 3),
+                        "success_rate": round(
+                            health.get_success_rate(),
+                            3),
+                        "average_latency_ms": round(
+                            health.get_average_latency_ms(),
+                            1),
+                        "timeout_rate": round(
+                            health.get_timeout_rate(),
+                            3),
                         "total_requests": health.request_count,
                     },
                 }

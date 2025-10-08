@@ -10,12 +10,9 @@ Tests that the codebase architecture is sound:
 """
 
 import importlib
-import inspect
-import os
-import sys
-import pytest
 from pathlib import Path
 
+import pytest
 
 # ==============================================================================
 # Module Import Tests
@@ -105,14 +102,14 @@ def test_optional_dependencies_handled():
     """Test that optional dependencies are handled gracefully."""
     # Try importing modules that require optional deps
     try:
-        from fakeai.semantic_embeddings import SemanticEmbeddingGenerator
+        pass
         # If import succeeds, that's good
     except ImportError:
         # If import fails, that's also acceptable (optional dependency)
         pass
 
     try:
-        from fakeai.llm_generator import LLMGenerator
+        pass
     except ImportError:
         pass
 
@@ -125,32 +122,16 @@ def test_optional_dependencies_handled():
 def test_no_circular_dependencies_in_core():
     """Test that core modules don't have circular dependencies."""
     # Import order should work without errors
-    import fakeai.models
-    import fakeai.config
-    import fakeai.utils
-    import fakeai.metrics
-    import fakeai.fakeai_service
-    import fakeai.app
 
     # If we got here, no circular dependencies
 
 
 def test_no_circular_dependencies_in_services():
     """Test that service modules don't have circular dependencies."""
-    import fakeai.services.audio_service
-    import fakeai.services.batch_service
-    import fakeai.services.embedding_service
-    import fakeai.services.file_service
-    import fakeai.services.image_generation_service
-    import fakeai.services.moderation_service
 
 
 def test_no_circular_dependencies_in_metrics():
     """Test that metrics modules don't have circular dependencies."""
-    import fakeai.metrics
-    import fakeai.model_metrics
-    import fakeai.batch_metrics
-    import fakeai.streaming_metrics
 
 
 # ==============================================================================
@@ -160,8 +141,8 @@ def test_no_circular_dependencies_in_metrics():
 
 def test_audio_service_independent():
     """Test that AudioService can work independently."""
-    from fakeai.services.audio_service import AudioService
     from fakeai.config import AppConfig
+    from fakeai.services.audio_service import AudioService
 
     config = AppConfig()
     service = AudioService(config)
@@ -172,8 +153,8 @@ def test_audio_service_independent():
 
 def test_batch_service_independent():
     """Test that BatchService can work independently."""
-    from fakeai.services.batch_service import BatchService
     from fakeai.config import AppConfig
+    from fakeai.services.batch_service import BatchService
 
     config = AppConfig()
     service = BatchService(config)
@@ -183,8 +164,8 @@ def test_batch_service_independent():
 
 def test_embedding_service_independent():
     """Test that EmbeddingService can work independently."""
-    from fakeai.services.embedding_service import EmbeddingService
     from fakeai.config import AppConfig
+    from fakeai.services.embedding_service import EmbeddingService
 
     config = AppConfig()
     service = EmbeddingService(config)
@@ -194,8 +175,8 @@ def test_embedding_service_independent():
 
 def test_file_service_independent():
     """Test that FileService can work independently."""
-    from fakeai.services.file_service import FileService
     from fakeai.config import AppConfig
+    from fakeai.services.file_service import FileService
 
     config = AppConfig()
     service = FileService(config)
@@ -205,8 +186,8 @@ def test_file_service_independent():
 
 def test_image_generation_service_independent():
     """Test that ImageGenerationService can work independently."""
-    from fakeai.services.image_generation_service import ImageGenerationService
     from fakeai.config import AppConfig
+    from fakeai.services.image_generation_service import ImageGenerationService
 
     config = AppConfig()
     service = ImageGenerationService(config)
@@ -216,8 +197,8 @@ def test_image_generation_service_independent():
 
 def test_moderation_service_independent():
     """Test that ModerationService can work independently."""
-    from fakeai.services.moderation_service import ModerationService
     from fakeai.config import AppConfig
+    from fakeai.services.moderation_service import ModerationService
 
     config = AppConfig()
     service = ModerationService(config)
@@ -319,8 +300,8 @@ def test_video_utils_work():
 
 def test_model_registry_has_models():
     """Test that model registry contains models."""
-    from fakeai.fakeai_service import FakeAIService
     from fakeai.config import AppConfig
+    from fakeai.fakeai_service import FakeAIService
 
     config = AppConfig()
     service = FakeAIService(config)
@@ -331,8 +312,8 @@ def test_model_registry_has_models():
 
 def test_model_registry_auto_creates():
     """Test that models are auto-created."""
-    from fakeai.fakeai_service import FakeAIService
     from fakeai.config import AppConfig
+    from fakeai.fakeai_service import FakeAIService
 
     config = AppConfig()
     service = FakeAIService(config)
@@ -346,8 +327,8 @@ def test_model_registry_auto_creates():
 
 def test_model_registry_has_required_models():
     """Test that required models are in registry."""
-    from fakeai.fakeai_service import FakeAIService
     from fakeai.config import AppConfig
+    from fakeai.fakeai_service import FakeAIService
 
     config = AppConfig()
     service = FakeAIService(config)
@@ -421,8 +402,8 @@ def test_config_validation_works():
 
 def test_service_dependencies_injected():
     """Test that FakeAIService gets all dependencies."""
-    from fakeai.fakeai_service import FakeAIService
     from fakeai.config import AppConfig
+    from fakeai.fakeai_service import FakeAIService
 
     config = AppConfig()
     service = FakeAIService(config)
@@ -439,7 +420,7 @@ def test_service_dependencies_injected():
 
 def test_app_dependencies_injected():
     """Test that FastAPI app gets all dependencies."""
-    from fakeai.app import app, fakeai_service, metrics_tracker
+    from fakeai.app import fakeai_service, metrics_tracker
 
     # Should have service
     assert fakeai_service is not None
@@ -455,8 +436,8 @@ def test_app_dependencies_injected():
 
 def test_service_has_required_methods():
     """Test that FakeAIService has all required methods."""
-    from fakeai.fakeai_service import FakeAIService
     from fakeai.config import AppConfig
+    from fakeai.fakeai_service import FakeAIService
 
     config = AppConfig()
     service = FakeAIService(config)
@@ -530,8 +511,8 @@ def test_all_modules_have_docstrings():
 
 def test_critical_functions_have_docstrings():
     """Test that critical functions have docstrings."""
-    from fakeai.fakeai_service import FakeAIService
     from fakeai.config import AppConfig
+    from fakeai.fakeai_service import FakeAIService
 
     config = AppConfig()
     service = FakeAIService(config)

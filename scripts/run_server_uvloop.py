@@ -8,7 +8,6 @@ uvloop provides:
 - Better throughput under load
 - Native implementation of asyncio protocols in Cython
 """
-import sys
 
 # Install uvloop as the default event loop BEFORE any asyncio imports
 try:

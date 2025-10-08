@@ -51,8 +51,7 @@ class FunctionCall(BaseModel):
 
     name: str = Field(description="The name of the function to call.")
     arguments: str = Field(
-        description="The arguments to call the function with, encoded as a JSON string."
-    )
+        description="The arguments to call the function with, encoded as a JSON string.")
 
 
 class ToolCallFunction(BaseModel):
@@ -109,10 +108,16 @@ class JsonSchema(BaseModel):
     description: str | None = Field(
         default=None, description="Description of the response format."
     )
-    schema: dict[str, Any] = Field(description="JSON Schema object.")
-    strict: bool | None = Field(
-        default=None, description="Whether to enforce strict schema compliance."
+    schema_: dict[str, Any] = Field(
+        description="JSON Schema object.",
+        alias="schema"
     )
+    strict: bool | None = Field(
+        default=None,
+        description="Whether to enforce strict schema compliance."
+    )
+
+    model_config = {"populate_by_name": True}
 
 
 class JsonSchemaResponseFormat(BaseModel):
@@ -154,8 +159,8 @@ class Message(BaseModel):
         default=None, description="Function call information (deprecated)."
     )
     refusal: str | None = Field(
-        default=None, description="Refusal message if model refuses to fulfill request."
-    )
+        default=None,
+        description="Refusal message if model refuses to fulfill request.")
     reasoning_content: str | None = Field(
         default=None,
         description="Reasoning content showing the model's internal thinking process (gpt-oss and deepseek-ai/DeepSeek-R1 models).",
@@ -174,8 +179,7 @@ class PredictionContent(BaseModel):
         description="Type of prediction (currently only 'content' supported)",
     )
     content: str = Field(
-        description="Predicted output content to accelerate generation via speculative decoding"
-    )
+        description="Predicted output content to accelerate generation via speculative decoding")
 
 
 class ChatCompletionRequest(BaseModel):
@@ -195,11 +199,9 @@ class ChatCompletionRequest(BaseModel):
         default=None, description="A list of tools the model may call."
     )
     tool_choice: Literal["auto", "none", "required"] | ToolChoice | None = Field(
-        default=None, description="Controls which tool is called by the model."
-    )
+        default=None, description="Controls which tool is called by the model.")
     parallel_tool_calls: bool | None = Field(
-        default=True, description="Whether to enable parallel function calling."
-    )
+        default=True, description="Whether to enable parallel function calling.")
     temperature: float | None = Field(
         default=1.0, ge=0, le=2, description="Sampling temperature."
     )
@@ -207,14 +209,14 @@ class ChatCompletionRequest(BaseModel):
         default=1.0, ge=0, le=1, description="Nucleus sampling parameter."
     )
     n: int | None = Field(
-        default=1, ge=1, description="Number of completion choices to generate."
-    )
+        default=1,
+        ge=1,
+        description="Number of completion choices to generate.")
     stream: bool | None = Field(
         default=False, description="Whether to stream responses."
     )
     stream_options: StreamOptions | None = Field(
-        default=None, description="Options for streaming (only when stream=true)."
-    )
+        default=None, description="Options for streaming (only when stream=true).")
     stop: str | list[str] | None = Field(
         default=None,
         description="Sequences where the API will stop generating further tokens.",
@@ -235,7 +237,7 @@ class ChatCompletionRequest(BaseModel):
     )
     frequency_penalty: float | None = Field(
         default=0,
-        ge=-2.0,
+        ge=- 2.0,
         le=2.0,
         description="Penalty for new tokens based on frequency in text so far.",
     )
@@ -247,8 +249,10 @@ class ChatCompletionRequest(BaseModel):
         default=False, description="Whether to return log probabilities."
     )
     top_logprobs: int | None = Field(
-        default=None, ge=0, le=20, description="Number of most likely tokens to return."
-    )
+        default=None,
+        ge=0,
+        le=20,
+        description="Number of most likely tokens to return.")
     user: str | None = Field(
         default=None, description="A unique identifier for the end-user."
     )
@@ -268,8 +272,8 @@ class ChatCompletionRequest(BaseModel):
         default=None, description="Audio output configuration."
     )
     store: bool | None = Field(
-        default=False, description="Whether to store output for model distillation."
-    )
+        default=False,
+        description="Whether to store output for model distillation.")
     metadata: dict[str, str] | None = Field(
         default=None, description="Developer-defined tags and values."
     )
@@ -316,7 +320,8 @@ class FunctionDelta(BaseModel):
     """Partial function information in streaming."""
 
     name: str | None = Field(default=None, description="The function name.")
-    arguments: str | None = Field(default=None, description="Partial arguments string.")
+    arguments: str | None = Field(default=None,
+                                  description="Partial arguments string.")
 
 
 class ToolCallDelta(BaseModel):
@@ -324,8 +329,10 @@ class ToolCallDelta(BaseModel):
 
     index: int = Field(description="Index of the tool call in the array.")
     id: str | None = Field(default=None, description="Tool call ID.")
-    type: Literal["function"] | None = Field(default=None, description="Tool type.")
-    function: FunctionDelta | None = Field(default=None, description="Function delta.")
+    type: Literal["function"] | None = Field(
+        default=None, description="Tool type.")
+    function: FunctionDelta | None = Field(
+        default=None, description="Function delta.")
 
 
 class Delta(BaseModel):
@@ -334,7 +341,8 @@ class Delta(BaseModel):
     role: Role | None = Field(
         default=None, description="The role of the message author."
     )
-    content: str | None = Field(default=None, description="The content of the message.")
+    content: str | None = Field(default=None,
+                                description="The content of the message.")
     tool_calls: list[ToolCallDelta] | None = Field(
         default=None, description="Partial tool call information."
     )

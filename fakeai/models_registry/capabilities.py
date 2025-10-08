@@ -6,7 +6,7 @@ Provides preset configurations for common model types.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -114,8 +114,8 @@ class ModelCapabilities:
 
     # Metadata
     description: Optional[str] = None
-    tags: List[str] = field(default_factory=list)
-    custom_metadata: Dict[str, any] = field(default_factory=dict)
+    tags: list[str] = field(default_factory=list)
+    custom_metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Validate capabilities configuration."""
@@ -165,7 +165,7 @@ class ModelCapabilities:
         }
         return capability_map.get(capability, False)
 
-    def get_supported_capabilities(self) -> List[str]:
+    def get_supported_capabilities(self) -> list[str]:
         """
         Get list of all supported capabilities.
 
@@ -257,7 +257,7 @@ class ModelCapabilities:
 
 
 # Latency Presets
-LATENCY_PRESETS: Dict[str, LatencyProfile] = {
+LATENCY_PRESETS: dict[str, LatencyProfile] = {
     "small": LatencyProfile(
         time_to_first_token=0.05,
         tokens_per_second=100.0,
@@ -292,7 +292,7 @@ LATENCY_PRESETS: Dict[str, LatencyProfile] = {
 
 
 # Capability Presets
-CAPABILITY_PRESETS: Dict[str, ModelCapabilities] = {
+CAPABILITY_PRESETS: dict[str, ModelCapabilities] = {
     "base": ModelCapabilities(
         supports_chat=True,
         supports_completion=False,
@@ -354,7 +354,9 @@ CAPABILITY_PRESETS: Dict[str, ModelCapabilities] = {
         supports_streaming=False,
         supports_embeddings=True,
         max_context_length=8192,
-        max_output_tokens=1,  # Embeddings don't output tokens, but validation requires positive value
+        max_output_tokens=1,
+        # Embeddings don't output tokens, but validation requires positive
+        # value
         latency_profile=LATENCY_PRESETS["small"],
     ),
     "moderation": ModelCapabilities(
@@ -363,7 +365,9 @@ CAPABILITY_PRESETS: Dict[str, ModelCapabilities] = {
         supports_streaming=False,
         supports_moderation=True,
         max_context_length=32768,
-        max_output_tokens=1,  # Moderation doesn't output tokens, but validation requires positive value
+        max_output_tokens=1,
+        # Moderation doesn't output tokens, but validation requires positive
+        # value
         latency_profile=LATENCY_PRESETS["small"],
     ),
 }

@@ -9,7 +9,10 @@ Tests end-to-end scenarios with real-world use cases.
 import pytest
 from pydantic import BaseModel, Field
 
-from fakeai.validation.factory import create_chat_validators, create_validators_for_endpoint
+from fakeai.validation.factory import (
+    create_chat_validators,
+    create_validators_for_endpoint,
+)
 
 
 class ChatCompletionRequest(BaseModel):

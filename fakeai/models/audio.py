@@ -11,7 +11,7 @@ This module contains Pydantic models for audio-related API endpoints:
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # Text-to-Speech (Audio Speech API)
 
@@ -40,6 +40,14 @@ class SpeechRequest(BaseModel):
         description="The speed of the generated audio. Range: 0.25 to 4.0.",
     )
 
+    @field_validator("input")
+    @classmethod
+    def validate_input_length(cls, v: str) -> str:
+        """Validate input text length."""
+        if len(v) > 4096:
+            raise ValueError("Input text must not exceed 4096 characters")
+        return v
+
 
 # Whisper API Models (Audio Transcription)
 
@@ -61,9 +69,12 @@ class TranscriptionSegment(BaseModel):
     end: float = Field(description="End time in seconds.")
     text: str = Field(description="Transcribed text for this segment.")
     tokens: list[int] = Field(description="Token IDs for this segment.")
-    temperature: float = Field(description="Temperature used for this segment.")
-    avg_logprob: float = Field(description="Average log probability of tokens.")
-    compression_ratio: float = Field(description="Compression ratio of tokens to text.")
+    temperature: float = Field(
+        description="Temperature used for this segment.")
+    avg_logprob: float = Field(
+        description="Average log probability of tokens.")
+    compression_ratio: float = Field(
+        description="Compression ratio of tokens to text.")
     no_speech_prob: float = Field(
         description="Probability that this segment contains no speech."
     )
@@ -82,11 +93,12 @@ class TranscriptionRequest(BaseModel):
         description="Optional text to guide the model's style or continue from previous audio.",
     )
     response_format: Literal["json", "text", "srt", "verbose_json", "vtt"] | None = (
-        Field(default="json", description="Format of the transcript output.")
-    )
+        Field(default="json", description="Format of the transcript output."))
     temperature: float | None = Field(
-        default=0.0, ge=0.0, le=1.0, description="Sampling temperature between 0 and 1."
-    )
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Sampling temperature between 0 and 1.")
     timestamp_granularities: list[Literal["word", "segment"]] | None = Field(
         default=None,
         description="Timestamp granularities to include (word and/or segment level).",
@@ -103,8 +115,8 @@ class VerboseTranscriptionResponse(BaseModel):
     """Response from transcription endpoint (verbose_json format)."""
 
     task: Literal["transcribe"] = Field(
-        default="transcribe", description="The task performed (always 'transcribe')."
-    )
+        default="transcribe",
+        description="The task performed (always 'transcribe').")
     language: str = Field(description="Detected or specified language code.")
     duration: float = Field(description="Duration of the audio in seconds.")
     text: str = Field(description="The complete transcribed text.")
@@ -128,38 +140,13 @@ class AudioTranslationRequest(BaseModel):
         description="Optional text to guide the model's style or continue from previous audio.",
     )
     response_format: Literal["json", "text", "srt", "verbose_json", "vtt"] | None = (
-        Field(default="json", description="Format of the transcript output.")
-    )
+        Field(default="json", description="Format of the transcript output."))
     temperature: float | None = Field(
-        default=0.0, ge=0.0, le=1.0, description="Sampling temperature between 0 and 1."
-    )
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Sampling temperature between 0 and 1.")
 
 
 # Audio Usage/Billing Models
-
-
-class UsageAggregationBucket(BaseModel):
-    """Usage aggregated by time bucket."""
-
-    object: Literal["bucket"] = Field(default="bucket", description="The object type.")
-    start_time: int = Field(description="Unix timestamp for start of bucket.")
-    end_time: int = Field(description="Unix timestamp for end of bucket.")
-    results: list[dict] = Field(description="Usage results for this time bucket.")
-
-
-class AudioSpeechesUsageResponse(BaseModel):
-    """Response for audio speeches usage data."""
-
-    object: Literal["page"] = Field(default="page", description="The object type.")
-    data: list[UsageAggregationBucket] = Field(description="List of usage buckets.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
-    next_page: str | None = Field(default=None, description="URL for next page.")
-
-
-class AudioTranscriptionsUsageResponse(BaseModel):
-    """Response for audio transcriptions usage data."""
-
-    object: Literal["page"] = Field(default="page", description="The object type.")
-    data: list[UsageAggregationBucket] = Field(description="List of usage buckets.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
-    next_page: str | None = Field(default=None, description="URL for next page.")
+# Note: Usage models are imported from billing.py to avoid duplication

@@ -130,7 +130,8 @@ class ImageGenerationService:
         if model == "dall-e-3":
             if request.n and request.n > 1:
                 raise ValueError("DALL-E 3 only supports n=1")
-            if quality == "hd" and size not in ["1024x1024", "1792x1024", "1024x1792"]:
+            if quality == "hd" and size not in [
+                    "1024x1024", "1792x1024", "1024x1792"]:
                 raise ValueError(
                     f"HD quality for DALL-E 3 requires size to be one of: "
                     f"1024x1024, 1792x1024, 1024x1792"
@@ -158,7 +159,6 @@ class ImageGenerationService:
         )
 
         # Track metrics
-        self.metrics_tracker.track_request("/v1/images/generations")
 
         # Log generation
         logger.info(
@@ -193,7 +193,11 @@ class ImageGenerationService:
                 )
         # Stability AI models support all sizes
 
-    def _calculate_processing_delay(self, size: str, quality: str, n: int) -> float:
+    def _calculate_processing_delay(
+            self,
+            size: str,
+            quality: str,
+            n: int) -> float:
         """
         Calculate simulated processing delay.
 
@@ -266,10 +270,12 @@ class ImageGenerationService:
                     else:
                         images.append(GeneratedImage(b64_json=img["b64_json"]))
 
-                logger.info(f"Generated {n} actual image(s) using ImageGenerator")
+                logger.info(
+                    f"Generated {n} actual image(s) using ImageGenerator")
 
             except Exception as e:
-                logger.error(f"Image generation failed: {e}, falling back to fake URLs")
+                logger.error(
+                    f"Image generation failed: {e}, falling back to fake URLs")
                 # Fallback to fake URLs
                 images = self._generate_fake_images(n, response_format)
         else:
@@ -295,13 +301,16 @@ class ImageGenerationService:
 
         for _ in range(n):
             if response_format == "url":
-                url = f"https://simulated-openai-images.example.com/{uuid.uuid4().hex}.png"
+                url = f"https://simulated-openai-images.example.com/{
+                    uuid.uuid4().hex}.png"
                 images.append(GeneratedImage(url=url))
             else:
                 # Generate fake base64 data
-                fake_b64 = base64.b64encode(b"simulated_image_data").decode("utf-8")
+                fake_b64 = base64.b64encode(
+                    b"simulated_image_data").decode("utf-8")
                 images.append(GeneratedImage(b64_json=fake_b64))
 
-        logger.debug(f"Generated {n} fake image(s) in {response_format} format")
+        logger.debug(
+            f"Generated {n} fake image(s) in {response_format} format")
 
         return images

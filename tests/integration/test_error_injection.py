@@ -25,7 +25,6 @@ for the expected behavior once integration is complete.
 
 #  SPDX-License-Identifier: Apache-2.0
 
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 

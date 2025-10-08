@@ -12,8 +12,6 @@ Key features:
 
 #  SPDX-License-Identifier: Apache-2.0
 
-import hashlib
-import math
 import random
 from typing import Any
 
@@ -150,7 +148,8 @@ def generate_realistic_top_logprobs(
     rng = random.Random(seed)
 
     # Estimate confidence level
-    confidence = estimate_token_confidence(token, position, context_hash, temperature)
+    confidence = estimate_token_confidence(
+        token, position, context_hash, temperature)
 
     # Define gap ranges based on confidence
     if confidence == "high":
@@ -348,8 +347,10 @@ def create_chat_logprobs(
 
 
 def create_completion_logprobs(
-    text: str, tokens: list[str], logprobs: int | None = None, temperature: float = 1.0
-) -> LogProbs | None:
+        text: str,
+        tokens: list[str],
+        logprobs: int | None = None,
+        temperature: float = 1.0) -> LogProbs | None:
     """
     Generate LogProbs for the Completions API (legacy format).
 
@@ -412,7 +413,8 @@ def create_completion_logprobs(
         )
 
         # Convert to dict format (legacy API format)
-        alternatives_dict = {alt["token"]: alt["logprob"] for alt in alternatives_data}
+        alternatives_dict = {alt["token"]: alt["logprob"]
+                             for alt in alternatives_data}
         # Include the selected token
         alternatives_dict[token] = token_logprob
 

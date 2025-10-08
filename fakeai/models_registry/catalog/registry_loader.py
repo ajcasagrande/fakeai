@@ -3,6 +3,8 @@ Registry Loader
 
 Utilities for loading model catalogs into the registry.
 Provides functions to create pre-configured registries and load models by provider.
+
+Updated: October 2025
 """
 
 #  SPDX-License-Identifier: Apache-2.0
@@ -12,7 +14,9 @@ from typing import Literal
 from ..definition import ModelDefinition
 from ..registry import ModelRegistry
 from .anthropic import get_anthropic_models
+from .cohere import get_cohere_models
 from .deepseek import get_deepseek_models
+from .google import get_google_models
 from .meta import get_meta_models
 from .mistral import get_mistral_models
 from .nvidia import get_nvidia_models
@@ -22,7 +26,15 @@ from .openai import get_openai_models
 
 # Provider type
 ProviderName = Literal[
-    "openai", "anthropic", "meta", "mistral", "deepseek", "nvidia", "all"
+    "openai",
+    "anthropic",
+    "meta",
+    "google",
+    "mistral",
+    "cohere",
+    "deepseek",
+    "nvidia",
+    "all",
 ]
 
 
@@ -31,7 +43,9 @@ PROVIDER_CATALOGS = {
     "openai": get_openai_models,
     "anthropic": get_anthropic_models,
     "meta": get_meta_models,
+    "google": get_google_models,
     "mistral": get_mistral_models,
+    "cohere": get_cohere_models,
     "deepseek": get_deepseek_models,
     "nvidia": get_nvidia_models,
 }
@@ -42,7 +56,7 @@ def get_provider_models(provider: ProviderName) -> list[ModelDefinition]:
     Get models from a specific provider catalog without loading into registry.
 
     Args:
-        provider: Provider name (openai, anthropic, meta, mistral, deepseek, nvidia, all)
+        provider: Provider name (openai, anthropic, meta, google, mistral, cohere, deepseek, nvidia, all)
 
     Returns:
         List of ModelDefinition instances
@@ -63,7 +77,8 @@ def get_provider_models(provider: ProviderName) -> list[ModelDefinition]:
 
     if provider not in PROVIDER_CATALOGS:
         available = ", ".join(list(PROVIDER_CATALOGS.keys()) + ["all"])
-        raise ValueError(f"Invalid provider '{provider}'. Available: {available}")
+        raise ValueError(
+            f"Invalid provider '{provider}'. Available: {available}")
 
     return PROVIDER_CATALOGS[provider]()
 

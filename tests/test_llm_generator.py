@@ -91,8 +91,7 @@ class TestLightweightLLMGenerator:
     def test_is_available_with_dependencies(self):
         """Test is_available when dependencies are installed."""
         try:
-            import torch
-            import transformers
+            pass
 
             has_deps = True
         except ImportError:

@@ -47,7 +47,6 @@ from fakeai.models import (
     JsonSchemaResponseFormat,
     Message,
     PredictionContent,
-    PromptTokensDetails,
     ResponseFormat,
     Role,
     StreamOptions,

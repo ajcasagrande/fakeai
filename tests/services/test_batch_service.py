@@ -11,7 +11,7 @@ cancellation, error handling, and metrics integration.
 import asyncio
 import json
 import time
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -20,14 +20,10 @@ from fakeai.config import AppConfig
 from fakeai.file_manager import FileManager, FileNotFoundError
 from fakeai.metrics import MetricsTracker
 from fakeai.models import (
-    Batch,
     BatchListResponse,
-    ChatCompletionRequest,
     ChatCompletionResponse,
     CreateBatchRequest,
-    EmbeddingRequest,
     EmbeddingResponse,
-    FileObject,
 )
 from fakeai.models_registry.registry import ModelRegistry
 from fakeai.services.batch_service import BatchService

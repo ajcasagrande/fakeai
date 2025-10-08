@@ -61,7 +61,8 @@ class SecurityConfig(ModuleConfig):
     def validate_max_request_size(cls, v: int) -> int:
         """Validate maximum request size."""
         if v < 1024:  # At least 1 KB
-            raise ValueError("Maximum request size must be at least 1024 bytes")
+            raise ValueError(
+                "Maximum request size must be at least 1024 bytes")
         if v > 100 * 1024 * 1024:  # At most 100 MB
             raise ValueError("Maximum request size cannot exceed 100 MB")
         return v
@@ -71,7 +72,8 @@ class SecurityConfig(ModuleConfig):
     def validate_abuse_cleanup_interval(cls, v: int) -> int:
         """Validate abuse cleanup interval."""
         if v < 60:  # At least 1 minute
-            raise ValueError("Abuse cleanup interval must be at least 60 seconds")
+            raise ValueError(
+                "Abuse cleanup interval must be at least 60 seconds")
         return v
 
     @field_validator("cors_allowed_origins")

@@ -5,7 +5,10 @@ This handler delegates to the FileService for file management operations.
 """
 #  SPDX-License-Identifier: Apache-2.0
 
+from typing import Optional
+
 from fakeai.config import AppConfig
+from fakeai.events import AsyncEventBus
 from fakeai.file_manager import FileManager
 from fakeai.handlers.base import EndpointHandler, RequestContext
 from fakeai.handlers.registry import register_handler
@@ -34,9 +37,10 @@ class FileHandler(EndpointHandler[dict, FileListResponse | FileObject]):
         self,
         config: AppConfig,
         metrics_tracker: MetricsTracker,
+        event_bus: Optional[AsyncEventBus] = None,
     ):
         """Initialize the handler."""
-        super().__init__(config, metrics_tracker)
+        super().__init__(config, metrics_tracker, event_bus=event_bus)
         self.file_manager = FileManager()
         self.file_service = FileService(
             config=config,
@@ -56,8 +60,8 @@ class FileHandler(EndpointHandler[dict, FileListResponse | FileObject]):
         """
         Execute file operations.
 
-        This handler supports multiple operations based on the request type.
-        For now, we'll implement list_files as the primary operation.
+        This handler supports multiple operations based on the request type
+        and HTTP method stored in context metadata.
 
         Args:
             request: File operation request
@@ -65,8 +69,31 @@ class FileHandler(EndpointHandler[dict, FileListResponse | FileObject]):
 
         Returns:
             FileListResponse for list operations, FileObject for single file operations
+
+        Raises:
+            ValueError: If HTTP method is not supported
         """
-        # Default to listing files
-        # In a real implementation, this would be determined by the HTTP method
-        # and request parameters
-        return await self.file_service.list_files()
+        # Get HTTP method from context metadata
+        http_method = context.metadata.get("http_method", "GET")
+        file_id = context.metadata.get("file_id")
+
+        if http_method == "GET":
+            if file_id:
+                # Get specific file
+                return await self.file_service.get_file(file_id)
+            else:
+                # List files
+                purpose = request.get("purpose") if request else None
+                return await self.file_service.list_files(purpose=purpose)
+        elif http_method == "POST":
+            # Upload file
+            file = request.get("file")
+            purpose = request.get("purpose", "assistants")
+            return await self.file_service.upload_file(file, purpose)
+        elif http_method == "DELETE":
+            # Delete file
+            if not file_id:
+                raise ValueError("file_id required for DELETE operation")
+            return await self.file_service.delete_file(file_id)
+        else:
+            raise ValueError(f"Unsupported HTTP method: {http_method}")

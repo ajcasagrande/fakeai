@@ -5,7 +5,10 @@ This handler delegates to the ModerationService for content safety checks.
 """
 #  SPDX-License-Identifier: Apache-2.0
 
+from typing import Optional
+
 from fakeai.config import AppConfig
+from fakeai.events import AsyncEventBus
 from fakeai.handlers.base import EndpointHandler, RequestContext
 from fakeai.handlers.registry import register_handler
 from fakeai.metrics import MetricsTracker
@@ -14,7 +17,8 @@ from fakeai.services.moderation_service import ModerationService
 
 
 @register_handler
-class ModerationHandler(EndpointHandler[ModerationRequest, ModerationResponse]):
+class ModerationHandler(
+        EndpointHandler[ModerationRequest, ModerationResponse]):
     """
     Handler for the /v1/moderations endpoint.
 
@@ -32,12 +36,16 @@ class ModerationHandler(EndpointHandler[ModerationRequest, ModerationResponse]):
         self,
         config: AppConfig,
         metrics_tracker: MetricsTracker,
+        event_bus: Optional[AsyncEventBus] = None,
     ):
         """Initialize the handler."""
-        super().__init__(config, metrics_tracker)
+        super().__init__(config, metrics_tracker, event_bus=event_bus)
+        from fakeai.models_registry import ModelRegistry
+
         self.moderation_service = ModerationService(
             config=config,
             metrics_tracker=metrics_tracker,
+            model_registry=ModelRegistry(),
         )
 
     def endpoint_path(self) -> str:

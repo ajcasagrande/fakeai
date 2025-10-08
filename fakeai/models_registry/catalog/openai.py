@@ -1,8 +1,10 @@
 """
 OpenAI Model Catalog
 
-Complete catalog of OpenAI models including GPT-OSS, GPT-4, GPT-3.5, O1,
+Complete catalog of OpenAI models including GPT-5, GPT-4.1, GPT-4o, GPT-3.5,
 embeddings, and moderation models with accurate pricing and capabilities.
+
+Updated: October 2025
 """
 
 #  SPDX-License-Identifier: Apache-2.0
@@ -10,10 +12,9 @@ embeddings, and moderation models with accurate pricing and capabilities.
 from ..capabilities import (
     CAPABILITY_PRESETS,
     LatencyProfile,
-    ModelCapabilities,
     MoEConfig,
 )
-from ..definition import ModelDefinition, create_model_definition
+from ..definition import ModelDefinition
 
 
 def _get_openai_models() -> list[ModelDefinition]:
@@ -25,11 +26,10 @@ def _get_openai_models() -> list[ModelDefinition]:
     """
     models = []
 
-    # GPT-OSS Models (Open-source reasoning models with MoE architecture)
-    # Released August 2025, Apache 2.0 license
+    # GPT-5 Family (Released August 2025)
 
-    # GPT-OSS-120B (flagship reasoning model)
-    gpt_oss_120b_caps = CAPABILITY_PRESETS["reasoning"].clone(
+    # GPT-5 (Flagship)
+    gpt5_caps = CAPABILITY_PRESETS["reasoning"].clone(
         supports_vision=True,
         supports_audio_input=True,
         supports_function_calling=True,
@@ -37,49 +37,46 @@ def _get_openai_models() -> list[ModelDefinition]:
         supports_json_mode=True,
         supports_predicted_outputs=True,
         supports_parallel_tool_calls=True,
-        max_context_length=128000,
-        max_output_tokens=16384,
-        is_moe=True,
-        moe_config=MoEConfig(
-            total_params=120_000_000_000,
-            active_params=37_000_000_000,
-            num_experts=16,
-            experts_per_token=2,
-        ),
-        parameter_count=120_000_000_000,
+        max_context_length=400000,  # 272K input + 128K output
+        max_output_tokens=128000,
+        parameter_count=None,  # Not disclosed
         provider="openai",
-        model_family="gpt-oss",
-        tags=["reasoning", "vision", "audio", "moe", "latest"],
+        model_family="gpt-5",
+        tags=[
+            "reasoning",
+            "vision",
+            "audio",
+            "multimodal",
+            "latest",
+            "flagship"],
         latency_profile=LatencyProfile(
-            time_to_first_token=0.6,
-            tokens_per_second=35.0,
-            min_delay=0.02,
-            max_delay=0.04,
+            time_to_first_token=0.35,
+            tokens_per_second=60.0,
+            min_delay=0.015,
+            max_delay=0.022,
         ),
     )
 
     models.append(
         ModelDefinition(
-            model_id="openai/gpt-oss-120b",
-            created=1704067200,  # 2024-01-01
+            model_id="gpt-5",
+            created=1723075200,  # 2025-08-07
             owned_by="openai",
-            capabilities=gpt_oss_120b_caps,
-            display_name="GPT-OSS-120B",
-            description="120B parameter reasoning model with vision and audio. MoE architecture, supports predicted outputs.",
-            version="2024-08-01",
+            capabilities=gpt5_caps,
+            display_name="GPT-5",
+            description="OpenAI's most advanced model with 400K context window, multimodal capabilities, and real-time routing between reasoning modes.",
+            version="2025-08-07",
             custom_fields={
                 "pricing": {
-                    "input_per_million": 10.0,
-                    "output_per_million": 30.0,
-                    "cached_input_per_million": 5.0,
+                    "input_per_million": 1.25,
+                    "output_per_million": 10.0,
                 },
-                "license": "Apache 2.0",
             },
         )
     )
 
-    # GPT-OSS-20B (smaller efficient reasoning model)
-    gpt_oss_20b_caps = CAPABILITY_PRESETS["reasoning"].clone(
+    # GPT-5 Mini (Efficient variant)
+    gpt5_mini_caps = CAPABILITY_PRESETS["reasoning"].clone(
         supports_vision=True,
         supports_audio_input=True,
         supports_function_calling=True,
@@ -87,134 +84,186 @@ def _get_openai_models() -> list[ModelDefinition]:
         supports_json_mode=True,
         supports_predicted_outputs=True,
         supports_parallel_tool_calls=True,
+        max_context_length=256000,
+        max_output_tokens=64000,
+        parameter_count=None,
+        provider="openai",
+        model_family="gpt-5",
+        tags=["reasoning", "vision", "audio", "multimodal", "efficient"],
+        latency_profile=LatencyProfile(
+            time_to_first_token=0.22,
+            tokens_per_second=90.0,
+            min_delay=0.01,
+            max_delay=0.015,
+        ),
+    )
+
+    models.append(
+        ModelDefinition(
+            model_id="gpt-5-mini",
+            created=1723075200,
+            owned_by="openai",
+            capabilities=gpt5_mini_caps,
+            display_name="GPT-5 Mini",
+            description="Efficient GPT-5 variant with strong performance and lower cost.",
+            version="2025-08-07",
+            custom_fields={
+                "pricing": {
+                    "input_per_million": 0.50,
+                    "output_per_million": 2.50,
+                },
+            },
+        ))
+
+    # GPT-5 Nano (Most efficient)
+    gpt5_nano_caps = CAPABILITY_PRESETS["chat"].clone(
+        supports_vision=True,
+        supports_function_calling=True,
+        supports_tool_use=True,
+        supports_json_mode=True,
+        supports_parallel_tool_calls=True,
         max_context_length=128000,
         max_output_tokens=16384,
-        is_moe=True,
-        moe_config=MoEConfig(
-            total_params=20_000_000_000,
-            active_params=7_000_000_000,
-            num_experts=8,
-            experts_per_token=2,
-        ),
-        parameter_count=20_000_000_000,
+        parameter_count=None,
         provider="openai",
-        model_family="gpt-oss",
-        tags=["reasoning", "vision", "audio", "moe", "efficient"],
+        model_family="gpt-5",
+        tags=["chat", "vision", "efficient", "fast"],
         latency_profile=LatencyProfile(
-            time_to_first_token=0.3,
-            tokens_per_second=67.0,
-            min_delay=0.01,
+            time_to_first_token=0.15,
+            tokens_per_second=120.0,
+            min_delay=0.007,
+            max_delay=0.012,
+        ),
+    )
+
+    models.append(
+        ModelDefinition(
+            model_id="gpt-5-nano",
+            created=1723075200,
+            owned_by="openai",
+            capabilities=gpt5_nano_caps,
+            display_name="GPT-5 Nano",
+            description="Ultra-efficient GPT-5 variant for high-throughput tasks.",
+            version="2025-08-07",
+            custom_fields={
+                "pricing": {
+                    "input_per_million": 0.20,
+                    "output_per_million": 0.80,
+                },
+            },
+        ))
+
+    # GPT-4.1 Family (Latest GPT-4 generation)
+
+    # GPT-4.1 (Main model)
+    gpt41_caps = CAPABILITY_PRESETS["vision"].clone(
+        max_context_length=1000000,  # 1M tokens
+        max_output_tokens=32768,
+        supports_json_mode=True,
+        supports_predicted_outputs=True,
+        supports_parallel_tool_calls=True,
+        parameter_count=None,
+        provider="openai",
+        model_family="gpt-4.1",
+        tags=["chat", "vision", "coding", "long-context"],
+        latency_profile=LatencyProfile(
+            time_to_first_token=0.32,
+            tokens_per_second=65.0,
+            min_delay=0.014,
             max_delay=0.02,
         ),
     )
 
     models.append(
         ModelDefinition(
-            model_id="openai/gpt-oss-20b",
-            created=1704067200,
+            model_id="gpt-4.1",
+            created=1727740800,  # 2025-10-01 (approximate)
             owned_by="openai",
-            capabilities=gpt_oss_20b_caps,
-            display_name="GPT-OSS-20B",
-            description="20B parameter efficient reasoning model with vision and audio. MoE architecture.",
-            version="2024-08-01",
+            capabilities=gpt41_caps,
+            display_name="GPT-4.1",
+            description="Latest GPT-4 generation with 1M context window, excellent for coding and instruction following.",
+            version="2025-10-01",
             custom_fields={
                 "pricing": {
-                    "input_per_million": 0.15,
-                    "output_per_million": 0.60,
-                    "cached_input_per_million": 0.075,
+                    "input_per_million": 2.0,
+                    "output_per_million": 8.0,
                 },
-                "license": "Apache 2.0",
             },
         )
     )
 
-    # GPT-4 Family
-
-    # GPT-4 (original)
-    gpt4_caps = CAPABILITY_PRESETS["chat"].clone(
-        max_context_length=8192,
-        max_output_tokens=8192,
-        is_moe=True,
-        moe_config=MoEConfig(
-            total_params=1_760_000_000_000,
-            active_params=220_000_000_000,
-            num_experts=8,
-            experts_per_token=1,
-        ),
-        parameter_count=1_760_000_000_000,
+    # GPT-4.1 Mini
+    gpt41_mini_caps = CAPABILITY_PRESETS["vision"].clone(
+        max_context_length=512000,
+        max_output_tokens=16384,
+        supports_json_mode=True,
+        supports_predicted_outputs=True,
+        supports_parallel_tool_calls=True,
+        parameter_count=None,
         provider="openai",
-        model_family="gpt-4",
-        tags=["chat", "moe", "legacy"],
+        model_family="gpt-4.1",
+        tags=["chat", "vision", "efficient"],
         latency_profile=LatencyProfile(
-            time_to_first_token=0.8,
-            tokens_per_second=28.0,
-            min_delay=0.03,
-            max_delay=0.05,
+            time_to_first_token=0.20,
+            tokens_per_second=95.0,
+            min_delay=0.009,
+            max_delay=0.014,
         ),
     )
 
     models.append(
         ModelDefinition(
-            model_id="openai/gpt-oss-120b",
-            created=1678886400,  # 2023-03-15
+            model_id="gpt-4.1-mini",
+            created=1727740800,
             owned_by="openai",
-            capabilities=gpt4_caps,
-            display_name="GPT-4",
-            description="Original GPT-4 model with 8K context window. MoE architecture.",
-            version="0613",
+            capabilities=gpt41_mini_caps,
+            display_name="GPT-4.1 Mini",
+            description="Efficient GPT-4.1 variant with strong performance at lower cost.",
+            version="2025-10-01",
             custom_fields={
                 "pricing": {
-                    "input_per_million": 30.0,
-                    "output_per_million": 60.0,
+                    "input_per_million": 0.40,
+                    "output_per_million": 1.60,
                 },
             },
-        )
-    )
+        ))
 
-    # GPT-4 Turbo
-    gpt4_turbo_caps = CAPABILITY_PRESETS["vision"].clone(
+    # GPT-4.1 Nano
+    gpt41_nano_caps = CAPABILITY_PRESETS["chat"].clone(
         max_context_length=128000,
-        max_output_tokens=4096,
+        max_output_tokens=8192,
         supports_json_mode=True,
         supports_parallel_tool_calls=True,
-        is_moe=True,
-        moe_config=MoEConfig(
-            total_params=1_760_000_000_000,
-            active_params=220_000_000_000,
-            num_experts=8,
-            experts_per_token=1,
-        ),
-        parameter_count=1_760_000_000_000,
+        parameter_count=None,
         provider="openai",
-        model_family="gpt-4",
-        tags=["chat", "vision", "moe", "turbo"],
+        model_family="gpt-4.1",
+        tags=["chat", "efficient", "fast"],
         latency_profile=LatencyProfile(
-            time_to_first_token=0.4,
-            tokens_per_second=50.0,
-            min_delay=0.018,
-            max_delay=0.025,
+            time_to_first_token=0.12,
+            tokens_per_second=140.0,
+            min_delay=0.006,
+            max_delay=0.01,
         ),
     )
 
     models.append(
         ModelDefinition(
-            model_id="openai/gpt-oss-120b",
-            created=1699481600,  # 2023-11-09
+            model_id="gpt-4.1-nano",
+            created=1727740800,
             owned_by="openai",
-            capabilities=gpt4_turbo_caps,
-            display_name="GPT-4 Turbo",
-            description="Fast GPT-4 with 128K context window and vision capabilities.",
-            version="1106-preview",
+            capabilities=gpt41_nano_caps,
+            display_name="GPT-4.1 Nano",
+            description="Ultra-efficient GPT-4.1 variant for cost-sensitive workloads.",
+            version="2025-10-01",
             custom_fields={
                 "pricing": {
-                    "input_per_million": 10.0,
-                    "output_per_million": 30.0,
+                    "input_per_million": 0.10,
+                    "output_per_million": 0.40,
                 },
             },
-        )
-    )
+        ))
 
-    # openai/gpt-oss-120b (multimodal flagship)
+    # GPT-4o (Multimodal flagship - 2024)
     gpt4o_caps = CAPABILITY_PRESETS["multimodal"].clone(
         max_context_length=128000,
         max_output_tokens=16384,
@@ -223,7 +272,7 @@ def _get_openai_models() -> list[ModelDefinition]:
         parameter_count=200_000_000_000,
         provider="openai",
         model_family="gpt-4o",
-        tags=["chat", "vision", "audio", "multimodal", "latest"],
+        tags=["chat", "vision", "audio", "multimodal"],
         latency_profile=LatencyProfile(
             time_to_first_token=0.25,
             tokens_per_second=67.0,
@@ -234,12 +283,12 @@ def _get_openai_models() -> list[ModelDefinition]:
 
     models.append(
         ModelDefinition(
-            model_id="openai/gpt-oss-120b",
+            model_id="gpt-4o",
             created=1715644800,  # 2024-05-14
             owned_by="openai",
             capabilities=gpt4o_caps,
             display_name="GPT-4o",
-            description="Flagship multimodal model with vision, audio, and predicted outputs support.",
+            description="Multimodal model with vision, audio, and predicted outputs support.",
             version="2024-08-06",
             custom_fields={
                 "pricing": {
@@ -251,7 +300,7 @@ def _get_openai_models() -> list[ModelDefinition]:
         )
     )
 
-    # openai/gpt-oss-20b (small efficient multimodal)
+    # GPT-4o Mini (Small efficient multimodal)
     gpt4o_mini_caps = CAPABILITY_PRESETS["multimodal"].clone(
         max_context_length=128000,
         max_output_tokens=16384,
@@ -271,7 +320,7 @@ def _get_openai_models() -> list[ModelDefinition]:
 
     models.append(
         ModelDefinition(
-            model_id="openai/gpt-oss-20b",
+            model_id="gpt-4o-mini",
             created=1720569600,  # 2024-07-10
             owned_by="openai",
             capabilities=gpt4o_mini_caps,
@@ -288,8 +337,50 @@ def _get_openai_models() -> list[ModelDefinition]:
         )
     )
 
-    # GPT-3.5 Turbo Family
+    # GPT-4 Turbo (Legacy)
+    gpt4_turbo_caps = CAPABILITY_PRESETS["vision"].clone(
+        max_context_length=128000,
+        max_output_tokens=4096,
+        supports_json_mode=True,
+        supports_parallel_tool_calls=True,
+        is_moe=True,
+        moe_config=MoEConfig(
+            total_params=1_760_000_000_000,
+            active_params=220_000_000_000,
+            num_experts=8,
+            experts_per_token=1,
+        ),
+        parameter_count=1_760_000_000_000,
+        provider="openai",
+        model_family="gpt-4",
+        tags=["chat", "vision", "moe", "legacy"],
+        latency_profile=LatencyProfile(
+            time_to_first_token=0.4,
+            tokens_per_second=50.0,
+            min_delay=0.018,
+            max_delay=0.025,
+        ),
+    )
 
+    models.append(
+        ModelDefinition(
+            model_id="gpt-4-turbo",
+            created=1699481600,  # 2023-11-09
+            owned_by="openai",
+            capabilities=gpt4_turbo_caps,
+            display_name="GPT-4 Turbo (Legacy)",
+            description="Legacy GPT-4 with 128K context window and vision. Consider upgrading to GPT-4.1 or GPT-5.",
+            version="1106-preview",
+            custom_fields={
+                "pricing": {
+                    "input_per_million": 10.0,
+                    "output_per_million": 30.0,
+                },
+            },
+        )
+    )
+
+    # GPT-3.5 Turbo (Legacy)
     gpt35_caps = CAPABILITY_PRESETS["chat"].clone(
         max_context_length=16385,
         max_output_tokens=4096,
@@ -307,102 +398,17 @@ def _get_openai_models() -> list[ModelDefinition]:
 
     models.append(
         ModelDefinition(
-            model_id="meta-llama/Llama-3.1-8B-Instruct",
+            model_id="gpt-3.5-turbo",
             created=1677628800,  # 2023-03-01
             owned_by="openai",
             capabilities=gpt35_caps,
-            display_name="GPT-3.5 Turbo",
-            description="Fast and efficient chat model with 16K context window.",
+            display_name="GPT-3.5 Turbo (Legacy)",
+            description="Legacy fast and efficient chat model. Consider upgrading to GPT-4.1-nano for better performance.",
             version="0125",
             custom_fields={
                 "pricing": {
                     "input_per_million": 0.50,
                     "output_per_million": 1.50,
-                },
-            },
-        )
-    )
-
-    # O1 Family (Reasoning Models - Legacy)
-
-    o1_caps = CAPABILITY_PRESETS["reasoning"].clone(
-        supports_vision=False,
-        supports_audio_input=False,
-        supports_function_calling=False,
-        supports_tool_use=False,
-        supports_json_mode=True,
-        max_context_length=200000,
-        max_output_tokens=100000,
-        parameter_count=671_000_000_000,
-        is_moe=True,
-        moe_config=MoEConfig(
-            total_params=671_000_000_000,
-            active_params=37_000_000_000,
-            num_experts=256,
-            experts_per_token=8,
-        ),
-        provider="openai",
-        model_family="o1",
-        tags=["reasoning", "moe", "legacy"],
-        latency_profile=LatencyProfile(
-            time_to_first_token=0.7,
-            tokens_per_second=33.0,
-            min_delay=0.025,
-            max_delay=0.04,
-        ),
-    )
-
-    models.append(
-        ModelDefinition(
-            model_id="deepseek-ai/DeepSeek-R1",
-            created=1725840000,  # 2024-09-09
-            owned_by="openai",
-            capabilities=o1_caps,
-            display_name="O1 (Legacy)",
-            description="Legacy reasoning model (based on DeepSeek architecture). Use GPT-OSS for latest reasoning.",
-            version="2024-09-12",
-            custom_fields={
-                "pricing": {
-                    "input_per_million": 15.0,
-                    "output_per_million": 60.0,
-                },
-            },
-        )
-    )
-
-    o1_mini_caps = CAPABILITY_PRESETS["reasoning"].clone(
-        supports_vision=False,
-        supports_audio_input=False,
-        supports_function_calling=False,
-        supports_tool_use=False,
-        supports_json_mode=True,
-        max_context_length=128000,
-        max_output_tokens=65536,
-        parameter_count=32_000_000_000,
-        provider="openai",
-        model_family="o1",
-        tags=["reasoning", "efficient", "legacy"],
-        latency_profile=LatencyProfile(
-            time_to_first_token=0.35,
-            tokens_per_second=62.0,
-            min_delay=0.014,
-            max_delay=0.02,
-        ),
-    )
-
-    models.append(
-        ModelDefinition(
-            model_id="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
-            created=1725840000,
-            owned_by="openai",
-            capabilities=o1_mini_caps,
-            display_name="O1 Mini (Legacy)",
-            description="Small reasoning model. Use GPT-OSS-20B for latest efficient reasoning.",
-            version="2024-09-12",
-            custom_fields={
-                "pricing": {
-                    "input_per_million": 3.0,
-                    "output_per_million": 12.0,
                 },
             },
         )
@@ -420,7 +426,7 @@ def _get_openai_models() -> list[ModelDefinition]:
 
     models.append(
         ModelDefinition(
-            model_id="nomic-ai/nomic-embed-text-v1.5",
+            model_id="text-embedding-3-small",
             created=1704931200,  # 2024-01-11
             owned_by="openai",
             capabilities=embedding_small_caps,
@@ -447,7 +453,7 @@ def _get_openai_models() -> list[ModelDefinition]:
 
     models.append(
         ModelDefinition(
-            model_id="BAAI/bge-m3",
+            model_id="text-embedding-3-large",
             created=1704931200,
             owned_by="openai",
             capabilities=embedding_large_caps,
@@ -474,12 +480,12 @@ def _get_openai_models() -> list[ModelDefinition]:
 
     models.append(
         ModelDefinition(
-            model_id="sentence-transformers/all-mpnet-base-v2",
+            model_id="text-embedding-ada-002",
             created=1672531200,  # 2023-01-01
             owned_by="openai",
             capabilities=embedding_ada_caps,
-            display_name="text-embedding-ada-002",
-            description="Legacy embedding model with 1536 dimensions.",
+            display_name="text-embedding-ada-002 (Legacy)",
+            description="Legacy embedding model. Consider upgrading to text-embedding-3-small.",
             version="2",
             custom_fields={
                 "pricing": {

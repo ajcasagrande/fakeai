@@ -4,23 +4,22 @@ Standalone test script for model registry core functionality.
 Bypasses fakeai package __init__ to avoid import errors.
 """
 
-import sys
 import os
+import sys
 
 # Add the fakeai directory to path directly
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'fakeai'))
 
 # Import registry modules directly
-from models_registry import (
-    ModelCapabilities,
-    LatencyProfile,
-    MoEConfig,
+from fakeai.models_registry import (
     CAPABILITY_PRESETS,
     LATENCY_PRESETS,
-    ModelDefinition,
-    create_model_definition,
+    ModelCapabilities,
     ModelRegistry,
+    MoEConfig,
+    create_model_definition,
 )
+
 
 def test_basic_functionality():
     """Test basic registry functionality."""

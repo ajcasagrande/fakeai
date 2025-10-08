@@ -1,0 +1,1550 @@
+/**
+ * KV Cache Analytics Dashboard Styles
+ * NVIDIA-themed design with performance optimization focus
+ */
+
+/* ============================================================================
+   NVIDIA Theme Variables
+   ============================================================================ */
+:root {
+  /* NVIDIA Brand Colors */
+  --nvidia-green: #76b900;
+  --nvidia-green-dark: #5a8f00;
+  --nvidia-green-light: #9acd32;
+  --nvidia-black: #000000;
+  --nvidia-gray-dark: #1a1a1a;
+  --nvidia-gray: #2d2d2d;
+  --nvidia-gray-light: #404040;
+  --nvidia-white: #ffffff;
+
+  /* Status Colors */
+  --status-excellent: #76b900;
+  --status-good: #00bfff;
+  --status-warning: #ff9900;
+  --status-poor: #ff6b6b;
+  --status-hot: #ff4500;
+  --status-warm: #00bfff;
+  --status-warming: #ff9900;
+  --status-cold: #999999;
+
+  /* Performance Colors */
+  --speedup-color: #00ff88;
+  --cache-color: #00bfff;
+  --memory-color: #ff9900;
+  --hit-color: #76b900;
+  --miss-color: #ff6b6b;
+  --savings-color: #76b900;
+
+  /* Layout */
+  --border-radius: 12px;
+  --border-radius-sm: 8px;
+  --spacing: 1rem;
+  --spacing-lg: 2rem;
+  --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --card-shadow-hover: 0 8px 12px rgba(118, 185, 0, 0.2);
+
+  /* Typography */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
+    'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  --font-mono: 'Courier New', Courier, monospace;
+}
+
+/* ============================================================================
+   Dashboard Layout
+   ============================================================================ */
+.kv-cache-dashboard {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  color: var(--nvidia-white);
+  font-family: var(--font-family);
+  padding: var(--spacing-lg);
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  background: var(--nvidia-gray-dark);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--nvidia-gray-light);
+  box-shadow: var(--card-shadow);
+}
+
+.header-content {
+  flex: 1;
+}
+
+.dashboard-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  background: linear-gradient(135deg, var(--nvidia-green) 0%, var(--speedup-color) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dashboard-subtitle {
+  font-size: 1rem;
+  color: #999;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.refresh-toggle,
+.manual-refresh-btn,
+.clear-cache-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--nvidia-gray);
+  border: 1px solid var(--nvidia-gray-light);
+  border-radius: var(--border-radius-sm);
+  color: var(--nvidia-white);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.refresh-toggle:hover,
+.manual-refresh-btn:hover {
+  background: var(--nvidia-gray-light);
+  border-color: var(--nvidia-green);
+  box-shadow: 0 0 10px rgba(118, 185, 0, 0.3);
+}
+
+.refresh-toggle.active {
+  background: var(--nvidia-green);
+  border-color: var(--nvidia-green);
+}
+
+.clear-cache-btn {
+  background: var(--status-poor);
+  border-color: var(--status-poor);
+}
+
+.clear-cache-btn:hover {
+  background: #ff4444;
+  box-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
+}
+
+.refresh-toggle:disabled,
+.manual-refresh-btn:disabled,
+.clear-cache-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================================================
+   Error Banner
+   ============================================================================ */
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  margin-bottom: var(--spacing-lg);
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid var(--status-poor);
+  border-radius: var(--border-radius-sm);
+  color: var(--status-poor);
+  font-weight: 500;
+}
+
+/* ============================================================================
+   Main Content Layout
+   ============================================================================ */
+.dashboard-content {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: var(--spacing-lg);
+}
+
+.main-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.grid-2-col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-lg);
+}
+
+/* ============================================================================
+   Cards
+   ============================================================================ */
+.card {
+  background: var(--nvidia-gray-dark);
+  border: 1px solid var(--nvidia-gray-light);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-lg);
+  box-shadow: var(--card-shadow);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  border-color: var(--nvidia-green);
+  box-shadow: var(--card-shadow-hover);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing);
+  padding-bottom: var(--spacing);
+  border-bottom: 1px solid var(--nvidia-gray-light);
+}
+
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--nvidia-white);
+}
+
+/* ============================================================================
+   Metrics Overview
+   ============================================================================ */
+.metrics-overview-container {
+  width: 100%;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--spacing);
+}
+
+.metrics-grid.cache-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.metric-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--nvidia-gray);
+  border: 2px solid var(--nvidia-gray-light);
+  border-radius: var(--border-radius-sm);
+  transition: all 0.3s ease;
+}
+
+.metric-card:hover {
+  border-color: var(--nvidia-green);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(118, 185, 0, 0.2);
+}
+
+.metric-card.hit-rate.excellent {
+  border-color: var(--status-excellent);
+}
+
+.metric-card.hit-rate.good {
+  border-color: var(--status-good);
+}
+
+.metric-card.hit-rate.warning {
+  border-color: var(--status-warning);
+}
+
+.metric-card.hit-rate.poor {
+  border-color: var(--status-poor);
+}
+
+.metric-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(118, 185, 0, 0.1);
+  border-radius: 50%;
+  color: var(--nvidia-green);
+}
+
+.metric-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.metric-content {
+  flex: 1;
+}
+
+.metric-label {
+  font-size: 0.85rem;
+  color: #999;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--nvidia-white);
+  line-height: 1;
+}
+
+.metric-value.cost {
+  color: var(--savings-color);
+}
+
+.metric-value.status-text {
+  font-size: 1.5rem;
+}
+
+.metric-subtitle {
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 0.25rem;
+}
+
+/* ============================================================================
+   Charts
+   ============================================================================ */
+.chart-legend {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.legend-color {
+  width: 20px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.legend-color.hit-rate {
+  background: var(--hit-color);
+}
+
+.legend-color.miss-rate {
+  background: var(--miss-color);
+}
+
+.legend-color.cache-size {
+  background: var(--cache-color);
+}
+
+.legend-color.memory-usage {
+  background: var(--memory-color);
+}
+
+.chart-skeleton {
+  width: 100%;
+  height: 350px;
+  background: linear-gradient(90deg, var(--nvidia-gray) 25%, var(--nvidia-gray-light) 50%, var(--nvidia-gray) 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s ease-in-out infinite;
+  border-radius: var(--border-radius-sm);
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ============================================================================
+   Cache Size Utilization
+   ============================================================================ */
+.utilization-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing);
+  margin-top: var(--spacing);
+  padding-top: var(--spacing);
+  border-top: 1px solid var(--nvidia-gray-light);
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: #999;
+  margin-bottom: 0.5rem;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--nvidia-white);
+}
+
+.stat-value.cache-color {
+  color: var(--cache-color);
+}
+
+.stat-value.memory-color {
+  color: var(--memory-color);
+}
+
+/* ============================================================================
+   Speedup Metrics
+   ============================================================================ */
+.speedup-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(118, 185, 0, 0.2);
+  border: 1px solid var(--nvidia-green);
+  border-radius: var(--border-radius-sm);
+}
+
+.badge-label {
+  font-size: 0.85rem;
+  color: #999;
+}
+
+.badge-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--nvidia-green);
+}
+
+.performance-impact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing);
+  margin-top: var(--spacing);
+}
+
+.impact-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--nvidia-gray);
+  border: 1px solid var(--nvidia-gray-light);
+  border-radius: var(--border-radius-sm);
+}
+
+.impact-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(118, 185, 0, 0.1);
+  border-radius: 50%;
+  color: var(--nvidia-green);
+}
+
+.impact-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.impact-content {
+  flex: 1;
+}
+
+.impact-label {
+  font-size: 0.8rem;
+  color: #999;
+  margin-bottom: 0.25rem;
+}
+
+.impact-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--nvidia-white);
+}
+
+.impact-subtitle {
+  font-size: 0.75rem;
+  color: #666;
+  margin-top: 0.25rem;
+}
+
+.impact-card.comparison {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.comparison-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.comparison-item {
+  flex: 1;
+  text-align: center;
+}
+
+.comparison-label {
+  font-size: 0.75rem;
+  color: #999;
+  margin-bottom: 0.5rem;
+}
+
+.comparison-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.comparison-value.with-cache {
+  color: var(--nvidia-green);
+}
+
+.comparison-value.without-cache {
+  color: #999;
+}
+
+.comparison-divider {
+  flex-shrink: 0;
+  color: var(--nvidia-green);
+}
+
+.comparison-divider svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* ============================================================================
+   Token Savings
+   ============================================================================ */
+.savings-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(118, 185, 0, 0.2);
+  border: 1px solid var(--nvidia-green);
+  border-radius: var(--border-radius-sm);
+}
+
+.token-savings-content {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--spacing-lg);
+}
+
+.chart-section,
+.pie-section {
+  flex: 1;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing);
+  color: var(--nvidia-white);
+}
+
+.token-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--spacing);
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--nvidia-gray-light);
+}
+
+.stat-card {
+  padding: 1rem;
+  background: var(--nvidia-gray);
+  border: 1px solid var(--nvidia-gray-light);
+  border-radius: var(--border-radius-sm);
+  text-align: center;
+}
+
+.stat-card.highlight {
+  border-color: var(--nvidia-green);
+  background: rgba(118, 185, 0, 0.1);
+}
+
+/* ============================================================================
+   Model Efficiency
+   ============================================================================ */
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sort-controls label {
+  font-size: 0.85rem;
+  color: #999;
+}
+
+.sort-select {
+  padding: 0.5rem 1rem;
+  background: var(--nvidia-gray);
+  border: 1px solid var(--nvidia-gray-light);
+  border-radius: var(--border-radius-sm);
+  color: var(--nvidia-white);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.model-details {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing);
+  background: var(--nvidia-gray);
+  border: 2px solid var(--nvidia-green);
+  border-radius: var(--border-radius-sm);
+}
+
+.details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing);
+  padding-bottom: var(--spacing);
+  border-bottom: 1px solid var(--nvidia-gray-light);
+}
+
+.details-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--nvidia-green);
+}
+
+.close-details {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--nvidia-gray-light);
+  border-radius: 50%;
+  color: var(--nvidia-white);
+  cursor: pointer;
+  font-size: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.close-details:hover {
+  background: var(--status-poor);
+  border-color: var(--status-poor);
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing);
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-label {
+  font-size: 0.8rem;
+  color: #999;
+}
+
+.detail-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--nvidia-white);
+}
+
+.models-table {
+  margin-top: var(--spacing-lg);
+  overflow-x: auto;
+}
+
+.models-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.models-table th,
+.models-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--nvidia-gray-light);
+}
+
+.models-table th {
+  font-size: 0.85rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.models-table tr {
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.models-table tr:hover {
+  background: var(--nvidia-gray);
+}
+
+.models-table tr.selected {
+  background: rgba(118, 185, 0, 0.1);
+  border-left: 3px solid var(--nvidia-green);
+}
+
+.model-name {
+  font-weight: 600;
+  color: var(--nvidia-white);
+}
+
+.hit-rate-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.hit-rate-badge.good {
+  background: rgba(118, 185, 0, 0.2);
+  color: var(--status-excellent);
+}
+
+.hit-rate-badge.medium {
+  background: rgba(0, 191, 255, 0.2);
+  color: var(--status-good);
+}
+
+.hit-rate-badge.poor {
+  background: rgba(255, 107, 107, 0.2);
+  color: var(--status-poor);
+}
+
+/* ============================================================================
+   Eviction Stats
+   ============================================================================ */
+.eviction-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing);
+  margin-bottom: var(--spacing-lg);
+}
+
+.overview-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--nvidia-gray);
+  border: 1px solid var(--nvidia-gray-light);
+  border-radius: var(--border-radius-sm);
+}
+
+.overview-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 107, 107, 0.1);
+  border-radius: 50%;
+  color: var(--status-poor);
+}
+
+.overview-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.overview-label {
+  font-size: 0.8rem;
+  color: #999;
+  margin-bottom: 0.25rem;
+}
+
+.overview-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--nvidia-white);
+}
+
+.charts-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-lg);
+}
+
+.reasons-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: var(--spacing);
+}
+
+.reasons-legend .legend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: var(--nvidia-gray);
+  border-radius: var(--border-radius-sm);
+}
+
+.legend-name {
+  flex: 1;
+  margin-left: 0.5rem;
+}
+
+.legend-value {
+  font-weight: 600;
+  color: var(--nvidia-green);
+}
+
+/* ============================================================================
+   Warmup Status
+   ============================================================================ */
+.warmup-trigger-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--nvidia-green);
+  border: 1px solid var(--nvidia-green);
+  border-radius: var(--border-radius-sm);
+  color: var(--nvidia-black);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.warmup-trigger-btn:hover:not(:disabled) {
+  background: var(--nvidia-green-light);
+  box-shadow: 0 0 15px rgba(118, 185, 0, 0.4);
+}
+
+.warmup-trigger-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.warmup-trigger-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.warming-icon {
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.warmup-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background: var(--nvidia-gray);
+  border: 2px solid;
+  border-radius: var(--border-radius);
+}
+
+.status-icon {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(118, 185, 0, 0.1);
+}
+
+.status-icon svg {
+  width: 36px;
+  height: 36px;
+}
+
+.status-label {
+  font-size: 0.85rem;
+  color: #999;
+  margin-bottom: 0.5rem;
+}
+
+.status-value {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.progress-section {
+  padding: 1.5rem;
+  background: var(--nvidia-gray);
+  border-radius: var(--border-radius-sm);
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing);
+}
+
+.progress-label {
+  font-size: 0.9rem;
+  color: #999;
+}
+
+.progress-percentage {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--nvidia-green);
+}
+
+.progress-bar {
+  width: 100%;
+  height: 24px;
+  background: var(--nvidia-gray-light);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 12px;
+  transition: width 0.5s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-shine {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shine 2s infinite;
+}
+
+@keyframes shine {
+  to {
+    left: 100%;
+  }
+}
+
+.progress-details {
+  margin-top: var(--spacing);
+  text-align: center;
+  font-size: 0.85rem;
+  color: #999;
+}
+
+.warmup-stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing);
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing);
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--nvidia-gray);
+  border: 1px solid var(--nvidia-gray-light);
+  border-radius: var(--border-radius-sm);
+}
+
+.stat-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(118, 185, 0, 0.1);
+  border-radius: 50%;
+  color: var(--nvidia-green);
+}
+
+.stat-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.stat-value.timestamp {
+  font-size: 0.9rem;
+}
+
+.warmup-info {
+  padding: 1.5rem;
+  background: rgba(118, 185, 0, 0.05);
+  border: 1px solid rgba(118, 185, 0, 0.2);
+  border-radius: var(--border-radius-sm);
+}
+
+.info-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--nvidia-green);
+}
+
+.info-text {
+  font-size: 0.85rem;
+  color: #999;
+  line-height: 1.6;
+  margin-bottom: var(--spacing);
+}
+
+.status-meanings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.meaning-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.meaning-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--border-radius-sm);
+  font-weight: 600;
+  font-size: 0.75rem;
+  min-width: 80px;
+  text-align: center;
+}
+
+.meaning-badge.cold {
+  background: rgba(153, 153, 153, 0.2);
+  color: var(--status-cold);
+}
+
+.meaning-badge.warming {
+  background: rgba(255, 153, 0, 0.2);
+  color: var(--status-warming);
+}
+
+.meaning-badge.warm {
+  background: rgba(0, 191, 255, 0.2);
+  color: var(--status-warm);
+}
+
+.meaning-badge.hot {
+  background: rgba(255, 69, 0, 0.2);
+  color: var(--status-hot);
+}
+
+.meaning-text {
+  color: #999;
+}
+
+/* ============================================================================
+   Cost Savings
+   ============================================================================ */
+.savings-badge-large {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(118, 185, 0, 0.2);
+  border: 2px solid var(--nvidia-green);
+  border-radius: var(--border-radius-sm);
+}
+
+.savings-badge-large .badge-value {
+  font-size: 1.5rem;
+}
+
+.cost-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.savings-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--spacing);
+}
+
+.savings-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--nvidia-gray);
+  border: 1px solid var(--nvidia-gray-light);
+  border-radius: var(--border-radius-sm);
+  transition: all 0.3s ease;
+}
+
+.savings-card:hover {
+  border-color: var(--nvidia-green);
+  transform: translateY(-2px);
+}
+
+.savings-card.primary {
+  border: 2px solid var(--nvidia-green);
+  background: rgba(118, 185, 0, 0.1);
+}
+
+.savings-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(118, 185, 0, 0.1);
+  border-radius: 50%;
+  color: var(--nvidia-green);
+}
+
+.savings-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.savings-label {
+  font-size: 0.85rem;
+  color: #999;
+  margin-bottom: 0.25rem;
+}
+
+.savings-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--nvidia-green);
+}
+
+.savings-value.percentage-value {
+  color: var(--nvidia-green);
+}
+
+.savings-subtitle {
+  font-size: 0.75rem;
+  color: #666;
+  margin-top: 0.25rem;
+}
+
+.charts-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+}
+
+.chart-container {
+  flex: 1;
+}
+
+.chart-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing);
+  color: var(--nvidia-white);
+}
+
+.cost-comparison {
+  padding: 1.5rem;
+  background: var(--nvidia-gray);
+  border-radius: var(--border-radius-sm);
+}
+
+.comparison-bars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing);
+}
+
+.comparison-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.comparison-bar-container {
+  position: relative;
+  width: 100%;
+  height: 40px;
+  background: var(--nvidia-gray-light);
+  border-radius: var(--border-radius-sm);
+  overflow: hidden;
+}
+
+.comparison-bar {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 1rem;
+  border-radius: var(--border-radius-sm);
+  transition: width 0.5s ease;
+}
+
+.comparison-bar.without-cache {
+  background: linear-gradient(90deg, #999 0%, #666 100%);
+}
+
+.comparison-bar.with-cache {
+  background: linear-gradient(90deg, var(--nvidia-green) 0%, var(--speedup-color) 100%);
+}
+
+.comparison-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--nvidia-white);
+}
+
+.savings-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin-top: var(--spacing);
+  background: rgba(118, 185, 0, 0.1);
+  border-radius: var(--border-radius-sm);
+  color: var(--nvidia-green);
+  font-weight: 600;
+}
+
+.savings-indicator svg {
+  width: 20px;
+  height: 20px;
+}
+
+.roi-section {
+  padding: 1.5rem;
+  background: var(--nvidia-gray);
+  border: 2px solid var(--nvidia-green);
+  border-radius: var(--border-radius);
+}
+
+.roi-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing);
+}
+
+.roi-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--nvidia-green);
+}
+
+.roi-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: var(--spacing);
+  background: rgba(118, 185, 0, 0.05);
+  border-radius: var(--border-radius-sm);
+}
+
+.roi-stat {
+  text-align: center;
+}
+
+.roi-label {
+  font-size: 0.85rem;
+  color: #999;
+  margin-bottom: 0.5rem;
+}
+
+.roi-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--nvidia-green);
+}
+
+.roi-divider {
+  width: 1px;
+  height: 60px;
+  background: var(--nvidia-gray-light);
+}
+
+.roi-description {
+  font-size: 0.9rem;
+  color: #999;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* ============================================================================
+   Sidebar
+   ============================================================================ */
+.filter-panel {
+  position: sticky;
+  top: var(--spacing-lg);
+}
+
+.filter-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing);
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filter-label {
+  font-size: 0.85rem;
+  color: #999;
+  font-weight: 600;
+}
+
+.filter-select,
+.filter-input {
+  padding: 0.75rem;
+  background: var(--nvidia-gray);
+  border: 1px solid var(--nvidia-gray-light);
+  border-radius: var(--border-radius-sm);
+  color: var(--nvidia-white);
+  font-size: 0.9rem;
+}
+
+.filter-select:focus,
+.filter-input:focus {
+  outline: none;
+  border-color: var(--nvidia-green);
+}
+
+.apply-filters-btn {
+  padding: 0.75rem 1.5rem;
+  background: var(--nvidia-green);
+  border: 1px solid var(--nvidia-green);
+  border-radius: var(--border-radius-sm);
+  color: var(--nvidia-black);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.apply-filters-btn:hover {
+  background: var(--nvidia-green-light);
+  box-shadow: 0 0 15px rgba(118, 185, 0, 0.4);
+}
+
+.info-card,
+.legend-card {
+  position: sticky;
+  top: calc(var(--spacing-lg) + 400px);
+}
+
+.info-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: var(--nvidia-gray);
+  border-radius: var(--border-radius-sm);
+}
+
+.info-label {
+  font-size: 0.85rem;
+  color: #999;
+}
+
+.info-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--nvidia-white);
+}
+
+.info-value.status {
+  padding: 0.25rem 0.75rem;
+  background: rgba(118, 185, 0, 0.2);
+  border-radius: var(--border-radius-sm);
+  color: var(--nvidia-green);
+}
+
+.legend-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.legend-content .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  background: var(--nvidia-gray);
+  border-radius: var(--border-radius-sm);
+}
+
+.legend-content .legend-color {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+}
+
+.legend-content .legend-color.excellent {
+  background: var(--status-excellent);
+}
+
+.legend-content .legend-color.good {
+  background: var(--status-good);
+}
+
+.legend-content .legend-color.warning {
+  background: var(--status-warning);
+}
+
+.legend-content .legend-color.poor {
+  background: var(--status-poor);
+}
+
+.legend-text {
+  font-size: 0.85rem;
+  color: #999;
+}
+
+/* ============================================================================
+   Responsive Design
+   ============================================================================ */
+@media (max-width: 1400px) {
+  .dashboard-content {
+    grid-template-columns: 1fr 280px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .dashboard-content {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar-section {
+    position: static;
+  }
+
+  .filter-panel,
+  .info-card,
+  .legend-card {
+    position: static;
+  }
+
+  .grid-2-col {
+    grid-template-columns: 1fr;
+  }
+
+  .charts-row {
+    grid-template-columns: 1fr;
+  }
+
+  .charts-section {
+    grid-template-columns: 1fr;
+  }
+
+  .token-savings-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .kv-cache-dashboard {
+    padding: var(--spacing);
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    gap: var(--spacing);
+  }
+
+  .header-actions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .dashboard-title {
+    font-size: 1.75rem;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .savings-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .performance-impact-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-row {
+    grid-template-columns: 1fr;
+  }
+
+  .roi-content {
+    flex-direction: column;
+    gap: var(--spacing);
+  }
+
+  .roi-divider {
+    width: 100%;
+    height: 1px;
+  }
+}

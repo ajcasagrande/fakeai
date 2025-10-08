@@ -21,8 +21,6 @@ collects, aggregates, and exports metrics during realistic
 request processing scenarios.
 """
 
-import asyncio
-import json
 import time
 import uuid
 
@@ -30,7 +28,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from fakeai.app import app
-from fakeai.config import AppConfig
 from fakeai.dynamo_metrics import DynamoMetricsCollector
 from fakeai.dynamo_metrics_advanced import (
     AdvancedDynamoMetrics,

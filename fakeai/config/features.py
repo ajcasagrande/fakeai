@@ -117,7 +117,8 @@ class FeatureFlags(ModuleConfig):
     def validate_moderation_threshold(cls, v: float) -> float:
         """Validate moderation threshold."""
         if not 0.0 <= v <= 1.0:
-            raise ValueError("Moderation threshold must be between 0.0 and 1.0")
+            raise ValueError(
+                "Moderation threshold must be between 0.0 and 1.0")
         return v
 
     @field_validator("default_voice")
@@ -139,8 +140,9 @@ class FeatureFlags(ModuleConfig):
         }
         if v not in valid_voices:
             raise ValueError(
-                f"Default voice must be one of: {', '.join(sorted(valid_voices))}"
-            )
+                f"Default voice must be one of: {
+                    ', '.join(
+                        sorted(valid_voices))}")
         return v
 
     @field_validator("default_audio_format")
@@ -150,8 +152,9 @@ class FeatureFlags(ModuleConfig):
         valid_formats = {"mp3", "opus", "aac", "flac", "wav", "pcm16"}
         if v not in valid_formats:
             raise ValueError(
-                f"Default audio format must be one of: {', '.join(sorted(valid_formats))}"
-            )
+                f"Default audio format must be one of: {
+                    ', '.join(
+                        sorted(valid_formats))}")
         return v
 
     @field_validator("stream_timeout_seconds")

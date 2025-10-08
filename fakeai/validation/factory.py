@@ -40,7 +40,9 @@ def create_chat_validators(
     Returns:
         Configured ValidationPipeline
     """
-    pipeline = ValidationPipeline(fail_fast=fail_fast, name="ChatCompletionPipeline")
+    pipeline = ValidationPipeline(
+        fail_fast=fail_fast,
+        name="ChatCompletionPipeline")
 
     # 1. Schema validation (if schema provided)
     if schema:
@@ -93,7 +95,9 @@ def create_completion_validators(
     Returns:
         Configured ValidationPipeline
     """
-    pipeline = ValidationPipeline(fail_fast=fail_fast, name="CompletionPipeline")
+    pipeline = ValidationPipeline(
+        fail_fast=fail_fast,
+        name="CompletionPipeline")
 
     # 1. Schema validation (if schema provided)
     if schema:
@@ -141,7 +145,9 @@ def create_embedding_validators(
     Returns:
         Configured ValidationPipeline
     """
-    pipeline = ValidationPipeline(fail_fast=fail_fast, name="EmbeddingPipeline")
+    pipeline = ValidationPipeline(
+        fail_fast=fail_fast,
+        name="EmbeddingPipeline")
 
     # 1. Schema validation (if schema provided)
     if schema:
@@ -179,7 +185,9 @@ def create_image_validators(
     Returns:
         Configured ValidationPipeline
     """
-    pipeline = ValidationPipeline(fail_fast=fail_fast, name="ImageGenerationPipeline")
+    pipeline = ValidationPipeline(
+        fail_fast=fail_fast,
+        name="ImageGenerationPipeline")
 
     # 1. Schema validation (if schema provided)
     if schema:
@@ -258,7 +266,9 @@ def create_moderation_validators(
     Returns:
         Configured ValidationPipeline
     """
-    pipeline = ValidationPipeline(fail_fast=fail_fast, name="ModerationPipeline")
+    pipeline = ValidationPipeline(
+        fail_fast=fail_fast,
+        name="ModerationPipeline")
 
     # 1. Schema validation (if schema provided)
     if schema:

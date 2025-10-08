@@ -9,7 +9,6 @@ This script demonstrates:
 4. Inspecting rate limit headers
 """
 
-import os
 import time
 
 from openai import OpenAI, RateLimitError

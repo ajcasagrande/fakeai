@@ -18,11 +18,10 @@ Profiles include dynamic adjustments for:
 
 #  SPDX-License-Identifier: Apache-2.0
 
-import math
 import random
 import threading
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Optional
 
 
 @dataclass
@@ -54,7 +53,7 @@ class LatencyProfile:
 
 
 # Model-specific latency profiles based on benchmarks
-LATENCY_PROFILES: Dict[str, LatencyProfile] = {
+LATENCY_PROFILES: dict[str, LatencyProfile] = {
     # OpenAI GPT-4 family
     "gpt-4": LatencyProfile(
         ttft_ms=800.0,
@@ -549,7 +548,8 @@ class LatencyProfileManager:
             # For small prompts, base TTFT already includes typical prefill
             # Only add extra time for tokens beyond baseline (~100 tokens)
             extra_tokens = max(0, uncached_tokens - 100)
-            extra_prefill_ms = (extra_tokens / profile.prefill_tokens_per_sec) * 1000.0
+            extra_prefill_ms = (
+                extra_tokens / profile.prefill_tokens_per_sec) * 1000.0
             base_ttft_ms += extra_prefill_ms
 
         # KV cache speedup (60-80% reduction for cached portion)

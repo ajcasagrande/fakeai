@@ -96,8 +96,10 @@ class ErrorStats:
 
     total_checks: int = 0
     total_errors_injected: int = 0
-    errors_by_type: dict[str, int] = field(default_factory=lambda: defaultdict(int))
-    errors_by_endpoint: dict[str, int] = field(default_factory=lambda: defaultdict(int))
+    errors_by_type: dict[str, int] = field(
+        default_factory=lambda: defaultdict(int))
+    errors_by_endpoint: dict[str, int] = field(
+        default_factory=lambda: defaultdict(int))
     last_reset_time: float = field(default_factory=time.time)
 
     def error_rate(self) -> float:
@@ -238,7 +240,8 @@ class ErrorInjector:
 
         with self._lock:
             self._error_types = error_types
-            logger.info(f"Error types set to: {[e.value for e in error_types]}")
+            logger.info(
+                f"Error types set to: {[e.value for e in error_types]}")
 
     def simulate_load_spike(
         self, duration_seconds: float, error_rate_multiplier: float = 3.0
@@ -273,7 +276,8 @@ class ErrorInjector:
                 self._load_spike = None
                 logger.info("Load spike simulation cleared")
 
-    def should_inject_error(self, endpoint: str) -> tuple[bool, dict[str, Any] | None]:
+    def should_inject_error(
+            self, endpoint: str) -> tuple[bool, dict[str, Any] | None]:
         """
         Determine if an error should be injected for this request.
 
@@ -369,8 +373,12 @@ class ErrorInjector:
                 load_spike_info = {
                     "active": True,
                     "error_rate_multiplier": self._load_spike.error_rate_multiplier,
-                    "elapsed_seconds": round(elapsed, 2),
-                    "remaining_seconds": round(remaining, 2),
+                    "elapsed_seconds": round(
+                        elapsed,
+                        2),
+                    "remaining_seconds": round(
+                        remaining,
+                        2),
                 }
 
             return {
@@ -412,7 +420,9 @@ class ErrorInjector:
                 "# HELP fakeai_error_injection_enabled Whether error injection is enabled"
             )
             lines.append("# TYPE fakeai_error_injection_enabled gauge")
-            lines.append(f"fakeai_error_injection_enabled {1 if self._enabled else 0}")
+            lines.append(
+                f"fakeai_error_injection_enabled {
+                    1 if self._enabled else 0}")
 
             # Global error rate
             lines.append(
@@ -420,8 +430,8 @@ class ErrorInjector:
             )
             lines.append("# TYPE fakeai_error_injection_global_rate gauge")
             lines.append(
-                f"fakeai_error_injection_global_rate {self._global_error_rate:.6f}"
-            )
+                f"fakeai_error_injection_global_rate {
+                    self._global_error_rate:.6f}")
 
             # Total checks
             lines.append(
@@ -429,8 +439,8 @@ class ErrorInjector:
             )
             lines.append("# TYPE fakeai_error_injection_checks_total counter")
             lines.append(
-                f"fakeai_error_injection_checks_total {self._stats.total_checks}"
-            )
+                f"fakeai_error_injection_checks_total {
+                    self._stats.total_checks}")
 
             # Total errors injected
             lines.append(
@@ -438,15 +448,17 @@ class ErrorInjector:
             )
             lines.append("# TYPE fakeai_error_injection_errors_total counter")
             lines.append(
-                f"fakeai_error_injection_errors_total {self._stats.total_errors_injected}"
-            )
+                f"fakeai_error_injection_errors_total {
+                    self._stats.total_errors_injected}")
 
             # Overall error rate
             lines.append(
                 "# HELP fakeai_error_injection_rate Actual error injection rate"
             )
             lines.append("# TYPE fakeai_error_injection_rate gauge")
-            lines.append(f"fakeai_error_injection_rate {self._stats.error_rate():.6f}")
+            lines.append(
+                f"fakeai_error_injection_rate {
+                    self._stats.error_rate():.6f}")
 
             # Errors by type
             lines.append(
@@ -462,7 +474,8 @@ class ErrorInjector:
             lines.append(
                 "# HELP fakeai_error_injection_by_endpoint_total Errors injected by endpoint"
             )
-            lines.append("# TYPE fakeai_error_injection_by_endpoint_total counter")
+            lines.append(
+                "# TYPE fakeai_error_injection_by_endpoint_total counter")
             for endpoint, count in self._stats.errors_by_endpoint.items():
                 lines.append(
                     f'fakeai_error_injection_by_endpoint_total{{endpoint="{endpoint}"}} {count}'
@@ -473,7 +486,8 @@ class ErrorInjector:
                 lines.append(
                     "# HELP fakeai_error_injection_load_spike_active Load spike simulation active"
                 )
-                lines.append("# TYPE fakeai_error_injection_load_spike_active gauge")
+                lines.append(
+                    "# TYPE fakeai_error_injection_load_spike_active gauge")
                 lines.append("fakeai_error_injection_load_spike_active 1")
 
                 lines.append(
@@ -483,13 +497,14 @@ class ErrorInjector:
                     "# TYPE fakeai_error_injection_load_spike_multiplier gauge"
                 )
                 lines.append(
-                    f"fakeai_error_injection_load_spike_multiplier {self._load_spike.error_rate_multiplier:.2f}"
-                )
+                    f"fakeai_error_injection_load_spike_multiplier {
+                        self._load_spike.error_rate_multiplier:.2f}")
             else:
                 lines.append(
                     "# HELP fakeai_error_injection_load_spike_active Load spike simulation active"
                 )
-                lines.append("# TYPE fakeai_error_injection_load_spike_active gauge")
+                lines.append(
+                    "# TYPE fakeai_error_injection_load_spike_active gauge")
                 lines.append("fakeai_error_injection_load_spike_active 0")
 
             return "\n".join(lines) + "\n"

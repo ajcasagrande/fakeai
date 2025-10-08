@@ -17,9 +17,7 @@ import pytest
 from fakeai.kv_cache_advanced import (
     AdaptiveRouter,
     AdvancedKVCacheMetrics,
-    AdvancedRadixNode,
     AdvancedRadixTree,
-    CacheBlock,
     CacheCoordinator,
     CacheMemoryManager,
     WorkerPerformance,

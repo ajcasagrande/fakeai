@@ -8,7 +8,7 @@ import asyncio
 import json
 import time
 import uuid
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from fastapi import WebSocket

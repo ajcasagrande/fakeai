@@ -101,11 +101,14 @@ class ModelStats:
     latencies: list[float] = field(default_factory=list)
 
     # Endpoint breakdown
-    endpoint_requests: dict[str, int] = field(default_factory=lambda: defaultdict(int))
+    endpoint_requests: dict[str, int] = field(
+        default_factory=lambda: defaultdict(int))
 
     # User/API key breakdown
-    user_requests: dict[str, int] = field(default_factory=lambda: defaultdict(int))
-    user_tokens: dict[str, int] = field(default_factory=lambda: defaultdict(int))
+    user_requests: dict[str, int] = field(
+        default_factory=lambda: defaultdict(int))
+    user_tokens: dict[str, int] = field(
+        default_factory=lambda: defaultdict(int))
 
     # Time series tracking (timestamp -> count)
     request_timeline: list[tuple[float, int]] = field(default_factory=list)
@@ -209,37 +212,43 @@ class ModelMetricsTracker:
     _lock = threading.Lock()
 
     def __new__(cls):
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = super(ModelMetricsTracker, cls).__new__(cls)
-                cls._instance._initialized = False
-            return cls._instance
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(
+                        ModelMetricsTracker, cls).__new__(cls)
+                    cls._instance._initialized = False
+        return cls._instance
 
     def __init__(self):
-        if self._initialized:
-            return
+        # Move _initialized check inside lock to prevent TOCTOU race condition
+        with self._lock:
+            if self._initialized:
+                return
 
-        # Model stats storage
-        self._model_stats: dict[str, ModelStats] = defaultdict(
-            lambda: ModelStats(model="unknown")
-        )
+            # Model stats storage - using dict instead of defaultdict to avoid
+            # model="unknown" issue
+            self._model_stats: dict[str, ModelStats] = {}
 
-        # Multi-dimensional tracking
-        # (model, endpoint) -> count
-        self._model_endpoint_requests: dict[tuple[str, str], int] = defaultdict(int)
+            # Multi-dimensional tracking
+            # (model, endpoint) -> count
+            self._model_endpoint_requests: dict[tuple[str, str], int] = defaultdict(
+                int)
 
-        # (model, user) -> count
-        self._model_user_requests: dict[tuple[str, str], int] = defaultdict(int)
+            # (model, user) -> count
+            self._model_user_requests: dict[tuple[str, str], int] = defaultdict(
+                int)
 
-        # Time bucket tracking (hourly buckets)
-        # (model, hour_timestamp) -> count
-        self._model_time_requests: dict[tuple[str, int], int] = defaultdict(int)
+            # Time bucket tracking (hourly buckets)
+            # (model, hour_timestamp) -> count
+            self._model_time_requests: dict[tuple[str, int], int] = defaultdict(
+                int)
 
-        # Thread safety
-        self._data_lock = threading.Lock()
+            # Thread safety
+            self._data_lock = threading.Lock()
 
-        self._initialized = True
-        logger.info("Model metrics tracker initialized")
+            self._initialized = True
+            logger.info("Model metrics tracker initialized")
 
     def track_request(
         self,
@@ -287,7 +296,11 @@ class ModelMetricsTracker:
             hour_timestamp = int(time.time() // 3600) * 3600
             self._model_time_requests[(model, hour_timestamp)] += 1
 
-    def track_tokens(self, model: str, prompt_tokens: int, completion_tokens: int):
+    def track_tokens(
+            self,
+            model: str,
+            prompt_tokens: int,
+            completion_tokens: int):
         """
         Track token usage for a model.
 
@@ -302,7 +315,8 @@ class ModelMetricsTracker:
 
             self._model_stats[model].total_prompt_tokens += prompt_tokens
             self._model_stats[model].total_completion_tokens += completion_tokens
-            self._model_stats[model].total_tokens += prompt_tokens + completion_tokens
+            self._model_stats[model].total_tokens += prompt_tokens + \
+                completion_tokens
 
     def track_latency(self, model: str, latency_ms: float):
         """
@@ -378,9 +392,8 @@ class ModelMetricsTracker:
             Dictionary mapping model ID to stats
         """
         with self._data_lock:
-            return {
-                model: self.get_model_stats(model) for model in self._model_stats.keys()
-            }
+            return {model: self.get_model_stats(
+                model) for model in self._model_stats.keys()}
 
     def compare_models(self, model1: str, model2: str) -> dict[str, Any]:
         """
@@ -462,14 +475,14 @@ class ModelMetricsTracker:
                 ),
                 "error_rate": (
                     model1
-                    if stats1["errors"]["rate_percent"]
-                    < stats2["errors"]["rate_percent"]
+                    if stats1["errors"]["rate_percent"] <
+                    stats2["errors"]["rate_percent"]
                     else model2
                 ),
                 "cost_efficiency": (
                     model1
-                    if stats1["cost"]["per_request_usd"]
-                    < stats2["cost"]["per_request_usd"]
+                    if stats1["cost"]["per_request_usd"] <
+                    stats2["cost"]["per_request_usd"]
                     else model2
                 ),
             },
@@ -513,10 +526,14 @@ class ModelMetricsTracker:
         }
 
         if metric not in sort_keys:
-            logger.warning(f"Unknown metric '{metric}', defaulting to 'request_count'")
+            logger.warning(
+                f"Unknown metric '{metric}', defaulting to 'request_count'")
             metric = "request_count"
 
-        sorted_models = sorted(all_stats.values(), key=sort_keys[metric], reverse=True)
+        sorted_models = sorted(
+            all_stats.values(),
+            key=sort_keys[metric],
+            reverse=True)
 
         return sorted_models[:limit]
 
@@ -531,7 +548,8 @@ class ModelMetricsTracker:
 
         with self._data_lock:
             # Request count by model
-            lines.append("# HELP fakeai_model_requests_total Total requests per model")
+            lines.append(
+                "# HELP fakeai_model_requests_total Total requests per model")
             lines.append("# TYPE fakeai_model_requests_total counter")
             for model, stats in self._model_stats.items():
                 lines.append(
@@ -539,7 +557,8 @@ class ModelMetricsTracker:
                 )
 
             # Token usage by model
-            lines.append("# HELP fakeai_model_tokens_total Total tokens per model")
+            lines.append(
+                "# HELP fakeai_model_tokens_total Total tokens per model")
             lines.append("# TYPE fakeai_model_tokens_total counter")
             for model, stats in self._model_stats.items():
                 lines.append(
@@ -577,7 +596,8 @@ class ModelMetricsTracker:
                     )
 
             # Error rate by model
-            lines.append("# HELP fakeai_model_errors_total Total errors per model")
+            lines.append(
+                "# HELP fakeai_model_errors_total Total errors per model")
             lines.append("# TYPE fakeai_model_errors_total counter")
             for model, stats in self._model_stats.items():
                 lines.append(
@@ -638,7 +658,8 @@ class ModelMetricsTracker:
                 if hour_ts >= hours_24_ago:
                     if model not in model_time:
                         model_time[model] = []
-                    model_time[model].append({"timestamp": hour_ts, "count": count})
+                    model_time[model].append(
+                        {"timestamp": hour_ts, "count": count})
 
             return {
                 "model_by_endpoint": model_endpoint,

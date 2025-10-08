@@ -11,12 +11,7 @@ Comprehensive tests for streaming_metrics.py covering all functionality:
 
 #  SPDX-License-Identifier: Apache-2.0
 
-import statistics
-import time
-from typing import List
 
-import numpy as np
-import pytest
 
 from fakeai.streaming_metrics import (
     ClientBehavior,

@@ -29,8 +29,8 @@ class EmbeddingRequest(BaseModel):
         default="float", description="The format of the embeddings."
     )
     dimensions: int | None = Field(
-        default=None, description="The number of dimensions to use for the embeddings."
-    )
+        default=None,
+        description="The number of dimensions to use for the embeddings.")
 
 
 class Embedding(BaseModel):
@@ -48,16 +48,12 @@ class Embedding(BaseModel):
 class EmbeddingResponse(BaseModel):
     """Response for embeddings."""
 
-    object: Literal["list"] = Field(default="list", description="The object type.")
+    object: Literal["list"] = Field(
+        default="list", description="The object type.")
     data: list[Embedding] = Field(description="The list of embedding objects.")
     model: str = Field(description="The model used for embeddings.")
     usage: Usage = Field(description="Usage statistics.")
 
 
-class EmbeddingsUsageResponse(BaseModel):
-    """Response for embeddings usage data."""
-
-    object: Literal["page"] = Field(default="page", description="The object type.")
-    data: list = Field(description="List of usage buckets.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
-    next_page: str | None = Field(default=None, description="URL for next page.")
+# Note: EmbeddingsUsageResponse is now in billing.py to avoid duplication
+# with other usage models

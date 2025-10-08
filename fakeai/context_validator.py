@@ -21,6 +21,7 @@ class ContextLengthExceededError(Exception):
         super().__init__(message)
         self.error_dict = error_dict
 
+
 # Model context windows (in tokens)
 MODEL_CONTEXT_WINDOWS = {
     "gpt-4": 8192,

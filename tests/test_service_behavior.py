@@ -8,7 +8,6 @@ import pytest
 
 from fakeai.models import (
     ChatCompletionRequest,
-    CompletionRequest,
     EmbeddingRequest,
     ImageContent,
     ImageGenerationRequest,

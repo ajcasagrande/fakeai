@@ -5,7 +5,6 @@ Tests the complete fine-tuning workflow including job creation,
 status progression, event streaming, and checkpoints.
 """
 
-import asyncio
 import time
 
 import pytest

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Fast test matrix - runs each file with 10s timeout."""
 
-import subprocess
-from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
+import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+
 
 def test_file(test_file):
     """Test a single file with short timeout."""

@@ -19,8 +19,6 @@ Total: 50+ comprehensive integration tests
 import asyncio
 import json
 import time
-from typing import Any
-from unittest.mock import patch
 
 import pytest
 
@@ -48,7 +46,6 @@ from fakeai.models import (
     StreamOptions,
     TextContent,
     Tool,
-    ToolChoice,
 )
 
 # ============================================================================

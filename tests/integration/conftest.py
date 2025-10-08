@@ -1,8 +1,10 @@
 """Pytest configuration for integration tests."""
 
 import os
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from .utils import FakeAIClient, ServerManager
 
 
@@ -25,9 +27,9 @@ def client(request):
         # Patch environment and reload config
         with patch.dict(os.environ, env_vars, clear=False):
             # Reload the app config to pick up new environment variables
-            from fakeai.config import AppConfig
             import sys
-            import fakeai.app  # Ensure module is loaded
+
+            from fakeai.config import AppConfig
             app_module = sys.modules['fakeai.app']
 
             # Create new config with updated environment
@@ -139,9 +141,9 @@ def server_function_scoped(request):
     # Patch environment and reload config
     with patch.dict(os.environ, env_vars, clear=False):
         # Reload the app config to pick up new environment variables
-        from fakeai.config import AppConfig
         import sys
-        import fakeai.app  # Ensure module is loaded
+
+        from fakeai.config import AppConfig
         app_module = sys.modules['fakeai.app']
 
         # Create new config with updated environment

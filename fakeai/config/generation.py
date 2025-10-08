@@ -63,27 +63,31 @@ class GenerationConfig(ModuleConfig):
     )
 
     # Latency simulation settings (TTFT and ITL)
+    # Realistic values based on modern GPU LLM inference:
+    # - TTFT: 180-250ms for optimized models (GPT-4o-mini, Claude-3-haiku)
+    # - ITL: 8-12ms for single-token generation
+    # These values simulate real-world performance of production LLM APIs
     ttft_ms: float = Field(
-        default=20.0,
+        default=200.0,
         ge=0.0,
-        description="Time to first token in milliseconds (default: 20ms).",
+        description="Time to first token in milliseconds (default: 200ms, realistic for modern GPUs).",
     )
     ttft_variance_percent: float = Field(
-        default=10.0,
+        default=15.0,
         ge=0.0,
         le=100.0,
-        description="Variance/jitter for TTFT as percentage (default: 10%).",
+        description="Variance/jitter for TTFT as percentage (default: 15%).",
     )
     itl_ms: float = Field(
-        default=5.0,
-        ge=0.0,
-        description="Inter-token latency in milliseconds (default: 5ms).",
-    )
-    itl_variance_percent: float = Field(
         default=10.0,
         ge=0.0,
+        description="Inter-token latency in milliseconds (default: 10ms, realistic for modern GPUs).",
+    )
+    itl_variance_percent: float = Field(
+        default=15.0,
+        ge=0.0,
         le=100.0,
-        description="Variance/jitter for ITL as percentage (default: 10%).",
+        description="Variance/jitter for ITL as percentage (default: 15%).",
     )
 
     @field_validator("response_delay")

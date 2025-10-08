@@ -10,9 +10,7 @@ various audio format support.
 
 import base64
 import io
-import json
 import re
-import struct
 import wave
 
 import pytest

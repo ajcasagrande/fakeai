@@ -7,7 +7,6 @@ Tests for StreamManager.
 import pytest
 
 from fakeai.streaming.base import (
-    StreamContext,
     StreamStatus,
     StreamTimeoutException,
     StreamType,

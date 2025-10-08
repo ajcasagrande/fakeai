@@ -5,7 +5,10 @@ This handler delegates to the EmbeddingService for generating text embeddings.
 """
 #  SPDX-License-Identifier: Apache-2.0
 
+from typing import Optional
+
 from fakeai.config import AppConfig
+from fakeai.events import AsyncEventBus
 from fakeai.handlers.base import EndpointHandler, RequestContext
 from fakeai.handlers.registry import register_handler
 from fakeai.metrics import MetricsTracker
@@ -33,9 +36,10 @@ class EmbeddingHandler(EndpointHandler[EmbeddingRequest, EmbeddingResponse]):
         self,
         config: AppConfig,
         metrics_tracker: MetricsTracker,
+        event_bus: Optional[AsyncEventBus] = None,
     ):
         """Initialize the handler."""
-        super().__init__(config, metrics_tracker)
+        super().__init__(config, metrics_tracker, event_bus=event_bus)
         self.embedding_service = EmbeddingService(
             config=config,
             metrics_tracker=metrics_tracker,
@@ -68,12 +72,5 @@ class EmbeddingHandler(EndpointHandler[EmbeddingRequest, EmbeddingResponse]):
         context: RequestContext,
     ) -> EmbeddingResponse:
         """Post-process the embedding response."""
-        # Track token usage
-        if response.usage:
-            self.metrics_tracker.track_tokens(
-                context.endpoint,
-                response.usage.total_tokens,
-            )
-
-        # Call parent post-process
+        # Token usage now tracked via events in base handler
         return await super().post_process(response, context)

@@ -4,7 +4,6 @@ Tests for FakeAI Latency Histogram Tracking
 """
 #  SPDX-License-Identifier: Apache-2.0
 
-import math
 import random
 import threading
 

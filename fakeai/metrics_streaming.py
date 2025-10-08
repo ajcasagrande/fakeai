@@ -10,12 +10,12 @@ Provides subscription-based metric updates with filtering capabilities.
 import asyncio
 import json
 import logging
+import threading
 import time
 import uuid
-from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 
 from fastapi import WebSocket
 
@@ -38,9 +38,10 @@ class MetricType(Enum):
 class SubscriptionFilter:
     """Filter configuration for metric subscriptions."""
 
-    endpoints: Set[str] = field(default_factory=set)
-    models: Set[str] = field(default_factory=set)
-    metric_types: Set[MetricType] = field(default_factory=lambda: {MetricType.ALL})
+    endpoints: set[str] = field(default_factory=set)
+    models: set[str] = field(default_factory=set)
+    metric_types: set[MetricType] = field(
+        default_factory=lambda: {MetricType.ALL})
     interval: float = 1.0  # Update interval in seconds
 
 
@@ -60,12 +61,12 @@ class MetricSnapshot:
     """Snapshot of metrics at a point in time."""
 
     timestamp: float
-    throughput: Dict[str, Any] = field(default_factory=dict)
-    latency: Dict[str, Any] = field(default_factory=dict)
-    cache: Dict[str, Any] = field(default_factory=dict)
-    queue: Dict[str, Any] = field(default_factory=dict)
-    streaming: Dict[str, Any] = field(default_factory=dict)
-    error: Dict[str, Any] = field(default_factory=dict)
+    throughput: dict[str, Any] = field(default_factory=dict)
+    latency: dict[str, Any] = field(default_factory=dict)
+    cache: dict[str, Any] = field(default_factory=dict)
+    queue: dict[str, Any] = field(default_factory=dict)
+    streaming: dict[str, Any] = field(default_factory=dict)
+    error: dict[str, Any] = field(default_factory=dict)
 
 
 class MetricsStreamer:
@@ -84,7 +85,8 @@ class MetricsStreamer:
             metrics_tracker: MetricsTracker instance to pull metrics from
         """
         self.metrics_tracker = metrics_tracker
-        self.clients: Dict[str, ClientConnection] = {}
+        self.clients: dict[str, ClientConnection] = {}
+        self._clients_lock = threading.Lock()  # Thread safety for client dictionary
         self._broadcast_task = None
         self._running = False
         self._previous_snapshot: Optional[MetricSnapshot] = None
@@ -122,7 +124,8 @@ class MetricsStreamer:
         client = ClientConnection(
             ws_id=ws_id, websocket=websocket, filters=SubscriptionFilter()
         )
-        self.clients[ws_id] = client
+        with self._clients_lock:
+            self.clients[ws_id] = client
 
         logger.info(f"WebSocket client connected: {ws_id}")
 
@@ -140,18 +143,24 @@ class MetricsStreamer:
                 except json.JSONDecodeError as e:
                     await self._send_error(client, f"Invalid JSON: {str(e)}")
                 except Exception as e:
-                    logger.exception(f"Error handling client message: {str(e)}")
+                    logger.exception(
+                        f"Error handling client message: {
+                            str(e)}")
                     await self._send_error(client, f"Internal error: {str(e)}")
 
         except Exception as e:
             logger.info(f"WebSocket client {ws_id} disconnected: {str(e)}")
         finally:
             client.connected = False
-            if ws_id in self.clients:
-                del self.clients[ws_id]
+            with self._clients_lock:
+                if ws_id in self.clients:
+                    del self.clients[ws_id]
             logger.info(f"WebSocket client removed: {ws_id}")
 
-    async def _handle_client_message(self, client: ClientConnection, message: dict):
+    async def _handle_client_message(
+            self,
+            client: ClientConnection,
+            message: dict):
         """
         Handle incoming messages from clients.
 
@@ -224,9 +233,14 @@ class MetricsStreamer:
             },
         )
 
-        logger.info(f"Client {client.ws_id} subscribed with filters: {filters}")
+        logger.info(
+            f"Client {
+                client.ws_id} subscribed with filters: {filters}")
 
-    async def _handle_unsubscribe(self, client: ClientConnection, message: dict):
+    async def _handle_unsubscribe(
+            self,
+            client: ClientConnection,
+            message: dict):
         """
         Handle unsubscribe requests.
 
@@ -251,13 +265,21 @@ class MetricsStreamer:
             client: Client connection
         """
         try:
+            # Check if client is still connected before sending historical data
+            if not client.connected:
+                logger.debug(
+                    f"Client {
+                        client.ws_id} disconnected before historical data could be sent")
+                return
+
             # Get current metrics
             metrics = self.metrics_tracker.get_metrics()
 
             # Build historical snapshot
             snapshot = self._build_snapshot(metrics)
 
-            # Send to client
+            # Send to client (with additional connection check inside
+            # _send_message)
             await self._send_message(
                 client,
                 {
@@ -277,7 +299,11 @@ class MetricsStreamer:
             logger.debug(f"Sent historical data to client {client.ws_id}")
 
         except Exception as e:
-            logger.exception(f"Error sending historical data: {str(e)}")
+            logger.error(
+                f"Error sending historical data to client {
+                    client.ws_id}: {
+                    str(e)}")
+            client.connected = False
 
     async def _broadcast_loop(self):
         """Background loop that broadcasts metrics to all clients."""
@@ -342,13 +368,15 @@ class MetricsStreamer:
         if "requests" in metrics:
             throughput["requests_per_sec"] = {}
             for endpoint, stats in metrics["requests"].items():
-                throughput["requests_per_sec"][endpoint] = stats.get("rate", 0.0)
+                throughput["requests_per_sec"][endpoint] = stats.get(
+                    "rate", 0.0)
 
         # Responses per second by endpoint
         if "responses" in metrics:
             throughput["responses_per_sec"] = {}
             for endpoint, stats in metrics["responses"].items():
-                throughput["responses_per_sec"][endpoint] = stats.get("rate", 0.0)
+                throughput["responses_per_sec"][endpoint] = stats.get(
+                    "rate", 0.0)
 
         # Tokens per second by endpoint
         if "tokens" in metrics:
@@ -387,8 +415,7 @@ class MetricsStreamer:
         """Extract KV cache performance metrics."""
         try:
             cache_stats = (
-                self.metrics_tracker.fakeai_service.kv_cache_metrics.get_stats()
-            )
+                self.metrics_tracker.fakeai_service.kv_cache_metrics.get_stats())
 
             # Extract cache performance
             cache_perf = cache_stats.get("cache_performance", {})
@@ -423,7 +450,8 @@ class MetricsStreamer:
         streaming_stats = metrics.get("streaming_stats", {})
 
         streaming["active_streams"] = streaming_stats.get("active_streams", 0)
-        streaming["completed_streams"] = streaming_stats.get("completed_streams", 0)
+        streaming["completed_streams"] = streaming_stats.get(
+            "completed_streams", 0)
         streaming["failed_streams"] = streaming_stats.get("failed_streams", 0)
 
         # TTFT stats
@@ -462,7 +490,8 @@ class MetricsStreamer:
                 errors["errors_per_sec"][endpoint] = stats.get("rate", 0.0)
 
             # Calculate total error rate
-            errors["total_errors_per_sec"] = sum(errors["errors_per_sec"].values())
+            errors["total_errors_per_sec"] = sum(
+                errors["errors_per_sec"].values())
 
         return errors
 
@@ -475,7 +504,10 @@ class MetricsStreamer:
         """
         disconnected_clients = []
 
-        for ws_id, client in list(self.clients.items()):
+        with self._clients_lock:
+            clients_copy = dict(self.clients)
+
+        for ws_id, client in clients_copy.items():
             if not client.connected:
                 disconnected_clients.append(ws_id)
                 continue
@@ -489,7 +521,8 @@ class MetricsStreamer:
                 filtered_data = self._filter_snapshot(snapshot, client.filters)
 
                 # Calculate deltas if requested
-                deltas = self._calculate_deltas(snapshot, self._previous_snapshot)
+                deltas = self._calculate_deltas(
+                    snapshot, self._previous_snapshot)
 
                 # Send update
                 await self._send_message(
@@ -505,14 +538,17 @@ class MetricsStreamer:
                 client.last_update = time.time()
 
             except Exception as e:
-                logger.exception(f"Error broadcasting to client {ws_id}: {str(e)}")
+                logger.exception(
+                    f"Error broadcasting to client {ws_id}: {
+                        str(e)}")
                 client.connected = False
                 disconnected_clients.append(ws_id)
 
         # Clean up disconnected clients
-        for ws_id in disconnected_clients:
-            if ws_id in self.clients:
-                del self.clients[ws_id]
+        with self._clients_lock:
+            for ws_id in disconnected_clients:
+                if ws_id in self.clients:
+                    del self.clients[ws_id]
 
     def _filter_snapshot(
         self, snapshot: MetricSnapshot, filters: SubscriptionFilter
@@ -564,7 +600,7 @@ class MetricsStreamer:
 
         return filtered
 
-    def _filter_by_endpoint(self, data: dict, endpoints: Set[str]) -> dict:
+    def _filter_by_endpoint(self, data: dict, endpoints: set[str]) -> dict:
         """
         Filter metrics data by endpoint.
 
@@ -615,12 +651,12 @@ class MetricsStreamer:
         if current.throughput and previous.throughput:
             deltas["throughput"] = {
                 "total_requests_per_sec": (
-                    current.throughput.get("total_requests_per_sec", 0.0)
-                    - previous.throughput.get("total_requests_per_sec", 0.0)
+                    current.throughput.get("total_requests_per_sec", 0.0) -
+                    previous.throughput.get("total_requests_per_sec", 0.0)
                 ),
                 "total_tokens_per_sec": (
-                    current.throughput.get("total_tokens_per_sec", 0.0)
-                    - previous.throughput.get("total_tokens_per_sec", 0.0)
+                    current.throughput.get("total_tokens_per_sec", 0.0) -
+                    previous.throughput.get("total_tokens_per_sec", 0.0)
                 ),
             }
 
@@ -628,8 +664,8 @@ class MetricsStreamer:
         if current.streaming and previous.streaming:
             deltas["streaming"] = {
                 "active_streams_delta": (
-                    current.streaming.get("active_streams", 0)
-                    - previous.streaming.get("active_streams", 0)
+                    current.streaming.get("active_streams", 0) -
+                    previous.streaming.get("active_streams", 0)
                 ),
             }
 
@@ -643,10 +679,20 @@ class MetricsStreamer:
             client: Client connection
             message: Message dictionary to send
         """
+        # Check if client is still connected before attempting to send
+        if not client.connected:
+            logger.debug(
+                f"Client {
+                    client.ws_id} is not connected, skipping message")
+            return
+
         try:
             await client.websocket.send_text(json.dumps(message))
         except Exception as e:
-            logger.error(f"Error sending message to client {client.ws_id}: {str(e)}")
+            logger.error(
+                f"Error sending message to client {
+                    client.ws_id}: {
+                    str(e)}")
             client.connected = False
             raise
 
@@ -658,14 +704,21 @@ class MetricsStreamer:
             client: Client connection
             error_message: Error message to send
         """
-        await self._send_message(
-            client,
-            {
-                "type": "error",
-                "timestamp": time.time(),
-                "message": error_message,
-            },
-        )
+        try:
+            await self._send_message(
+                client,
+                {
+                    "type": "error",
+                    "timestamp": time.time(),
+                    "message": error_message,
+                },
+            )
+        except Exception as e:
+            # Failed to send error message, client is probably disconnected
+            logger.debug(
+                f"Could not send error message to client {
+                    client.ws_id}: {
+                    str(e)}")
 
     def subscribe(self, ws_id: str, filters: dict):
         """
@@ -679,11 +732,12 @@ class MetricsStreamer:
             "subscribe() method is deprecated - use WebSocket subscribe message"
         )
 
-        if ws_id not in self.clients:
-            logger.warning(f"Client {ws_id} not found")
-            return
+        with self._clients_lock:
+            if ws_id not in self.clients:
+                logger.warning(f"Client {ws_id} not found")
+                return
 
-        client = self.clients[ws_id]
+            client = self.clients[ws_id]
 
         # Update filters
         if "endpoint" in filters:
@@ -711,26 +765,28 @@ class MetricsStreamer:
         Returns:
             Number of connected clients
         """
-        return len([c for c in self.clients.values() if c.connected])
+        with self._clients_lock:
+            return len([c for c in self.clients.values() if c.connected])
 
-    def get_client_info(self) -> List[dict]:
+    def get_client_info(self) -> list[dict]:
         """
         Get information about all connected clients.
 
         Returns:
             List of client info dictionaries
         """
-        return [
-            {
-                "ws_id": client.ws_id,
-                "connected": client.connected,
-                "filters": {
-                    "endpoints": list(client.filters.endpoints),
-                    "models": list(client.filters.models),
-                    "metric_types": [mt.value for mt in client.filters.metric_types],
-                    "interval": client.filters.interval,
-                },
-                "last_update": client.last_update,
-            }
-            for client in self.clients.values()
-        ]
+        with self._clients_lock:
+            return [
+                {
+                    "ws_id": client.ws_id,
+                    "connected": client.connected,
+                    "filters": {
+                        "endpoints": list(client.filters.endpoints),
+                        "models": list(client.filters.models),
+                        "metric_types": [mt.value for mt in client.filters.metric_types],
+                        "interval": client.filters.interval,
+                    },
+                    "last_update": client.last_update,
+                }
+                for client in self.clients.values()
+            ]

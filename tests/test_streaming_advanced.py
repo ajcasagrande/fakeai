@@ -7,13 +7,13 @@ Tests error handling, timeout enforcement, client disconnection, and streaming m
 #  SPDX-License-Identifier: Apache-2.0
 
 import asyncio
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from fakeai import AppConfig
 from fakeai.fakeai_service import FakeAIService
-from fakeai.models import ChatCompletionChunk, ChatCompletionRequest, Message, Role
+from fakeai.models import ChatCompletionRequest, Message, Role
 
 
 class TestStreamingErrorHandling:

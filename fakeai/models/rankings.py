@@ -42,8 +42,10 @@ class RankingRequest(BaseModel):
 class RankingObject(BaseModel):
     """Ranking result object."""
 
-    index: int = Field(description="Zero-based index of passage in original request.")
-    logit: float = Field(description="Raw unnormalized relevance score (higher is better).")
+    index: int = Field(
+        description="Zero-based index of passage in original request.")
+    logit: float = Field(
+        description="Raw unnormalized relevance score (higher is better).")
 
 
 class RankingResponse(BaseModel):

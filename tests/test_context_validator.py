@@ -2,7 +2,6 @@
 Tests for context_validator module.
 """
 
-import pytest
 
 from fakeai.context_validator import (
     MODEL_CONTEXT_WINDOWS,

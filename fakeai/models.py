@@ -22,7 +22,8 @@ class ModelPermission(BaseModel):
     object: Literal["model_permission"] = Field(
         default="model_permission", description="The object type."
     )
-    created: int = Field(description="Unix timestamp when this permission was created.")
+    created: int = Field(
+        description="Unix timestamp when this permission was created.")
     allow_create_engine: bool = Field(
         description="Whether the user can create engines with this model."
     )
@@ -36,12 +37,15 @@ class ModelPermission(BaseModel):
         description="Whether search indices are allowed for this model."
     )
     allow_view: bool = Field(description="Whether the model can be viewed.")
-    allow_fine_tuning: bool = Field(description="Whether the model can be fine-tuned.")
-    organization: str = Field(description="The organization this permission is for.")
+    allow_fine_tuning: bool = Field(
+        description="Whether the model can be fine-tuned.")
+    organization: str = Field(
+        description="The organization this permission is for.")
     group: str | None = Field(
         default=None, description="The group this permission is for."
     )
-    is_blocking: bool = Field(description="Whether this permission is blocking.")
+    is_blocking: bool = Field(
+        description="Whether this permission is blocking.")
 
 
 class ModelPricing(BaseModel):
@@ -54,41 +58,42 @@ class ModelPricing(BaseModel):
         description="Cost per 1 million output tokens in USD."
     )
     cached_input_per_million: float | None = Field(
-        default=None, description="Cost per 1 million cached input tokens in USD."
-    )
+        default=None, description="Cost per 1 million cached input tokens in USD.")
 
 
 class Model(BaseModel):
     """OpenAI model information."""
 
     id: str = Field(description="The model identifier.")
-    object: Literal["model"] = Field(default="model", description="The object type.")
-    created: int = Field(description="Unix timestamp when this model was created.")
+    object: Literal["model"] = Field(
+        default="model", description="The object type.")
+    created: int = Field(
+        description="Unix timestamp when this model was created.")
     owned_by: str = Field(description="Organization that owns the model.")
     permission: list[ModelPermission] = Field(
         description="List of permissions for this model."
     )
     root: str | None = Field(
-        default=None, description="Root model from which this model was created."
-    )
+        default=None,
+        description="Root model from which this model was created.")
     parent: str | None = Field(
-        default=None, description="Parent model from which this model was created."
-    )
+        default=None,
+        description="Parent model from which this model was created.")
     context_window: int = Field(
         default=8192, description="Maximum context window size in tokens."
     )
     max_output_tokens: int = Field(
-        default=4096, description="Maximum number of tokens that can be generated."
-    )
+        default=4096,
+        description="Maximum number of tokens that can be generated.")
     supports_vision: bool = Field(
-        default=False, description="Whether the model supports vision/image inputs."
-    )
+        default=False,
+        description="Whether the model supports vision/image inputs.")
     supports_audio: bool = Field(
         default=False, description="Whether the model supports audio inputs."
     )
     supports_tools: bool = Field(
-        default=True, description="Whether the model supports function/tool calling."
-    )
+        default=True,
+        description="Whether the model supports function/tool calling.")
     training_cutoff: str | None = Field(
         default=None, description="Training data cutoff date (YYYY-MM format)."
     )
@@ -100,7 +105,8 @@ class Model(BaseModel):
 class ModelListResponse(BaseModel):
     """Response for listing available models."""
 
-    object: Literal["list"] = Field(default="list", description="The object type.")
+    object: Literal["list"] = Field(
+        default="list", description="The object type.")
     data: list[Model] = Field(description="List of model objects.")
 
 
@@ -111,14 +117,16 @@ class ModelCapabilitiesResponse(BaseModel):
     object: Literal["model.capabilities"] = Field(
         default="model.capabilities", description="The object type."
     )
-    context_window: int = Field(description="Maximum context window size in tokens.")
+    context_window: int = Field(
+        description="Maximum context window size in tokens.")
     max_output_tokens: int = Field(
         description="Maximum number of tokens that can be generated."
     )
     supports_vision: bool = Field(
         description="Whether the model supports vision/image inputs."
     )
-    supports_audio: bool = Field(description="Whether the model supports audio inputs.")
+    supports_audio: bool = Field(
+        description="Whether the model supports audio inputs.")
     supports_tools: bool = Field(
         description="Whether the model supports function/tool calling."
     )
@@ -133,14 +141,16 @@ class ModelCapabilitiesResponse(BaseModel):
 class PromptTokensDetails(BaseModel):
     """Breakdown of prompt tokens."""
 
-    cached_tokens: int = Field(default=0, description="Number of cached tokens.")
+    cached_tokens: int = Field(
+        default=0, description="Number of cached tokens.")
     audio_tokens: int = Field(default=0, description="Number of audio tokens.")
 
 
 class CompletionTokensDetails(BaseModel):
     """Breakdown of completion tokens."""
 
-    reasoning_tokens: int = Field(default=0, description="Number of reasoning tokens.")
+    reasoning_tokens: int = Field(
+        default=0, description="Number of reasoning tokens.")
     audio_tokens: int = Field(default=0, description="Number of audio tokens.")
     accepted_prediction_tokens: int = Field(
         default=0, description="Number of accepted prediction tokens."
@@ -153,7 +163,8 @@ class CompletionTokensDetails(BaseModel):
 class Usage(BaseModel):
     """Token usage information."""
 
-    prompt_tokens: int = Field(description="Number of tokens used in the prompt.")
+    prompt_tokens: int = Field(
+        description="Number of tokens used in the prompt.")
     completion_tokens: int | None = Field(
         default=None, description="Number of tokens used in the completion."
     )
@@ -170,8 +181,8 @@ class Usage(BaseModel):
         default=None, description="Alias for prompt_tokens in Responses API."
     )
     output_tokens: int | None = Field(
-        default=None, description="Alias for completion_tokens in Responses API."
-    )
+        default=None,
+        description="Alias for completion_tokens in Responses API.")
 
 
 class ErrorDetail(BaseModel):
@@ -218,7 +229,9 @@ class ImageUrl(BaseModel):
 class ImageContent(BaseModel):
     """Image content part."""
 
-    type: Literal["image_url"] = Field(default="image_url", description="Content type.")
+    type: Literal["image_url"] = Field(
+        default="image_url",
+        description="Content type.")
     image_url: ImageUrl = Field(description="Image URL configuration.")
 
 
@@ -252,7 +265,9 @@ class VideoUrl(BaseModel):
 class VideoContent(BaseModel):
     """Video content part (NVIDIA Cosmos extension)."""
 
-    type: Literal["video_url"] = Field(default="video_url", description="Content type.")
+    type: Literal["video_url"] = Field(
+        default="video_url",
+        description="Content type.")
     video_url: VideoUrl = Field(description="Video URL configuration.")
 
 
@@ -268,11 +283,15 @@ class RagDocument(BaseModel):
 
     id: str = Field(description="Document ID.")
     content: str = Field(description="Document content/text.")
-    score: float = Field(description="Relevance score (0.0-1.0).", ge=0.0, le=1.0)
+    score: float = Field(
+        description="Relevance score (0.0-1.0).",
+        ge=0.0,
+        le=1.0)
     metadata: dict[str, Any] | None = Field(
         default=None, description="Optional document metadata."
     )
-    source: str | None = Field(default=None, description="Document source/origin.")
+    source: str | None = Field(default=None,
+                               description="Document source/origin.")
 
 
 # Audio Output Configuration
@@ -305,7 +324,8 @@ class AudioOutput(BaseModel):
     id: str = Field(description="Unique identifier for the audio output.")
     data: str = Field(description="Base64-encoded audio data.")
     transcript: str = Field(description="Text transcript of the audio.")
-    expires_at: int = Field(description="Unix timestamp when the audio expires.")
+    expires_at: int = Field(
+        description="Unix timestamp when the audio expires.")
 
 
 # Logprobs Models for Chat Completions
@@ -357,8 +377,7 @@ class FunctionCall(BaseModel):
 
     name: str = Field(description="The name of the function to call.")
     arguments: str = Field(
-        description="The arguments to call the function with, encoded as a JSON string."
-    )
+        description="The arguments to call the function with, encoded as a JSON string.")
 
 
 class ToolCallFunction(BaseModel):
@@ -415,10 +434,16 @@ class JsonSchema(BaseModel):
     description: str | None = Field(
         default=None, description="Description of the response format."
     )
-    schema: dict[str, Any] = Field(description="JSON Schema object.")
-    strict: bool | None = Field(
-        default=None, description="Whether to enforce strict schema compliance."
+    schema_: dict[str, Any] = Field(
+        description="JSON Schema object.",
+        alias="schema"
     )
+    strict: bool | None = Field(
+        default=None,
+        description="Whether to enforce strict schema compliance."
+    )
+
+    model_config = {"populate_by_name": True}
 
 
 class JsonSchemaResponseFormat(BaseModel):
@@ -460,8 +485,8 @@ class Message(BaseModel):
         default=None, description="Function call information (deprecated)."
     )
     refusal: str | None = Field(
-        default=None, description="Refusal message if model refuses to fulfill request."
-    )
+        default=None,
+        description="Refusal message if model refuses to fulfill request.")
     reasoning_content: str | None = Field(
         default=None,
         description="Reasoning content showing the model's internal thinking process (gpt-oss and deepseek-ai/DeepSeek-R1 models).",
@@ -480,8 +505,7 @@ class PredictionContent(BaseModel):
         description="Type of prediction (currently only 'content' supported)",
     )
     content: str = Field(
-        description="Predicted output content to accelerate generation via speculative decoding"
-    )
+        description="Predicted output content to accelerate generation via speculative decoding")
 
 
 class ChatCompletionRequest(BaseModel):
@@ -501,11 +525,9 @@ class ChatCompletionRequest(BaseModel):
         default=None, description="A list of tools the model may call."
     )
     tool_choice: Literal["auto", "none", "required"] | ToolChoice | None = Field(
-        default=None, description="Controls which tool is called by the model."
-    )
+        default=None, description="Controls which tool is called by the model.")
     parallel_tool_calls: bool | None = Field(
-        default=True, description="Whether to enable parallel function calling."
-    )
+        default=True, description="Whether to enable parallel function calling.")
     temperature: float | None = Field(
         default=1.0, ge=0, le=2, description="Sampling temperature."
     )
@@ -513,14 +535,14 @@ class ChatCompletionRequest(BaseModel):
         default=1.0, ge=0, le=1, description="Nucleus sampling parameter."
     )
     n: int | None = Field(
-        default=1, ge=1, description="Number of completion choices to generate."
-    )
+        default=1,
+        ge=1,
+        description="Number of completion choices to generate.")
     stream: bool | None = Field(
         default=False, description="Whether to stream responses."
     )
     stream_options: StreamOptions | None = Field(
-        default=None, description="Options for streaming (only when stream=true)."
-    )
+        default=None, description="Options for streaming (only when stream=true).")
     stop: str | list[str] | None = Field(
         default=None,
         description="Sequences where the API will stop generating further tokens.",
@@ -541,7 +563,7 @@ class ChatCompletionRequest(BaseModel):
     )
     frequency_penalty: float | None = Field(
         default=0,
-        ge=-2.0,
+        ge=- 2.0,
         le=2.0,
         description="Penalty for new tokens based on frequency in text so far.",
     )
@@ -553,8 +575,10 @@ class ChatCompletionRequest(BaseModel):
         default=False, description="Whether to return log probabilities."
     )
     top_logprobs: int | None = Field(
-        default=None, ge=0, le=20, description="Number of most likely tokens to return."
-    )
+        default=None,
+        ge=0,
+        le=20,
+        description="Number of most likely tokens to return.")
     user: str | None = Field(
         default=None, description="A unique identifier for the end-user."
     )
@@ -574,8 +598,8 @@ class ChatCompletionRequest(BaseModel):
         default=None, description="Audio output configuration."
     )
     store: bool | None = Field(
-        default=False, description="Whether to store output for model distillation."
-    )
+        default=False,
+        description="Whether to store output for model distillation.")
     metadata: dict[str, str] | None = Field(
         default=None, description="Developer-defined tags and values."
     )
@@ -622,7 +646,8 @@ class FunctionDelta(BaseModel):
     """Partial function information in streaming."""
 
     name: str | None = Field(default=None, description="The function name.")
-    arguments: str | None = Field(default=None, description="Partial arguments string.")
+    arguments: str | None = Field(default=None,
+                                  description="Partial arguments string.")
 
 
 class ToolCallDelta(BaseModel):
@@ -630,8 +655,10 @@ class ToolCallDelta(BaseModel):
 
     index: int = Field(description="Index of the tool call in the array.")
     id: str | None = Field(default=None, description="Tool call ID.")
-    type: Literal["function"] | None = Field(default=None, description="Tool type.")
-    function: FunctionDelta | None = Field(default=None, description="Function delta.")
+    type: Literal["function"] | None = Field(
+        default=None, description="Tool type.")
+    function: FunctionDelta | None = Field(
+        default=None, description="Function delta.")
 
 
 class Delta(BaseModel):
@@ -640,7 +667,8 @@ class Delta(BaseModel):
     role: Role | None = Field(
         default=None, description="The role of the message author."
     )
-    content: str | None = Field(default=None, description="The content of the message.")
+    content: str | None = Field(default=None,
+                                description="The content of the message.")
     tool_calls: list[ToolCallDelta] | None = Field(
         default=None, description="Partial tool call information."
     )
@@ -716,8 +744,9 @@ class CompletionRequest(BaseModel):
         default=1.0, ge=0, le=1, description="Nucleus sampling parameter."
     )
     n: int | None = Field(
-        default=1, ge=1, description="Number of completion choices to generate."
-    )
+        default=1,
+        ge=1,
+        description="Number of completion choices to generate.")
     stream: bool | None = Field(
         default=False, description="Whether to stream responses."
     )
@@ -742,7 +771,7 @@ class CompletionRequest(BaseModel):
     )
     frequency_penalty: float | None = Field(
         default=0,
-        ge=-2.0,
+        ge=- 2.0,
         le=2.0,
         description="Penalty for new tokens based on frequency in text so far.",
     )
@@ -770,7 +799,8 @@ class LogProbs(BaseModel):
     top_logprobs: list[dict[str, float]] | None = Field(
         default=None, description="The log probabilities of the most likely tokens."
     )
-    text_offset: list[int] = Field(description="The text offsets of the tokens.")
+    text_offset: list[int] = Field(
+        description="The text offsets of the tokens.")
 
 
 class CompletionChoice(BaseModel):
@@ -839,8 +869,8 @@ class EmbeddingRequest(BaseModel):
         default="float", description="The format of the embeddings."
     )
     dimensions: int | None = Field(
-        default=None, description="The number of dimensions to use for the embeddings."
-    )
+        default=None,
+        description="The number of dimensions to use for the embeddings.")
 
 
 class Embedding(BaseModel):
@@ -856,7 +886,8 @@ class Embedding(BaseModel):
 class EmbeddingResponse(BaseModel):
     """Response for embeddings."""
 
-    object: Literal["list"] = Field(default="list", description="The object type.")
+    object: Literal["list"] = Field(
+        default="list", description="The object type.")
     data: list[Embedding] = Field(description="The list of embedding objects.")
     model: str = Field(description="The model used for embeddings.")
     usage: Usage = Field(description="Usage statistics.")
@@ -869,14 +900,16 @@ class FileObject(BaseModel):
     """File object information."""
 
     id: str = Field(description="The ID of the file.")
-    object: Literal["file"] = Field(default="file", description="The object type.")
+    object: Literal["file"] = Field(
+        default="file", description="The object type.")
     bytes: int = Field(description="The size of the file in bytes.")
     created_at: int = Field(
         description="The Unix timestamp when this file was created."
     )
     filename: str = Field(description="The filename.")
     purpose: str = Field(description="The purpose of the file.")
-    status: str | None = Field(default=None, description="The status of the file.")
+    status: str | None = Field(default=None,
+                               description="The status of the file.")
     status_details: str | None = Field(
         default=None, description="Additional details about the file status."
     )
@@ -885,7 +918,8 @@ class FileObject(BaseModel):
 class FileListResponse(BaseModel):
     """Response for listing files."""
 
-    object: Literal["list"] = Field(default="list", description="The object type.")
+    object: Literal["list"] = Field(
+        default="list", description="The object type.")
     data: list[FileObject] = Field(description="The list of file objects.")
 
 
@@ -919,13 +953,15 @@ class ImageStyle(str, Enum):
 class GeneratedImage(BaseModel):
     """A generated image."""
 
-    url: str | None = Field(default=None, description="The URL of the generated image.")
+    url: str | None = Field(
+        default=None,
+        description="The URL of the generated image.")
     b64_json: str | None = Field(
-        default=None, description="The base64-encoded JSON of the generated image."
-    )
+        default=None,
+        description="The base64-encoded JSON of the generated image.")
     revised_prompt: str | None = Field(
-        default=None, description="The revised prompt used to generate the image."
-    )
+        default=None,
+        description="The revised prompt used to generate the image.")
 
 
 class ImageResponseFormat(str, Enum):
@@ -939,8 +975,8 @@ class ImageGenerationRequest(BaseModel):
     """Request for image generation."""
 
     prompt: str = Field(
-        max_length=1000, description="A text description of the desired image(s)."
-    )
+        max_length=1000,
+        description="A text description of the desired image(s).")
     model: str | None = Field(
         default="stabilityai/stable-diffusion-2-1",
         description="The model to use for image generation.",
@@ -956,11 +992,11 @@ class ImageGenerationRequest(BaseModel):
         description="The format in which the images are returned.",
     )
     size: ImageSize | None = Field(
-        default=ImageSize.SIZE_1024, description="The size of the generated images."
-    )
+        default=ImageSize.SIZE_1024,
+        description="The size of the generated images.")
     style: ImageStyle | None = Field(
-        default=ImageStyle.VIVID, description="The style of the generated images."
-    )
+        default=ImageStyle.VIVID,
+        description="The style of the generated images.")
     user: str | None = Field(
         default=None, description="A unique identifier for the end-user."
     )
@@ -972,7 +1008,8 @@ class ImageGenerationResponse(BaseModel):
     created: int = Field(
         description="The Unix timestamp of when the images were created."
     )
-    data: list[GeneratedImage] = Field(description="The list of generated images.")
+    data: list[GeneratedImage] = Field(
+        description="The list of generated images.")
 
 
 # Text-to-Speech (Audio Speech API)
@@ -1001,6 +1038,75 @@ class SpeechRequest(BaseModel):
     )
 
 
+# Video Generation Models
+class VideoSize(str, Enum):
+    """Available video sizes."""
+
+    SIZE_512_512 = "512x512"
+    SIZE_1024_576 = "1024x576"
+    SIZE_576_1024 = "576x1024"
+    SIZE_1280_720 = "1280x720"
+    SIZE_720_1280 = "720x1280"
+
+
+class VideoFormat(str, Enum):
+    """Available video formats."""
+
+    MP4 = "mp4"
+    WEBM = "webm"
+    MOV = "mov"
+
+
+class GeneratedVideo(BaseModel):
+    """A generated video."""
+
+    url: str | None = Field(
+        default=None,
+        description="The URL of the generated video.")
+    b64_json: str | None = Field(
+        default=None,
+        description="The base64-encoded JSON of the generated video.")
+
+
+class VideoGenerationRequest(BaseModel):
+    """Request for video generation."""
+
+    prompt: str = Field(
+        max_length=1000, description="A text description of the desired video."
+    )
+    model: str | None = Field(
+        default="runway-gen3",
+        description="The model to use for video generation.",
+    )
+    duration: float | None = Field(
+        default=5.0,
+        ge=1.0,
+        le=10.0,
+        description="Duration of the video in seconds.")
+    size: VideoSize | None = Field(
+        default=VideoSize.SIZE_1280_720,
+        description="The size of the generated video.")
+    format: VideoFormat | None = Field(
+        default=VideoFormat.MP4,
+        description="The format of the generated video.")
+    fps: int | None = Field(
+        default=24, ge=12, le=60, description="Frames per second."
+    )
+    user: str | None = Field(
+        default=None, description="A unique identifier for the end-user."
+    )
+
+
+class VideoGenerationResponse(BaseModel):
+    """Response for video generation."""
+
+    created: int = Field(
+        description="The Unix timestamp of when the video was created."
+    )
+    data: list[GeneratedVideo] = Field(
+        description="The list of generated videos.")
+
+
 # Text generation (Azure API compatibility)
 class TextGenerationRequest(BaseModel):
     """Request for text generation (Azure API)."""
@@ -1011,14 +1117,16 @@ class TextGenerationRequest(BaseModel):
         default=100, description="The maximum number of tokens to generate."
     )
     temperature: float | None = Field(
-        default=1.0, ge=0, le=2, description="The temperature to use for sampling."
-    )
+        default=1.0,
+        ge=0,
+        le=2,
+        description="The temperature to use for sampling.")
     top_p: float | None = Field(
         default=0.95, ge=0, le=1, description="Top-p sampling parameter."
     )
     stop: list[str] | None = Field(
-        default=None, description="A list of tokens at which to stop generation."
-    )
+        default=None,
+        description="A list of tokens at which to stop generation.")
     user: str | None = Field(
         default=None, description="A unique identifier for the end-user."
     )
@@ -1027,10 +1135,10 @@ class TextGenerationRequest(BaseModel):
 class TextGenerationResponse(BaseModel):
     """Response for text generation (Azure API)."""
 
-    id: str = Field(description="A unique identifier for this text generation.")
+    id: str = Field(
+        description="A unique identifier for this text generation.")
     created: int = Field(
-        description="The Unix timestamp of when this text generation was created."
-    )
+        description="The Unix timestamp of when this text generation was created.")
     output: str = Field(description="The generated text.")
     usage: Usage = Field(description="Usage statistics.")
     model: str = Field(description="The model used for text generation.")
@@ -1049,7 +1157,8 @@ class ResponsesRequest(BaseModel):
     """Request for OpenAI Responses API."""
 
     model: str = Field(description="ID of the model to use.")
-    input: str | list[Message] = Field(description="Text or array of messages.")
+    input: str | list[Message] = Field(
+        description="Text or array of messages.")
     instructions: str | None = Field(
         default=None, description="System-level instructions."
     )
@@ -1057,8 +1166,7 @@ class ResponsesRequest(BaseModel):
         default=None, description="Tools the model may use."
     )
     previous_response_id: str | None = Field(
-        default=None, description="ID of prior response to continue conversation."
-    )
+        default=None, description="ID of prior response to continue conversation.")
     max_output_tokens: int | None = Field(
         default=None, ge=0, description="Maximum tokens in output."
     )
@@ -1081,8 +1189,7 @@ class ResponsesRequest(BaseModel):
         default=True, description="Whether to allow parallel tool execution."
     )
     tool_choice: Literal["auto", "none", "required"] | ToolChoice | None = Field(
-        default=None, description="Tool selection strategy."
-    )
+        default=None, description="Tool selection strategy.")
     response_format: ResponseFormat | JsonSchemaResponseFormat | None = Field(
         default=None, description="Output format specification."
     )
@@ -1104,7 +1211,8 @@ class ResponseOutputItem(BaseModel):
 class ResponseMessageOutput(ResponseOutputItem):
     """Message output item in Responses API."""
 
-    type: Literal["message"] = Field(default="message", description="Item type.")
+    type: Literal["message"] = Field(
+        default="message", description="Item type.")
     role: Role = Field(description="Message role.")
     content: list[ContentPart] = Field(description="Message content parts.")
 
@@ -1124,27 +1232,34 @@ class ResponsesResponse(BaseModel):
     """Response from OpenAI Responses API."""
 
     id: str = Field(description="Unique identifier for response.")
-    object: Literal["response"] = Field(default="response", description="Object type.")
+    object: Literal["response"] = Field(
+        default="response", description="Object type.")
     created_at: int = Field(description="Unix timestamp of creation.")
     model: str = Field(description="Model used.")
-    status: Literal[
-        "queued", "in_progress", "completed", "failed", "cancelled", "incomplete"
-    ] = Field(description="Response status.")
+    status: Literal["queued",
+                    "in_progress",
+                    "completed",
+                    "failed",
+                    "cancelled",
+                    "incomplete"] = Field(description="Response status.")
     error: ErrorDetail | None = Field(
         default=None, description="Error details if failed."
     )
     incomplete_details: dict[str, Any] | None = Field(
         default=None, description="Details about incompletion."
     )
-    instructions: str | None = Field(default=None, description="Instructions used.")
+    instructions: str | None = Field(
+        default=None, description="Instructions used.")
     max_output_tokens: int | None = Field(
         default=None, description="Max tokens specified."
     )
-    metadata: dict[str, str] | None = Field(default=None, description="Metadata.")
+    metadata: dict[str, str] | None = Field(
+        default=None, description="Metadata.")
     previous_response_id: str | None = Field(
         default=None, description="Previous response ID."
     )
-    temperature: float | None = Field(default=None, description="Temperature used.")
+    temperature: float | None = Field(
+        default=None, description="Temperature used.")
     top_p: float | None = Field(default=None, description="Top-p value used.")
     parallel_tool_calls: bool | None = Field(
         default=None, description="Parallel tool calls setting."
@@ -1153,7 +1268,8 @@ class ResponsesResponse(BaseModel):
         default=None, description="Tool choice used."
     )
     tools: list[Tool] | None = Field(default=None, description="Tools used.")
-    output: list[dict[str, Any]] = Field(description="Polymorphic output items array.")
+    output: list[dict[str, Any]] = Field(
+        description="Polymorphic output items array.")
     usage: Usage | None = Field(default=None, description="Token usage.")
 
 
@@ -1188,7 +1304,8 @@ class RankingRequest(BaseModel):
 class RankingObject(BaseModel):
     """Ranking result object."""
 
-    index: int = Field(description="Zero-based index of passage in original request.")
+    index: int = Field(
+        description="Zero-based index of passage in original request.")
     logit: float = Field(
         description="Raw unnormalized relevance score (higher is better)."
     )
@@ -1223,7 +1340,8 @@ class SolidoRagResponse(BaseModel):
     retrieved_docs: list[RagDocument] | None = Field(
         default=None, description="Retrieved documents (if requested)."
     )
-    usage: Usage | None = Field(default=None, description="Token usage information.")
+    usage: Usage | None = Field(default=None,
+                                description="Token usage information.")
 
 
 class RankingResponse(BaseModel):
@@ -1262,8 +1380,9 @@ class ModerationCategories(BaseModel):
         alias="harassment/threatening",
     )
     self_harm_intent: bool = Field(
-        default=False, description="Self-harm intent.", alias="self-harm/intent"
-    )
+        default=False,
+        description="Self-harm intent.",
+        alias="self-harm/intent")
     self_harm_instructions: bool = Field(
         default=False,
         description="Self-harm instructions.",
@@ -1271,8 +1390,9 @@ class ModerationCategories(BaseModel):
     )
     violence: bool = Field(default=False, description="Violent content.")
     violence_graphic: bool = Field(
-        default=False, description="Graphic violence.", alias="violence/graphic"
-    )
+        default=False,
+        description="Graphic violence.",
+        alias="violence/graphic")
     illicit: bool = Field(default=False, description="Illicit activities.")
     illicit_violent: bool = Field(
         default=False,
@@ -1290,13 +1410,20 @@ class ModerationCategoryScores(BaseModel):
     sexual: float = Field(
         default=0.0, ge=0.0, le=1.0, description="Sexual content score."
     )
-    hate: float = Field(default=0.0, ge=0.0, le=1.0, description="Hate speech score.")
+    hate: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Hate speech score.")
     harassment: float = Field(
         default=0.0, ge=0.0, le=1.0, description="Harassment score."
     )
     self_harm: float = Field(
-        default=0.0, ge=0.0, le=1.0, description="Self-harm score.", alias="self-harm"
-    )
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Self-harm score.",
+        alias="self-harm")
     sexual_minors: float = Field(
         default=0.0,
         ge=0.0,
@@ -1332,7 +1459,11 @@ class ModerationCategoryScores(BaseModel):
         description="Self-harm instructions score.",
         alias="self-harm/instructions",
     )
-    violence: float = Field(default=0.0, ge=0.0, le=1.0, description="Violence score.")
+    violence: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Violence score.")
     violence_graphic: float = Field(
         default=0.0,
         ge=0.0,
@@ -1340,7 +1471,8 @@ class ModerationCategoryScores(BaseModel):
         description="Graphic violence score.",
         alias="violence/graphic",
     )
-    illicit: float = Field(default=0.0, ge=0.0, le=1.0, description="Illicit score.")
+    illicit: float = Field(default=0.0, ge=0.0, le=1.0,
+                           description="Illicit score.")
     illicit_violent: float = Field(
         default=0.0,
         ge=0.0,
@@ -1358,7 +1490,8 @@ class ModerationResult(BaseModel):
 
     flagged: bool = Field(description="True if any category violated.")
     categories: ModerationCategories = Field(description="Category flags.")
-    category_scores: ModerationCategoryScores = Field(description="Category scores.")
+    category_scores: ModerationCategoryScores = Field(
+        description="Category scores.")
     category_applied_input_types: dict[str, list[str]] = Field(
         default_factory=dict,
         description="Which input types (text/image) triggered each category.",
@@ -1404,9 +1537,12 @@ class TranscriptionSegment(BaseModel):
     end: float = Field(description="End time in seconds.")
     text: str = Field(description="Transcribed text for this segment.")
     tokens: list[int] = Field(description="Token IDs for this segment.")
-    temperature: float = Field(description="Temperature used for this segment.")
-    avg_logprob: float = Field(description="Average log probability of tokens.")
-    compression_ratio: float = Field(description="Compression ratio of tokens to text.")
+    temperature: float = Field(
+        description="Temperature used for this segment.")
+    avg_logprob: float = Field(
+        description="Average log probability of tokens.")
+    compression_ratio: float = Field(
+        description="Compression ratio of tokens to text.")
     no_speech_prob: float = Field(
         description="Probability that this segment contains no speech."
     )
@@ -1425,11 +1561,12 @@ class TranscriptionRequest(BaseModel):
         description="Optional text to guide the model's style or continue from previous audio.",
     )
     response_format: Literal["json", "text", "srt", "verbose_json", "vtt"] | None = (
-        Field(default="json", description="Format of the transcript output.")
-    )
+        Field(default="json", description="Format of the transcript output."))
     temperature: float | None = Field(
-        default=0.0, ge=0.0, le=1.0, description="Sampling temperature between 0 and 1."
-    )
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Sampling temperature between 0 and 1.")
     timestamp_granularities: list[Literal["word", "segment"]] | None = Field(
         default=None,
         description="Timestamp granularities to include (word and/or segment level).",
@@ -1446,8 +1583,8 @@ class VerboseTranscriptionResponse(BaseModel):
     """Response from transcription endpoint (verbose_json format)."""
 
     task: Literal["transcribe"] = Field(
-        default="transcribe", description="The task performed (always 'transcribe')."
-    )
+        default="transcribe",
+        description="The task performed (always 'transcribe').")
     language: str = Field(description="Detected or specified language code.")
     duration: float = Field(description="Duration of the audio in seconds.")
     text: str = Field(description="The complete transcribed text.")
@@ -1466,22 +1603,28 @@ class BatchRequestCounts(BaseModel):
     """Counts of batch requests by status."""
 
     total: int = Field(description="Total number of requests in the batch.")
-    completed: int = Field(default=0, description="Number of requests completed.")
-    failed: int = Field(default=0, description="Number of requests that failed.")
+    completed: int = Field(
+        default=0,
+        description="Number of requests completed.")
+    failed: int = Field(
+        default=0,
+        description="Number of requests that failed.")
 
 
 class Batch(BaseModel):
     """Batch object representing a batch processing job."""
 
     id: str = Field(description="The batch identifier.")
-    object: Literal["batch"] = Field(default="batch", description="The object type.")
+    object: Literal["batch"] = Field(
+        default="batch", description="The object type.")
     endpoint: str = Field(
         description="The API endpoint used (e.g., /v1/chat/completions)."
     )
     errors: dict[str, Any] | None = Field(
         default=None, description="Error information if the batch failed."
     )
-    input_file_id: str = Field(description="The ID of the input file for the batch.")
+    input_file_id: str = Field(
+        description="The ID of the input file for the batch.")
     completion_window: str = Field(
         description="The time window for completion (e.g., '24h')."
     )
@@ -1499,18 +1642,18 @@ class Batch(BaseModel):
         default=None, description="The ID of the output file (once completed)."
     )
     error_file_id: str | None = Field(
-        default=None, description="The ID of the error file (if errors occurred)."
-    )
-    created_at: int = Field(description="Unix timestamp when the batch was created.")
+        default=None,
+        description="The ID of the error file (if errors occurred).")
+    created_at: int = Field(
+        description="Unix timestamp when the batch was created.")
     in_progress_at: int | None = Field(
-        default=None, description="Unix timestamp when batch processing started."
-    )
+        default=None, description="Unix timestamp when batch processing started.")
     expires_at: int | None = Field(
         default=None, description="Unix timestamp when the batch will expire."
     )
     finalizing_at: int | None = Field(
-        default=None, description="Unix timestamp when batch finalization started."
-    )
+        default=None,
+        description="Unix timestamp when batch finalization started.")
     completed_at: int | None = Field(
         default=None, description="Unix timestamp when the batch completed."
     )
@@ -1524,8 +1667,8 @@ class Batch(BaseModel):
         default=None, description="Unix timestamp when cancellation started."
     )
     cancelled_at: int | None = Field(
-        default=None, description="Unix timestamp when the batch was cancelled."
-    )
+        default=None,
+        description="Unix timestamp when the batch was cancelled.")
     request_counts: BatchRequestCounts = Field(
         description="Counts of requests by status."
     )
@@ -1537,7 +1680,8 @@ class Batch(BaseModel):
 class CreateBatchRequest(BaseModel):
     """Request to create a new batch."""
 
-    input_file_id: str = Field(description="The ID of the input file (JSONL format).")
+    input_file_id: str = Field(
+        description="The ID of the input file (JSONL format).")
     endpoint: str = Field(
         description="The API endpoint to call (e.g., /v1/chat/completions)."
     )
@@ -1552,19 +1696,28 @@ class CreateBatchRequest(BaseModel):
 class BatchListResponse(BaseModel):
     """Response for listing batches."""
 
-    object: Literal["list"] = Field(default="list", description="The object type.")
+    object: Literal["list"] = Field(
+        default="list", description="The object type.")
     data: list[Batch] = Field(description="List of batch objects.")
-    first_id: str | None = Field(default=None, description="ID of the first batch.")
-    last_id: str | None = Field(default=None, description="ID of the last batch.")
-    has_more: bool = Field(default=False, description="Whether there are more batches.")
+    first_id: str | None = Field(
+        default=None,
+        description="ID of the first batch.")
+    last_id: str | None = Field(
+        default=None,
+        description="ID of the last batch.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more batches.")
 
 
 class BatchRequest(BaseModel):
     """Single request in a batch JSONL file."""
 
-    custom_id: str = Field(description="Developer-provided ID for this request.")
+    custom_id: str = Field(
+        description="Developer-provided ID for this request.")
     method: Literal["POST"] = Field(description="HTTP method (always POST).")
-    url: str = Field(description="The API endpoint URL (e.g., /v1/chat/completions).")
+    url: str = Field(
+        description="The API endpoint URL (e.g., /v1/chat/completions).")
     body: dict[str, Any] = Field(description="The request body.")
 
 
@@ -1644,8 +1797,9 @@ class ExpiresAfter(BaseModel):
         description="Anchor timestamp for expiration (e.g., 'last_active_at')."
     )
     days: int = Field(
-        description="Number of days after anchor before expiration.", ge=1, le=365
-    )
+        description="Number of days after anchor before expiration.",
+        ge=1,
+        le=365)
 
 
 class RankingOptions(BaseModel):
@@ -1674,8 +1828,8 @@ class VectorStore(BaseModel):
     )
     name: str = Field(description="The name of the vector store.")
     usage_bytes: int = Field(
-        default=0, description="Total size of files in the vector store in bytes."
-    )
+        default=0,
+        description="Total size of files in the vector store in bytes.")
     file_counts: FileCounts = Field(
         default_factory=FileCounts, description="File counts by status."
     )
@@ -1686,8 +1840,8 @@ class VectorStore(BaseModel):
         default=None, description="Expiration policy for the vector store."
     )
     expires_at: int | None = Field(
-        default=None, description="Unix timestamp when the vector store will expire."
-    )
+        default=None,
+        description="Unix timestamp when the vector store will expire.")
     last_active_at: int | None = Field(
         default=None, description="Unix timestamp of last activity."
     )
@@ -1700,8 +1854,7 @@ class CreateVectorStoreRequest(BaseModel):
     """Request to create a new vector store."""
 
     file_ids: list[str] | None = Field(
-        default=None, description="List of file IDs to add to the vector store."
-    )
+        default=None, description="List of file IDs to add to the vector store.")
     name: str = Field(description="The name of the vector store.")
     expires_after: ExpiresAfter | None = Field(
         default=None, description="Expiration policy for the vector store."
@@ -1729,8 +1882,10 @@ class ModifyVectorStoreRequest(BaseModel):
 class VectorStoreListResponse(BaseModel):
     """Response for listing vector stores."""
 
-    object: Literal["list"] = Field(default="list", description="The object type.")
-    data: list[VectorStore] = Field(description="List of vector store objects.")
+    object: Literal["list"] = Field(
+        default="list", description="The object type.")
+    data: list[VectorStore] = Field(
+        description="List of vector store objects.")
     first_id: str | None = Field(
         default=None, description="ID of the first vector store."
     )
@@ -1753,8 +1908,7 @@ class VectorStoreFile(BaseModel):
         default=0, description="Size of the file in bytes after processing."
     )
     created_at: int = Field(
-        description="Unix timestamp when the file was added to the vector store."
-    )
+        description="Unix timestamp when the file was added to the vector store.")
     vector_store_id: str = Field(
         description="The ID of the vector store this file belongs to."
     )
@@ -1781,13 +1935,20 @@ class CreateVectorStoreFileRequest(BaseModel):
 class VectorStoreFileListResponse(BaseModel):
     """Response for listing vector store files."""
 
-    object: Literal["list"] = Field(default="list", description="The object type.")
+    object: Literal["list"] = Field(
+        default="list", description="The object type.")
     data: list[VectorStoreFile] = Field(
         description="List of vector store file objects."
     )
-    first_id: str | None = Field(default=None, description="ID of the first file.")
-    last_id: str | None = Field(default=None, description="ID of the last file.")
-    has_more: bool = Field(default=False, description="Whether there are more files.")
+    first_id: str | None = Field(
+        default=None,
+        description="ID of the first file.")
+    last_id: str | None = Field(
+        default=None,
+        description="ID of the last file.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more files.")
 
 
 class VectorStoreFileBatch(BaseModel):
@@ -1797,12 +1958,14 @@ class VectorStoreFileBatch(BaseModel):
     object: Literal["vector_store.files_batch"] = Field(
         default="vector_store.files_batch", description="The object type."
     )
-    created_at: int = Field(description="Unix timestamp when the batch was created.")
+    created_at: int = Field(
+        description="Unix timestamp when the batch was created.")
     vector_store_id: str = Field(description="The ID of the vector store.")
     status: Literal["in_progress", "completed", "cancelled", "failed"] = Field(
         description="The status of the file batch."
     )
-    file_counts: FileCounts = Field(description="File counts by status in the batch.")
+    file_counts: FileCounts = Field(
+        description="File counts by status in the batch.")
 
 
 class CreateVectorStoreFileBatchRequest(BaseModel):
@@ -1852,19 +2015,27 @@ class OrganizationUser(BaseModel):
     role: OrganizationRole = Field(
         description="The role of the user in the organization."
     )
-    added_at: int = Field(description="Unix timestamp when the user was added.")
+    added_at: int = Field(
+        description="Unix timestamp when the user was added.")
 
 
 class OrganizationUserListResponse(BaseModel):
     """Response for listing organization users."""
 
-    object: Literal["list"] = Field(default="list", description="The object type.")
+    object: Literal["list"] = Field(
+        default="list", description="The object type.")
     data: list[OrganizationUser] = Field(
         description="List of organization user objects."
     )
-    first_id: str | None = Field(default=None, description="ID of the first user.")
-    last_id: str | None = Field(default=None, description="ID of the last user.")
-    has_more: bool = Field(default=False, description="Whether there are more users.")
+    first_id: str | None = Field(
+        default=None,
+        description="ID of the first user.")
+    last_id: str | None = Field(
+        default=None,
+        description="ID of the last user.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more users.")
 
 
 class CreateOrganizationUserRequest(BaseModel):
@@ -1892,30 +2063,40 @@ class OrganizationInvite(BaseModel):
     status: Literal["pending", "accepted", "expired"] = Field(
         description="Status of the invitation."
     )
-    invited_at: int = Field(description="Unix timestamp when the invite was created.")
-    expires_at: int = Field(description="Unix timestamp when the invite expires.")
+    invited_at: int = Field(
+        description="Unix timestamp when the invite was created.")
+    expires_at: int = Field(
+        description="Unix timestamp when the invite expires.")
     accepted_at: int | None = Field(
-        default=None, description="Unix timestamp when the invite was accepted."
-    )
+        default=None,
+        description="Unix timestamp when the invite was accepted.")
 
 
 class OrganizationInviteListResponse(BaseModel):
     """Response for listing organization invites."""
 
-    object: Literal["list"] = Field(default="list", description="The object type.")
+    object: Literal["list"] = Field(
+        default="list", description="The object type.")
     data: list[OrganizationInvite] = Field(
         description="List of organization invite objects."
     )
-    first_id: str | None = Field(default=None, description="ID of the first invite.")
-    last_id: str | None = Field(default=None, description="ID of the last invite.")
-    has_more: bool = Field(default=False, description="Whether there are more invites.")
+    first_id: str | None = Field(
+        default=None,
+        description="ID of the first invite.")
+    last_id: str | None = Field(
+        default=None,
+        description="ID of the last invite.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more invites.")
 
 
 class CreateOrganizationInviteRequest(BaseModel):
     """Request to create an organization invite."""
 
     email: str = Field(description="Email address to invite.")
-    role: OrganizationRole = Field(description="Role to assign to the invited user.")
+    role: OrganizationRole = Field(
+        description="Role to assign to the invited user.")
 
 
 class DeleteOrganizationInviteResponse(BaseModel):
@@ -1925,7 +2106,9 @@ class DeleteOrganizationInviteResponse(BaseModel):
         default="organization.invite.deleted", description="The object type."
     )
     id: str = Field(description="The ID of the deleted invite.")
-    deleted: bool = Field(default=True, description="Whether the invite was deleted.")
+    deleted: bool = Field(
+        default=True,
+        description="Whether the invite was deleted.")
 
 
 class OrganizationProject(BaseModel):
@@ -1936,10 +2119,11 @@ class OrganizationProject(BaseModel):
     )
     id: str = Field(description="The project identifier.")
     name: str = Field(description="The name of the project.")
-    created_at: int = Field(description="Unix timestamp when the project was created.")
+    created_at: int = Field(
+        description="Unix timestamp when the project was created.")
     archived_at: int | None = Field(
-        default=None, description="Unix timestamp when the project was archived."
-    )
+        default=None,
+        description="Unix timestamp when the project was archived.")
     status: Literal["active", "archived"] = Field(
         default="active", description="The status of the project."
     )
@@ -1948,12 +2132,15 @@ class OrganizationProject(BaseModel):
 class OrganizationProjectListResponse(BaseModel):
     """Response for listing organization projects."""
 
-    object: Literal["list"] = Field(default="list", description="The object type.")
+    object: Literal["list"] = Field(
+        default="list", description="The object type.")
     data: list[OrganizationProject] = Field(
         description="List of organization project objects."
     )
-    first_id: str | None = Field(default=None, description="ID of the first project.")
-    last_id: str | None = Field(default=None, description="ID of the last project.")
+    first_id: str | None = Field(default=None,
+                                 description="ID of the first project.")
+    last_id: str | None = Field(default=None,
+                                description="ID of the last project.")
     has_more: bool = Field(
         default=False, description="Whether there are more projects."
     )
@@ -1992,7 +2179,8 @@ class ProjectUser(BaseModel):
     id: str = Field(description="The user identifier.")
     name: str = Field(description="The name of the user.")
     email: str = Field(description="The email address of the user.")
-    role: ProjectRole = Field(description="The role of the user in the project.")
+    role: ProjectRole = Field(
+        description="The role of the user in the project.")
     added_at: int = Field(
         description="Unix timestamp when the user was added to the project."
     )
@@ -2001,45 +2189,57 @@ class ProjectUser(BaseModel):
 class ProjectUserListResponse(BaseModel):
     """Response for listing project users."""
 
-    object: Literal["list"] = Field(default="list", description="The object type.")
-    data: list[ProjectUser] = Field(description="List of project user objects.")
-    first_id: str | None = Field(default=None, description="ID of the first user.")
-    last_id: str | None = Field(default=None, description="ID of the last user.")
-    has_more: bool = Field(default=False, description="Whether there are more users.")
+    object: Literal["list"] = Field(
+        default="list", description="The object type.")
+    data: list[ProjectUser] = Field(
+        description="List of project user objects.")
+    first_id: str | None = Field(
+        default=None,
+        description="ID of the first user.")
+    last_id: str | None = Field(
+        default=None,
+        description="ID of the last user.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more users.")
 
 
 class CreateProjectUserRequest(BaseModel):
     """Request to add a user to a project."""
 
-    user_id: str = Field(description="The ID of the user to add to the project.")
-    role: ProjectRole = Field(description="Role to assign to the user in the project.")
+    user_id: str = Field(
+        description="The ID of the user to add to the project.")
+    role: ProjectRole = Field(
+        description="Role to assign to the user in the project.")
 
 
 class ModifyProjectUserRequest(BaseModel):
     """Request to modify a project user."""
 
-    role: ProjectRole = Field(description="New role for the user in the project.")
+    role: ProjectRole = Field(
+        description="New role for the user in the project.")
 
 
 class DeleteProjectUserResponse(BaseModel):
     """Response for removing a user from a project."""
 
     object: Literal["organization.project.user.deleted"] = Field(
-        default="organization.project.user.deleted", description="The object type."
-    )
+        default="organization.project.user.deleted", description="The object type.")
     id: str = Field(description="The ID of the removed user.")
-    deleted: bool = Field(default=True, description="Whether the user was removed.")
+    deleted: bool = Field(
+        default=True,
+        description="Whether the user was removed.")
 
 
 class ServiceAccount(BaseModel):
     """Service account for API access."""
 
     object: Literal["organization.project.service_account"] = Field(
-        default="organization.project.service_account", description="The object type."
-    )
+        default="organization.project.service_account", description="The object type.")
     id: str = Field(description="The service account identifier.")
     name: str = Field(description="The name of the service account.")
-    role: ServiceAccountRole = Field(description="The role of the service account.")
+    role: ServiceAccountRole = Field(
+        description="The role of the service account.")
     created_at: int = Field(
         description="Unix timestamp when the service account was created."
     )
@@ -2048,8 +2248,10 @@ class ServiceAccount(BaseModel):
 class ServiceAccountListResponse(BaseModel):
     """Response for listing service accounts."""
 
-    object: Literal["list"] = Field(default="list", description="The object type.")
-    data: list[ServiceAccount] = Field(description="List of service account objects.")
+    object: Literal["list"] = Field(
+        default="list", description="The object type.")
+    data: list[ServiceAccount] = Field(
+        description="List of service account objects.")
     first_id: str | None = Field(
         default=None, description="ID of the first service account."
     )
@@ -2066,8 +2268,8 @@ class CreateServiceAccountRequest(BaseModel):
 
     name: str = Field(description="The name of the service account.")
     role: ServiceAccountRole = Field(
-        default=ServiceAccountRole.MEMBER, description="Role for the service account."
-    )
+        default=ServiceAccountRole.MEMBER,
+        description="Role for the service account.")
 
 
 class DeleteServiceAccountResponse(BaseModel):
@@ -2089,7 +2291,8 @@ class DeleteServiceAccountResponse(BaseModel):
 class UsageTimeBucket(BaseModel):
     """Time bucket for usage aggregation."""
 
-    object: Literal["bucket"] = Field(default="bucket", description="The object type.")
+    object: Literal["bucket"] = Field(
+        default="bucket", description="The object type.")
     start_time: int = Field(description="Unix timestamp for start of bucket.")
     end_time: int = Field(description="Unix timestamp for end of bucket.")
 
@@ -2101,17 +2304,20 @@ class UsageResultItem(BaseModel):
         default="organization.usage.result", description="The object type."
     )
     input_tokens: int = Field(default=0, description="Number of input tokens.")
-    output_tokens: int = Field(default=0, description="Number of output tokens.")
+    output_tokens: int = Field(
+        default=0, description="Number of output tokens.")
     input_cached_tokens: int = Field(
         default=0, description="Number of cached input tokens."
     )
-    num_model_requests: int = Field(default=0, description="Number of requests.")
+    num_model_requests: int = Field(
+        default=0, description="Number of requests.")
 
 
 class UsageAggregationBucket(BaseModel):
     """Usage aggregated by time bucket."""
 
-    object: Literal["bucket"] = Field(default="bucket", description="The object type.")
+    object: Literal["bucket"] = Field(
+        default="bucket", description="The object type.")
     start_time: int = Field(description="Unix timestamp for start of bucket.")
     end_time: int = Field(description="Unix timestamp for end of bucket.")
     results: list[UsageResultItem] = Field(
@@ -2122,53 +2328,79 @@ class UsageAggregationBucket(BaseModel):
 class CompletionsUsageResponse(BaseModel):
     """Response for completions usage data."""
 
-    object: Literal["page"] = Field(default="page", description="The object type.")
-    data: list[UsageAggregationBucket] = Field(description="List of usage buckets.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
-    next_page: str | None = Field(default=None, description="URL for next page.")
+    object: Literal["page"] = Field(
+        default="page", description="The object type.")
+    data: list[UsageAggregationBucket] = Field(
+        description="List of usage buckets.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more results.")
+    next_page: str | None = Field(
+        default=None, description="URL for next page.")
 
 
 class EmbeddingsUsageResponse(BaseModel):
     """Response for embeddings usage data."""
 
-    object: Literal["page"] = Field(default="page", description="The object type.")
-    data: list[UsageAggregationBucket] = Field(description="List of usage buckets.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
-    next_page: str | None = Field(default=None, description="URL for next page.")
+    object: Literal["page"] = Field(
+        default="page", description="The object type.")
+    data: list[UsageAggregationBucket] = Field(
+        description="List of usage buckets.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more results.")
+    next_page: str | None = Field(
+        default=None, description="URL for next page.")
 
 
 class ImagesUsageResponse(BaseModel):
     """Response for images usage data."""
 
-    object: Literal["page"] = Field(default="page", description="The object type.")
-    data: list[UsageAggregationBucket] = Field(description="List of usage buckets.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
-    next_page: str | None = Field(default=None, description="URL for next page.")
+    object: Literal["page"] = Field(
+        default="page", description="The object type.")
+    data: list[UsageAggregationBucket] = Field(
+        description="List of usage buckets.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more results.")
+    next_page: str | None = Field(
+        default=None, description="URL for next page.")
 
 
 class AudioSpeechesUsageResponse(BaseModel):
     """Response for audio speeches usage data."""
 
-    object: Literal["page"] = Field(default="page", description="The object type.")
-    data: list[UsageAggregationBucket] = Field(description="List of usage buckets.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
-    next_page: str | None = Field(default=None, description="URL for next page.")
+    object: Literal["page"] = Field(
+        default="page", description="The object type.")
+    data: list[UsageAggregationBucket] = Field(
+        description="List of usage buckets.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more results.")
+    next_page: str | None = Field(
+        default=None, description="URL for next page.")
 
 
 class AudioTranscriptionsUsageResponse(BaseModel):
     """Response for audio transcriptions usage data."""
 
-    object: Literal["page"] = Field(default="page", description="The object type.")
-    data: list[UsageAggregationBucket] = Field(description="List of usage buckets.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
-    next_page: str | None = Field(default=None, description="URL for next page.")
+    object: Literal["page"] = Field(
+        default="page", description="The object type.")
+    data: list[UsageAggregationBucket] = Field(
+        description="List of usage buckets.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more results.")
+    next_page: str | None = Field(
+        default=None, description="URL for next page.")
 
 
 class CostAmount(BaseModel):
     """Cost amount in USD."""
 
     value: float = Field(description="Cost value in USD.")
-    currency: Literal["usd"] = Field(default="usd", description="Currency code.")
+    currency: Literal["usd"] = Field(
+        default="usd", description="Currency code.")
 
 
 class CostResult(BaseModel):
@@ -2189,19 +2421,25 @@ class CostResult(BaseModel):
 class CostBucket(BaseModel):
     """Cost aggregated by time bucket."""
 
-    object: Literal["bucket"] = Field(default="bucket", description="The object type.")
+    object: Literal["bucket"] = Field(
+        default="bucket", description="The object type.")
     start_time: int = Field(description="Unix timestamp for start of bucket.")
     end_time: int = Field(description="Unix timestamp for end of bucket.")
-    results: list[CostResult] = Field(description="Cost results for this time bucket.")
+    results: list[CostResult] = Field(
+        description="Cost results for this time bucket.")
 
 
 class CostsResponse(BaseModel):
     """Response for costs data."""
 
-    object: Literal["page"] = Field(default="page", description="The object type.")
+    object: Literal["page"] = Field(
+        default="page", description="The object type.")
     data: list[CostBucket] = Field(description="List of cost buckets.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
-    next_page: str | None = Field(default=None, description="URL for next page.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more results.")
+    next_page: str | None = Field(
+        default=None, description="URL for next page.")
 
 
 # Realtime WebSocket API Models
@@ -2298,7 +2536,8 @@ class RealtimeTool(BaseModel):
         description="The type of the tool.",
     )
     name: str = Field(description="The name of the function.")
-    description: str = Field(description="Description of what the function does.")
+    description: str = Field(
+        description="Description of what the function does.")
     parameters: dict[str, Any] = Field(
         default_factory=dict,
         description="JSON Schema for the function parameters.",
@@ -2511,8 +2750,10 @@ class RealtimeContent(BaseModel):
 
     type: RealtimeContentType = Field(description="The type of content.")
     text: str | None = Field(default=None, description="Text content.")
-    audio: str | None = Field(default=None, description="Base64-encoded audio data.")
-    transcript: str | None = Field(default=None, description="Transcript of audio.")
+    audio: str | None = Field(default=None,
+                              description="Base64-encoded audio data.")
+    transcript: str | None = Field(
+        default=None, description="Transcript of audio.")
 
 
 class RealtimeItem(BaseModel):
@@ -2561,7 +2802,8 @@ class RealtimeResponse(BaseModel):
         default="realtime.response",
         description="The object type.",
     )
-    status: RealtimeItemStatus = Field(description="The status of the response.")
+    status: RealtimeItemStatus = Field(
+        description="The status of the response.")
     status_details: dict[str, Any] | None = Field(
         default=None,
         description="Additional status details.",
@@ -2570,7 +2812,8 @@ class RealtimeResponse(BaseModel):
         default_factory=list,
         description="Output items from the response.",
     )
-    usage: Usage | None = Field(default=None, description="Token usage information.")
+    usage: Usage | None = Field(default=None,
+                                description="Token usage information.")
 
 
 class RealtimeRateLimits(BaseModel):
@@ -2603,18 +2846,22 @@ class RealtimeEvent(BaseModel):
     event_id: str = Field(description="Unique event identifier.")
 
     # Session fields
-    session: RealtimeSession | None = Field(default=None, description="Session object.")
+    session: RealtimeSession | None = Field(
+        default=None, description="Session object.")
 
     # Audio fields
-    audio: str | None = Field(default=None, description="Base64-encoded audio data.")
+    audio: str | None = Field(default=None,
+                              description="Base64-encoded audio data.")
 
     # Item fields
-    item: RealtimeItem | None = Field(default=None, description="Conversation item.")
+    item: RealtimeItem | None = Field(
+        default=None, description="Conversation item.")
     item_id: str | None = Field(default=None, description="Item identifier.")
     previous_item_id: str | None = Field(
         default=None, description="Previous item identifier."
     )
-    content_index: int | None = Field(default=None, description="Content part index.")
+    content_index: int | None = Field(
+        default=None, description="Content part index.")
     audio_end_ms: int | None = Field(
         default=None, description="End time of audio in ms."
     )
@@ -2623,13 +2870,17 @@ class RealtimeEvent(BaseModel):
     response: RealtimeResponse | None = Field(
         default=None, description="Response object."
     )
-    response_id: str | None = Field(default=None, description="Response identifier.")
-    output_index: int | None = Field(default=None, description="Output item index.")
+    response_id: str | None = Field(
+        default=None, description="Response identifier.")
+    output_index: int | None = Field(
+        default=None, description="Output item index.")
 
     # Delta fields (for streaming)
     delta: str | None = Field(default=None, description="Delta content.")
-    transcript: str | None = Field(default=None, description="Audio transcript.")
-    arguments: str | None = Field(default=None, description="Function call arguments.")
+    transcript: str | None = Field(
+        default=None, description="Audio transcript.")
+    arguments: str | None = Field(
+        default=None, description="Function call arguments.")
 
     # Rate limits
     rate_limits: list[RealtimeRateLimits] | None = Field(
@@ -2638,7 +2889,8 @@ class RealtimeEvent(BaseModel):
     )
 
     # Error fields
-    error: RealtimeError | None = Field(default=None, description="Error details.")
+    error: RealtimeError | None = Field(
+        default=None, description="Error details.")
 
 
 # Fine-Tuning API Models
@@ -2668,8 +2920,7 @@ class FineTuningJobRequest(BaseModel):
         description="ID of uploaded file containing training data."
     )
     validation_file: str | None = Field(
-        default=None, description="ID of uploaded file containing validation data."
-    )
+        default=None, description="ID of uploaded file containing validation data.")
     model: str = Field(
         description="Base model to fine-tune (e.g., 'meta-llama/Llama-3.1-8B-Instruct', 'openai/gpt-oss-20b')."
     )
@@ -2695,8 +2946,8 @@ class FineTuningJobError(BaseModel):
     code: str = Field(description="Error code.")
     message: str = Field(description="Human-readable error message.")
     param: str | None = Field(
-        default=None, description="Parameter that caused the error, if applicable."
-    )
+        default=None,
+        description="Parameter that caused the error, if applicable.")
 
 
 class FineTuningJob(BaseModel):
@@ -2706,14 +2957,15 @@ class FineTuningJob(BaseModel):
     object: Literal["fine_tuning.job"] = Field(
         default="fine_tuning.job", description="Object type."
     )
-    created_at: int = Field(description="Unix timestamp when the job was created.")
+    created_at: int = Field(
+        description="Unix timestamp when the job was created.")
     finished_at: int | None = Field(
         default=None, description="Unix timestamp when the job finished."
     )
     model: str = Field(description="Base model being fine-tuned.")
     fine_tuned_model: str | None = Field(
-        default=None, description="Name of the fine-tuned model (null until completed)."
-    )
+        default=None,
+        description="Name of the fine-tuned model (null until completed).")
     organization_id: str = Field(description="Organization that owns the job.")
     status: Literal[
         "validating_files", "queued", "running", "succeeded", "failed", "cancelled"
@@ -2730,18 +2982,19 @@ class FineTuningJob(BaseModel):
         description="List of result file IDs (e.g., metrics, model files).",
     )
     trained_tokens: int | None = Field(
-        default=None, description="Total number of tokens processed during training."
-    )
+        default=None,
+        description="Total number of tokens processed during training.")
     error: FineTuningJobError | None = Field(
         default=None, description="Error details if the job failed."
     )
     integrations: list[dict[str, Any]] | None = Field(
         default=None, description="Enabled integrations."
     )
-    seed: int | None = Field(default=None, description="Random seed used for training.")
+    seed: int | None = Field(default=None,
+                             description="Random seed used for training.")
     estimated_finish: int | None = Field(
-        default=None, description="Estimated Unix timestamp when the job will finish."
-    )
+        default=None,
+        description="Estimated Unix timestamp when the job will finish.")
 
 
 class FineTuningJobList(BaseModel):
@@ -2761,7 +3014,8 @@ class FineTuningEvent(BaseModel):
     object: Literal["fine_tuning.job.event"] = Field(
         default="fine_tuning.job.event", description="Object type."
     )
-    created_at: int = Field(description="Unix timestamp when the event occurred.")
+    created_at: int = Field(
+        description="Unix timestamp when the event occurred.")
     level: Literal["info", "warning", "error"] = Field(
         description="Severity level of the event."
     )
@@ -2791,12 +3045,14 @@ class FineTuningCheckpoint(BaseModel):
     object: Literal["fine_tuning.job.checkpoint"] = Field(
         default="fine_tuning.job.checkpoint", description="Object type."
     )
-    created_at: int = Field(description="Unix timestamp when checkpoint was created.")
+    created_at: int = Field(
+        description="Unix timestamp when checkpoint was created.")
     fine_tuning_job_id: str = Field(description="ID of the fine-tuning job.")
     fine_tuned_model_checkpoint: str = Field(
         description="Name of the checkpointed model."
     )
-    step_number: int = Field(description="Training step number for this checkpoint.")
+    step_number: int = Field(
+        description="Training step number for this checkpoint.")
     metrics: dict[str, float] = Field(
         description="Training metrics at this checkpoint."
     )
@@ -2806,12 +3062,16 @@ class FineTuningCheckpointList(BaseModel):
     """List of fine-tuning checkpoints."""
 
     object: Literal["list"] = Field(default="list", description="Object type.")
-    data: list[FineTuningCheckpoint] = Field(description="List of checkpoints.")
+    data: list[FineTuningCheckpoint] = Field(
+        description="List of checkpoints.")
     has_more: bool = Field(
         default=False, description="Whether there are more results available."
     )
-    first_id: str | None = Field(default=None, description="First checkpoint ID.")
-    last_id: str | None = Field(default=None, description="Last checkpoint ID.")
+    first_id: str | None = Field(
+        default=None, description="First checkpoint ID.")
+    last_id: str | None = Field(
+        default=None,
+        description="Last checkpoint ID.")
 
 
 # Assistants API Models
@@ -2840,8 +3100,9 @@ class Assistant(BaseModel):
         default=None, max_length=256, description="The name of the assistant."
     )
     description: str | None = Field(
-        default=None, max_length=512, description="The description of the assistant."
-    )
+        default=None,
+        max_length=512,
+        description="The description of the assistant.")
     model: str = Field(description="Model used by the assistant.")
     instructions: str | None = Field(
         default=None,
@@ -2880,8 +3141,9 @@ class CreateAssistantRequest(BaseModel):
         default=None, max_length=256, description="Name of the assistant."
     )
     description: str | None = Field(
-        default=None, max_length=512, description="Description of the assistant."
-    )
+        default=None,
+        max_length=512,
+        description="Description of the assistant.")
     instructions: str | None = Field(
         default=None, max_length=256000, description="System instructions."
     )
@@ -2922,11 +3184,16 @@ class ModifyAssistantRequest(BaseModel):
     tool_resources: AssistantToolResources | None = Field(
         default=None, description="Tool resources."
     )
-    metadata: dict[str, str] | None = Field(default=None, description="Metadata.")
+    metadata: dict[str, str] | None = Field(
+        default=None, description="Metadata.")
     temperature: float | None = Field(
         default=None, ge=0.0, le=2.0, description="Temperature."
     )
-    top_p: float | None = Field(default=None, ge=0.0, le=1.0, description="Top-p.")
+    top_p: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Top-p.")
     response_format: str | dict[str, Any] | None = Field(
         default=None, description="Response format."
     )
@@ -2937,16 +3204,20 @@ class AssistantList(BaseModel):
 
     object: Literal["list"] = Field(default="list", description="Object type.")
     data: list[Assistant] = Field(description="List of assistant objects.")
-    first_id: str | None = Field(default=None, description="First assistant ID.")
+    first_id: str | None = Field(
+        default=None, description="First assistant ID.")
     last_id: str | None = Field(default=None, description="Last assistant ID.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more results.")
 
 
 class Thread(BaseModel):
     """OpenAI Thread object."""
 
     id: str = Field(description="The thread ID.")
-    object: Literal["thread"] = Field(default="thread", description="Object type.")
+    object: Literal["thread"] = Field(
+        default="thread", description="Object type.")
     created_at: int = Field(description="Unix timestamp of creation.")
     metadata: dict[str, str] = Field(
         default_factory=dict, description="User-defined metadata."
@@ -2973,7 +3244,8 @@ class CreateThreadRequest(BaseModel):
 class ModifyThreadRequest(BaseModel):
     """Request to modify a thread."""
 
-    metadata: dict[str, str] | None = Field(default=None, description="Metadata.")
+    metadata: dict[str, str] | None = Field(
+        default=None, description="Metadata.")
     tool_resources: AssistantToolResources | None = Field(
         default=None, description="Tool resources."
     )
@@ -2993,7 +3265,8 @@ class ThreadMessage(BaseModel):
     assistant_id: str | None = Field(
         default=None, description="Assistant ID if role is assistant."
     )
-    run_id: str | None = Field(default=None, description="Run ID if created by a run.")
+    run_id: str | None = Field(default=None,
+                               description="Run ID if created by a run.")
     attachments: list[dict[str, Any]] | None = Field(
         default=None, description="File attachments."
     )
@@ -3022,7 +3295,9 @@ class MessageList(BaseModel):
     data: list[ThreadMessage] = Field(description="List of message objects.")
     first_id: str | None = Field(default=None, description="First message ID.")
     last_id: str | None = Field(default=None, description="Last message ID.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more results.")
 
 
 class RunStatus(str, Enum):
@@ -3076,7 +3351,8 @@ class Run(BaseModel):
         default=None, description="Details about incompletion."
     )
     model: str = Field(description="Model used.")
-    instructions: str | None = Field(default=None, description="Instructions used.")
+    instructions: str | None = Field(
+        default=None, description="Instructions used.")
     tools: list[dict[str, Any]] = Field(
         default_factory=list, description="Tools used in run."
     )
@@ -3084,7 +3360,8 @@ class Run(BaseModel):
         default_factory=dict, description="User-defined metadata."
     )
     usage: Usage | None = Field(default=None, description="Token usage.")
-    temperature: float | None = Field(default=None, description="Temperature used.")
+    temperature: float | None = Field(
+        default=None, description="Temperature used.")
     top_p: float | None = Field(default=None, description="Top-p used.")
     max_prompt_tokens: int | None = Field(
         default=None, description="Max prompt tokens."
@@ -3111,7 +3388,8 @@ class CreateRunRequest(BaseModel):
 
     assistant_id: str = Field(description="Assistant ID to use.")
     model: str | None = Field(default=None, description="Override model.")
-    instructions: str | None = Field(default=None, description="Override instructions.")
+    instructions: str | None = Field(
+        default=None, description="Override instructions.")
     additional_instructions: str | None = Field(
         default=None, description="Additional instructions to append."
     )
@@ -3127,7 +3405,11 @@ class CreateRunRequest(BaseModel):
     temperature: float | None = Field(
         default=None, ge=0.0, le=2.0, description="Temperature."
     )
-    top_p: float | None = Field(default=None, ge=0.0, le=1.0, description="Top-p.")
+    top_p: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Top-p.")
     max_prompt_tokens: int | None = Field(
         default=None, description="Max prompt tokens."
     )
@@ -3152,7 +3434,8 @@ class CreateRunRequest(BaseModel):
 class ModifyRunRequest(BaseModel):
     """Request to modify a run (only metadata supported)."""
 
-    metadata: dict[str, str] | None = Field(default=None, description="Metadata.")
+    metadata: dict[str, str] | None = Field(
+        default=None, description="Metadata.")
 
 
 class RunList(BaseModel):
@@ -3162,7 +3445,9 @@ class RunList(BaseModel):
     data: list[Run] = Field(description="List of run objects.")
     first_id: str | None = Field(default=None, description="First run ID.")
     last_id: str | None = Field(default=None, description="Last run ID.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more results.")
 
 
 class RunStep(BaseModel):
@@ -3176,21 +3461,25 @@ class RunStep(BaseModel):
     run_id: str = Field(description="Run ID.")
     assistant_id: str = Field(description="Assistant ID.")
     thread_id: str = Field(description="Thread ID.")
-    type: Literal["message_creation", "tool_calls"] = Field(description="Step type.")
-    status: Literal["in_progress", "cancelled", "failed", "completed", "expired"] = (
-        Field(description="Step status.")
-    )
+    type: Literal["message_creation", "tool_calls"] = Field(
+        description="Step type.")
+    status: Literal["in_progress", "cancelled", "failed",
+                    "completed", "expired"] = (Field(description="Step status."))
     cancelled_at: int | None = Field(
         default=None, description="Cancellation timestamp."
     )
-    completed_at: int | None = Field(default=None, description="Completion timestamp.")
-    expired_at: int | None = Field(default=None, description="Expiration timestamp.")
-    failed_at: int | None = Field(default=None, description="Failure timestamp.")
+    completed_at: int | None = Field(
+        default=None, description="Completion timestamp.")
+    expired_at: int | None = Field(
+        default=None, description="Expiration timestamp.")
+    failed_at: int | None = Field(
+        default=None, description="Failure timestamp.")
     last_error: dict[str, Any] | None = Field(
         default=None, description="Error details."
     )
     step_details: dict[str, Any] = Field(description="Step-specific details.")
-    usage: Usage | None = Field(default=None, description="Token usage for this step.")
+    usage: Usage | None = Field(default=None,
+                                description="Token usage for this step.")
     metadata: dict[str, str] = Field(
         default_factory=dict, description="User-defined metadata."
     )
@@ -3203,4 +3492,6 @@ class RunStepList(BaseModel):
     data: list[RunStep] = Field(description="List of run step objects.")
     first_id: str | None = Field(default=None, description="First step ID.")
     last_id: str | None = Field(default=None, description="Last step ID.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more results.")

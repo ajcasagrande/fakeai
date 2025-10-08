@@ -53,12 +53,13 @@ class AudioStreamingGenerator:
             return
 
         # Calculate chunk count
-        total_chunks = (len(audio_data) + self.chunk_size_bytes - 1) // self.chunk_size_bytes
+        total_chunks = (
+            len(audio_data) + self.chunk_size_bytes - 1) // self.chunk_size_bytes
 
         # Stream audio chunks
         sequence = 0
         for i in range(0, len(audio_data), self.chunk_size_bytes):
-            chunk_data = audio_data[i : i + self.chunk_size_bytes]
+            chunk_data = audio_data[i: i + self.chunk_size_bytes]
 
             # Create chunk
             chunk = StreamChunk(

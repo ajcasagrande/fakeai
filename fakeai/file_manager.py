@@ -8,13 +8,10 @@ with realistic behavior, validation, and quota enforcement.
 #  SPDX-License-Identifier: Apache-2.0
 
 import asyncio
-import base64
 import hashlib
-import io
 import json
 import mimetypes
 import os
-import re
 import tempfile
 import time
 import uuid
@@ -30,19 +27,13 @@ from fakeai.models import FileObject
 class FileValidationError(Exception):
     """Raised when file validation fails."""
 
-    pass
-
 
 class FileQuotaError(Exception):
     """Raised when file quota is exceeded."""
 
-    pass
-
 
 class FileNotFoundError(Exception):
     """Raised when file is not found."""
-
-    pass
 
 
 class StoredFile(BaseModel):
@@ -271,9 +262,10 @@ class FileManager:
             lambda: {"file_count": 0, "total_bytes": 0}
         )
 
-        # Start cleanup task if enabled
-        if enable_cleanup:
-            asyncio.create_task(self._cleanup_expired_files())
+        # Start cleanup task if enabled - defer until event loop is available
+        self._enable_cleanup = enable_cleanup
+        self._cleanup_task = None
+        self._cleanup_started = False
 
     def _calculate_checksum(self, content: bytes) -> str:
         """Calculate MD5 checksum of file content."""
@@ -357,7 +349,8 @@ class FileManager:
         except UnicodeDecodeError:
             return False, "File is not valid UTF-8"
 
-    def _validate_fine_tune_jsonl(self, content: bytes) -> tuple[bool, str | None]:
+    def _validate_fine_tune_jsonl(
+            self, content: bytes) -> tuple[bool, str | None]:
         """
         Validate fine-tuning JSONL format.
 
@@ -382,7 +375,9 @@ class FileManager:
                 if "messages" not in data:
                     return (
                         False,
-                        f"Line {i + 1}: Missing 'messages' field (required for fine-tuning)",
+                        f"Line {
+                            i +
+                            1}: Missing 'messages' field (required for fine-tuning)",
                     )
 
                 messages = data["messages"]
@@ -397,17 +392,29 @@ class FileManager:
                     if not isinstance(msg, dict):
                         return (
                             False,
-                            f"Line {i + 1}, message {j + 1}: Message must be a dictionary",
+                            f"Line {
+                                i +
+                                1}, message {
+                                j +
+                                1}: Message must be a dictionary",
                         )
                     if "role" not in msg:
                         return (
                             False,
-                            f"Line {i + 1}, message {j + 1}: Missing 'role' field",
+                            f"Line {
+                                i +
+                                1}, message {
+                                j +
+                                1}: Missing 'role' field",
                         )
                     if "content" not in msg:
                         return (
                             False,
-                            f"Line {i + 1}, message {j + 1}: Missing 'content' field",
+                            f"Line {
+                                i +
+                                1}, message {
+                                j +
+                                1}: Missing 'content' field",
                         )
 
             return True, None
@@ -441,14 +448,20 @@ class FileManager:
                     if field not in data:
                         return (
                             False,
-                            f"Line {i + 1}: Missing required field '{field}' (batch format)",
+                            f"Line {
+                                i +
+                                1}: Missing required field '{field}' (batch format)",
                         )
 
                 # Validate method
-                if data["method"] not in ["GET", "POST", "PUT", "DELETE", "PATCH"]:
+                if data["method"] not in [
+                        "GET", "POST", "PUT", "DELETE", "PATCH"]:
                     return (
                         False,
-                        f"Line {i + 1}: Invalid HTTP method '{data['method']}'",
+                        f"Line {
+                            i +
+                            1}: Invalid HTTP method '{
+                            data['method']}'",
                     )
 
                 # Validate body is a dict
@@ -539,18 +552,24 @@ class FileManager:
         if purpose not in self.VALID_PURPOSES:
             return (
                 False,
-                f"Invalid purpose '{purpose}'. Valid purposes: {', '.join(sorted(self.VALID_PURPOSES))}",
+                f"Invalid purpose '{purpose}'. Valid purposes: {
+                    ', '.join(
+                        sorted(
+                            self.VALID_PURPOSES))}",
             )
 
         # Detect MIME type
-        mime_type, detected_format = self._detect_mime_type(filename, file_content)
+        mime_type, detected_format = self._detect_mime_type(
+            filename, file_content)
 
         # Check MIME type is allowed for purpose
         allowed_types = self.PURPOSE_MIME_TYPES.get(purpose)
         if allowed_types is not None and mime_type not in allowed_types:
             return (
                 False,
-                f"MIME type '{mime_type}' not allowed for purpose '{purpose}'. Allowed types: {', '.join(sorted(allowed_types))}",
+                f"MIME type '{mime_type}' not allowed for purpose '{purpose}'. Allowed types: {
+                    ', '.join(
+                        sorted(allowed_types))}",
             )
 
         # Purpose-specific validation
@@ -596,12 +615,14 @@ class FileManager:
 
         if quota["file_count"] >= self.MAX_FILES_PER_USER:
             raise FileQuotaError(
-                f"User file count limit exceeded (max {self.MAX_FILES_PER_USER} files)"
-            )
+                f"User file count limit exceeded (max {
+                    self.MAX_FILES_PER_USER} files)")
 
         if quota["total_bytes"] + file_size > self.MAX_STORAGE_PER_USER:
             max_gb = self.MAX_STORAGE_PER_USER / (1024 * 1024 * 1024)
-            raise FileQuotaError(f"User storage limit exceeded (max {max_gb:.1f} GB)")
+            raise FileQuotaError(
+                f"User storage limit exceeded (max {
+                    max_gb:.1f} GB)")
 
     async def _update_quota(
         self, user_id: str, file_size: int, increment: bool = True
@@ -646,8 +667,12 @@ class FileManager:
         if file_size > self.MAX_FILE_SIZE:
             max_mb = self.MAX_FILE_SIZE / (1024 * 1024)
             raise FileValidationError(
-                f"File size ({file_size / (1024 * 1024):.1f} MB) exceeds maximum allowed size ({max_mb:.1f} MB)"
-            )
+                f"File size ({
+                    file_size /
+                    (
+                        1024 *
+                        1024):.1f} MB) exceeds maximum allowed size ({
+                    max_mb:.1f} MB)")
 
         if file_size == 0:
             raise FileValidationError("File is empty")
@@ -660,7 +685,8 @@ class FileManager:
             file_content, filename, purpose
         )
         if not is_valid:
-            raise FileValidationError(f"File validation failed: {error_message}")
+            raise FileValidationError(
+                f"File validation failed: {error_message}")
 
         # Generate file ID
         file_id = f"file-{uuid.uuid4().hex}"
@@ -737,7 +763,8 @@ class FileManager:
         stored_file = await self.storage.retrieve(file_id)
         return stored_file.content
 
-    async def get_file_with_content(self, file_id: str) -> tuple[FileObject, bytes]:
+    async def get_file_with_content(
+            self, file_id: str) -> tuple[FileObject, bytes]:
         """
         Retrieve file metadata and content together.
 
@@ -829,14 +856,17 @@ class FileManager:
 
             if after_index >= 0:
                 # Return files after this position
-                files = files[after_index + 1 :]
+                files = files[after_index + 1:]
 
         # Apply limit
         files = files[:limit]
 
         return files
 
-    async def verify_checksum(self, file_id: str, expected_checksum: str) -> bool:
+    async def verify_checksum(
+            self,
+            file_id: str,
+            expected_checksum: str) -> bool:
         """
         Verify file checksum for integrity.
 
@@ -864,8 +894,8 @@ class FileManager:
 
                 for stored_file in all_files:
                     if (
-                        stored_file.expires_at
-                        and stored_file.expires_at <= current_time
+                        stored_file.expires_at and
+                        stored_file.expires_at <= current_time
                     ):
                         try:
                             await self.delete_file(stored_file.metadata.id)
@@ -877,7 +907,8 @@ class FileManager:
                 # Ignore errors in cleanup task
                 pass
 
-    async def get_user_quota_info(self, user_id: str = "default") -> dict[str, Any]:
+    async def get_user_quota_info(
+            self, user_id: str = "default") -> dict[str, Any]:
         """
         Get quota information for a user.
 
@@ -894,6 +925,8 @@ class FileManager:
             "total_bytes": quota["total_bytes"],
             "max_files": self.MAX_FILES_PER_USER,
             "max_bytes": self.MAX_STORAGE_PER_USER,
-            "files_remaining": self.MAX_FILES_PER_USER - quota["file_count"],
-            "bytes_remaining": self.MAX_STORAGE_PER_USER - quota["total_bytes"],
+            "files_remaining": self.MAX_FILES_PER_USER -
+            quota["file_count"],
+            "bytes_remaining": self.MAX_STORAGE_PER_USER -
+            quota["total_bytes"],
         }

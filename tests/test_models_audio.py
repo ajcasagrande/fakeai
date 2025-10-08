@@ -50,8 +50,6 @@ class TestImportsFromAudioModule:
     def test_import_from_audio_module(self):
         """Test importing from fakeai.models.audio module."""
         from fakeai.models.audio import (
-            AudioSpeechesUsageResponse,
-            AudioTranscriptionsUsageResponse,
             AudioTranslationRequest,
             SpeechRequest,
             TranscriptionRequest,
@@ -59,6 +57,12 @@ class TestImportsFromAudioModule:
             TranscriptionSegment,
             TranscriptionWord,
             VerboseTranscriptionResponse,
+        )
+
+        # Usage response models are now in billing module to avoid duplication
+        from fakeai.models.billing import (
+            AudioSpeechesUsageResponse,
+            AudioTranscriptionsUsageResponse,
         )
 
         # Verify classes are imported correctly
@@ -119,16 +123,18 @@ class TestBackwardCompatibility:
         from fakeai.models import (
             AudioTranscriptionsUsageResponse as AudioTranscriptionsFromPackage,
         )
-        from fakeai.models.audio import (
-            AudioSpeechesUsageResponse as AudioSpeechesFromAudio,
+
+        # Usage models are now in billing module to avoid duplication
+        from fakeai.models.billing import (
+            AudioSpeechesUsageResponse as AudioSpeechesFromBilling,
         )
-        from fakeai.models.audio import (
-            AudioTranscriptionsUsageResponse as AudioTranscriptionsFromAudio,
+        from fakeai.models.billing import (
+            AudioTranscriptionsUsageResponse as AudioTranscriptionsFromBilling,
         )
 
-        # Verify they reference the same classes
-        assert AudioSpeechesFromPackage is AudioSpeechesFromAudio
-        assert AudioTranscriptionsFromPackage is AudioTranscriptionsFromAudio
+        # Verify they reference the same classes (models package imports from billing)
+        assert AudioSpeechesFromPackage is AudioSpeechesFromBilling
+        assert AudioTranscriptionsFromPackage is AudioTranscriptionsFromBilling
 
 
 class TestSpeechRequestModel:
@@ -636,8 +642,8 @@ class TestModuleStructure:
         assert hasattr(audio_module, "TranscriptionWord")
         assert hasattr(audio_module, "TranscriptionSegment")
         assert hasattr(audio_module, "AudioTranslationRequest")
-        assert hasattr(audio_module, "AudioSpeechesUsageResponse")
-        assert hasattr(audio_module, "AudioTranscriptionsUsageResponse")
+        # Note: Usage response models are now in billing module to avoid duplication
+        # They are still available from the main package for backward compatibility
 
     def test_package_init_exports_audio(self):
         """Test that package __init__ exports audio models."""

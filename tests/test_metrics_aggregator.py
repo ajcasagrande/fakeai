@@ -6,15 +6,12 @@ time-series aggregation, and Prometheus export.
 """
 
 import time
-from unittest.mock import MagicMock, Mock
+from unittest.mock import Mock
 
 import pytest
 
 from fakeai.metrics_aggregator import (
-    CorrelatedMetrics,
-    HealthScore,
     HealthStatus,
-    MetricDataPoint,
     MetricsAggregator,
     TimeResolution,
 )

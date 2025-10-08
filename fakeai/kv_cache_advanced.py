@@ -13,7 +13,6 @@ This module implements an extremely realistic KV cache simulation including:
 
 import hashlib
 import heapq
-import math
 import threading
 import time
 from collections import defaultdict, deque
@@ -33,7 +32,8 @@ class AdvancedRadixNode:
     Supports path compression (merge single-child nodes) and detailed metrics.
     """
 
-    token_sequence: tuple[int, ...] = field(default_factory=tuple)  # Compressed path
+    token_sequence: tuple[int, ...] = field(
+        default_factory=tuple)  # Compressed path
     children: dict[int, "AdvancedRadixNode"] = field(default_factory=dict)
     cache_blocks: list[str] = field(default_factory=list)
     worker_ids: set[str] = field(default_factory=set)
@@ -68,9 +68,10 @@ class AdvancedRadixTree:
         self.evicted_nodes = 0
         self.total_insertions = 0
         self._lock = threading.Lock()
-        self._lru_queue: list[tuple[float, AdvancedRadixNode]] = (
+        self._lru_queue: list[tuple[float, int, AdvancedRadixNode]] = (
             []
-        )  # (last_access, node)
+        )  # (last_access, counter, node)
+        self._counter = 0  # Monotonic counter for tie-breaking
 
     def insert(self, tokens: list[int], worker_id: str) -> int:
         """
@@ -97,7 +98,8 @@ class AdvancedRadixTree:
                 if token not in node.children:
                     # Check for compression opportunity
                     remaining = tokens[i:]
-                    new_node = self._create_compressed_node(remaining, worker_id)
+                    new_node = self._create_compressed_node(
+                        remaining, worker_id)
                     node.children[token] = new_node
                     blocks_inserted += self._calculate_blocks(len(remaining))
                     self.total_nodes += 1
@@ -106,7 +108,10 @@ class AdvancedRadixTree:
                     for j in range(
                         self.block_size, len(remaining) + 1, self.block_size
                     ):
-                        block_id = f"block_{hash(tuple(tokens[:i+j]))}"
+                        # Use stable hashing for block IDs
+                        token_bytes = str(tuple(tokens[:i + j])).encode()
+                        block_hash = hashlib.md5(token_bytes).hexdigest()[:16]
+                        block_id = f"block_{block_hash}"
                         new_node.cache_blocks.append(block_id)
                         new_node.worker_ids.add(worker_id)
 
@@ -121,11 +126,11 @@ class AdvancedRadixTree:
                 if seq_len > 1:
                     # Check if token sequence matches
                     remaining = tokens[
-                        i : i + seq_len - 1
+                        i: i + seq_len - 1
                     ]  # -1 because we already advanced by 1
                     if (
-                        len(remaining) == seq_len - 1
-                        and tuple([token] + remaining) == node.token_sequence
+                        len(remaining) == seq_len - 1 and
+                        tuple([token] + remaining) == node.token_sequence
                     ):
                         i += seq_len - 1
                     else:
@@ -134,7 +139,10 @@ class AdvancedRadixTree:
 
                 # Mark complete blocks
                 if i % self.block_size == 0 and i > 0:
-                    block_id = f"block_{hash(tuple(tokens[:i]))}"
+                    # Use stable hashing for block IDs
+                    token_bytes = str(tuple(tokens[:i])).encode()
+                    block_hash = hashlib.md5(token_bytes).hexdigest()[:16]
+                    block_id = f"block_{block_hash}"
                     if block_id not in node.cache_blocks:
                         node.cache_blocks.append(block_id)
                         blocks_inserted += 1
@@ -143,7 +151,8 @@ class AdvancedRadixTree:
             # Update access patterns
             node.last_access = time.time()
             node.hit_count += 1
-            node.access_frequency = self._update_ewma(node.access_frequency, 1.0)
+            node.access_frequency = self._update_ewma(
+                node.access_frequency, 1.0)
             self.total_insertions += 1
 
             return blocks_inserted
@@ -160,19 +169,27 @@ class AdvancedRadixTree:
 
         # Calculate memory usage
         node.memory_bytes = (
-            len(tokens) * 8  # Token IDs (int64)
-            + len(worker_id) * 2  # Worker ID string
-            + 256  # Overhead (dicts, lists, etc.)
+            len(tokens) * 8 +  # Token IDs (int64)
+            len(worker_id) * 2 +  # Worker ID string
+            256  # Overhead (dicts, lists, etc.)
         )
         self.current_memory_bytes += node.memory_bytes
         self.compressed_paths += 1
 
-        # Add to LRU queue (use id as tiebreaker for heap comparisons)
-        heapq.heappush(self._lru_queue, (node.last_access, id(node), node))
+        # Add to LRU queue (use monotonic counter for stable ordering)
+        self._counter += 1
+        heapq.heappush(
+            self._lru_queue,
+            (node.last_access,
+             self._counter,
+             node))
 
         return node
 
-    def _split_compressed_node(self, node: AdvancedRadixNode, new_sequence: list[int]):
+    def _split_compressed_node(
+            self,
+            node: AdvancedRadixNode,
+            new_sequence: list[int]):
         """Split a compressed node when sequences diverge."""
         # Find common prefix
         common_len = 0
@@ -238,7 +255,7 @@ class AdvancedRadixTree:
                 if seq_len > 1:
                     # Check if remaining tokens match compressed sequence
                     remaining = tokens[
-                        i : i + seq_len - 1
+                        i: i + seq_len - 1
                     ]  # -1 because we already counted first token
                     match_len = 0
                     for j in range(min(len(remaining), seq_len - 1)):
@@ -257,9 +274,9 @@ class AdvancedRadixTree:
 
                 # Collect blocks at block boundaries
                 if (
-                    matched_tokens > 0
-                    and matched_tokens % self.block_size == 0
-                    and node.cache_blocks
+                    matched_tokens > 0 and
+                    matched_tokens % self.block_size == 0 and
+                    node.cache_blocks
                 ):
                     matched_blocks.extend(node.cache_blocks)
                     workers = workers.union(node.worker_ids)
@@ -277,7 +294,7 @@ class AdvancedRadixTree:
         """Evict least recently used nodes if over capacity."""
         while self.current_memory_bytes > self.max_memory_bytes and self._lru_queue:
             # Get least recently used node
-            _, _, node = heapq.heappop(self._lru_queue)
+            last_access, counter, node = heapq.heappop(self._lru_queue)
 
             # Only evict if not recently accessed
             if time.time() - node.last_access > 60.0:  # 60 second threshold
@@ -429,9 +446,11 @@ class CacheMemoryManager:
         capacity_per_worker_mb: float = 24.0 * 1024,  # 24 GB per worker
         block_size: int = 16,
     ):
-        self.capacity_per_worker_bytes = int(capacity_per_worker_mb * 1024 * 1024)
+        self.capacity_per_worker_bytes = int(
+            capacity_per_worker_mb * 1024 * 1024)
         self.block_size = block_size
-        self.worker_caches: dict[str, dict[str, CacheBlock]] = defaultdict(dict)
+        self.worker_caches: dict[str,
+                                 dict[str, CacheBlock]] = defaultdict(dict)
         self.worker_memory_usage: dict[str, int] = defaultdict(int)
         self.global_cache: dict[str, CacheBlock] = {}  # L2 shared cache
         self.global_memory_usage = 0
@@ -473,8 +492,8 @@ class CacheMemoryManager:
 
             # Check capacity
             if (
-                self.worker_memory_usage[worker_id] + size_bytes
-                > self.capacity_per_worker_bytes
+                self.worker_memory_usage[worker_id] + size_bytes >
+                self.capacity_per_worker_bytes
             ):
                 # Evict LRU blocks
                 if not self._evict_lru_blocks(worker_id, size_bytes):
@@ -511,7 +530,8 @@ class CacheMemoryManager:
         # Check L1 (worker cache) - no lock needed for read
         if block_id in self.worker_caches[worker_id]:
             with self._lock:
-                if block_id in self.worker_caches[worker_id]:  # Double-check with lock
+                # Double-check with lock
+                if block_id in self.worker_caches[worker_id]:
                     block = self.worker_caches[worker_id][block_id]
                     block.last_access = time.time()
                     block.access_count += 1
@@ -543,7 +563,9 @@ class CacheMemoryManager:
         worker_cache = self.worker_caches[worker_id]
 
         # Sort blocks by last access time
-        sorted_blocks = sorted(worker_cache.items(), key=lambda x: x[1].last_access)
+        sorted_blocks = sorted(
+            worker_cache.items(),
+            key=lambda x: x[1].last_access)
 
         freed_bytes = 0
         for block_id, block in sorted_blocks:
@@ -640,7 +662,8 @@ class WorkerPerformance:
     request_count: int = 0
     cache_hit_rate: float = 0.0
     avg_prefill_time_ms: float = 0.0
-    affinity_scores: dict[str, float] = field(default_factory=dict)  # user -> score
+    affinity_scores: dict[str, float] = field(
+        default_factory=dict)  # user -> score
     load_factor: float = 1.0  # Dynamic load multiplier
 
 
@@ -687,7 +710,8 @@ class AdaptiveRouter:
             self.workers[worker_id] = WorkerPerformance(worker_id=worker_id)
 
         # Routing intelligence
-        self.user_affinity: dict[str, str] = {}  # user_id -> preferred_worker_id
+        # user_id -> preferred_worker_id
+        self.user_affinity: dict[str, str] = {}
         self.prefetch_predictions: dict[str, list[int]] = (
             {}
         )  # user_id -> predicted tokens
@@ -782,9 +806,8 @@ class AdaptiveRouter:
 
         # Success rate factor (penalize low-performing workers)
         total_requests = worker.success_count + worker.failure_count
-        success_rate = (
-            worker.success_count / total_requests if total_requests > 0 else 0.5
-        )
+        success_rate = (worker.success_count /
+                        total_requests if total_requests > 0 else 0.5)
         performance_penalty = (1.0 - success_rate) * 10  # 0-10 penalty
 
         # Affinity bonus (reduce cost for preferred worker)
@@ -798,11 +821,11 @@ class AdaptiveRouter:
 
         # Combined cost
         cost = (
-            self.kv_overlap_weight * prefill_blocks * load_factor
-            + decode_blocks
-            + self.load_balance_weight * load
-            + performance_penalty
-            + affinity_bonus
+            self.kv_overlap_weight * prefill_blocks * load_factor +
+            decode_blocks +
+            self.load_balance_weight * load +
+            performance_penalty +
+            affinity_bonus
         )
 
         return cost
@@ -839,9 +862,13 @@ class AdaptiveRouter:
 
             # Allocate blocks to memory manager
             for i in range(0, len(tokens), self.radix_tree.block_size):
-                block_tokens = tuple(tokens[i : i + self.radix_tree.block_size])
-                block_id = f"block_{hash(block_tokens)}"
-                self.memory_manager.allocate_block(worker_id, block_id, block_tokens)
+                block_tokens = tuple(tokens[i: i + self.radix_tree.block_size])
+                # Use stable hashing for block IDs
+                token_bytes = str(block_tokens).encode()
+                block_hash = hashlib.md5(token_bytes).hexdigest()[:16]
+                block_id = f"block_{block_hash}"
+                self.memory_manager.allocate_block(
+                    worker_id, block_id, block_tokens)
 
     def _update_affinity(self, user_id: str, worker_id: str):
         """Update user-worker affinity for sticky sessions."""
@@ -866,7 +893,8 @@ class AdaptiveRouter:
         # Scale up if high utilization and below max
         if utilization > 0.8 and len(self.workers) < self.max_workers:
             new_worker_id = f"worker-{len(self.workers)}"
-            self.workers[new_worker_id] = WorkerPerformance(worker_id=new_worker_id)
+            self.workers[new_worker_id] = WorkerPerformance(
+                worker_id=new_worker_id)
             self.num_workers += 1
 
         # Scale down if low utilization and above minimum
@@ -1047,8 +1075,8 @@ class CacheCoordinator:
                 "invalidation_count": self.invalidation_count,
                 "coherency_violations": self.coherency_violations,
                 "coherency_rate": round(
-                    (1 - self.coherency_violations / max(1, self.invalidation_count))
-                    * 100,
+                    (1 - self.coherency_violations / max(1, self.invalidation_count)) *
+                    100,
                     2,
                 ),
             }
@@ -1098,9 +1126,8 @@ class AdvancedKVCacheMetrics:
     def get_comprehensive_stats(self) -> dict[str, Any]:
         """Get all metrics from all components."""
         with self._lock:
-            cache_hit_rate = (
-                self.cache_hits / max(1, self.cache_hits + self.cache_misses) * 100
-            )
+            cache_hit_rate = (self.cache_hits / max(1,
+                                                    self.cache_hits + self.cache_misses) * 100)
             avg_prefix = (
                 sum(self.prefix_lengths) / len(self.prefix_lengths)
                 if self.prefix_lengths

@@ -177,6 +177,7 @@ class TestPerModelContextWindows:
         error_data = _get_error_response(exc_info.value)
         assert error_data["error"]["code"] == "context_length_exceeded"
 
+    @pytest.mark.slow
     def test_gpt4_turbo_large_context_window(self, client: FakeAIClient):
         """Test GPT-4 Turbo context window (128000 tokens)."""
         # Should pass with 100000 tokens
@@ -217,6 +218,7 @@ class TestPerModelContextWindows:
         error_data = _get_error_response(exc_info.value)
         assert error_data["error"]["code"] == "context_length_exceeded"
 
+    @pytest.mark.slow
     def test_llama_large_context_window(self, client: FakeAIClient):
         """Test Llama 3.1 context window (131072 tokens)."""
         # Should pass with 120000 tokens
@@ -237,6 +239,7 @@ class TestPerModelContextWindows:
         error_data = _get_error_response(exc_info.value)
         assert error_data["error"]["code"] == "context_length_exceeded"
 
+    @pytest.mark.slow
     def test_claude_very_large_context_window(self, client: FakeAIClient):
         """Test Claude context window (200000 tokens)."""
         # Should pass with 150000 tokens
@@ -336,6 +339,7 @@ class TestPromptCompletionLimits:
         # Should succeed (small prompt + large completion < 128K)
         assert response["object"] == "chat.completion"
 
+    @pytest.mark.slow
     def test_large_prompt_small_completion(self, client: FakeAIClient):
         """Test large prompt with small completion."""
         # Use ~120K tokens in prompt
@@ -669,6 +673,7 @@ class TestDynamicContextWindows:
         assert error_data["error"]["code"] == "context_length_exceeded"
         assert "8192 tokens" in error_data["error"]["message"]
 
+    @pytest.mark.slow
     def test_model_with_provider_prefix(self, client: FakeAIClient):
         """Test context validation for models with provider prefixes."""
         # Should handle openai/gpt-oss-120b (128K tokens)

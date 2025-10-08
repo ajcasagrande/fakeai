@@ -8,8 +8,6 @@ Validates smart router load balancing and cache efficiency.
 #  SPDX-License-Identifier: Apache-2.0
 
 import asyncio
-import hashlib
-import random
 import time
 from dataclasses import dataclass, field
 from typing import Any

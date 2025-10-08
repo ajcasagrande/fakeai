@@ -4,7 +4,6 @@ Tests for individual validators.
 
 #  SPDX-License-Identifier: Apache-2.0
 
-import pytest
 from pydantic import BaseModel, Field
 
 from fakeai.rate_limiter import RateLimiter

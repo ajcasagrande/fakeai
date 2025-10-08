@@ -12,7 +12,7 @@ import math
 import threading
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -46,9 +46,12 @@ class LatencyHistogram:
     percentile calculation via linear interpolation.
     """
 
-    buckets: List[float] = field(default_factory=lambda: list(HISTOGRAM_BUCKETS))
+    buckets: list[float] = field(
+        default_factory=lambda: list(HISTOGRAM_BUCKETS))
     _lock: threading.Lock = field(default_factory=threading.Lock)
-    _counts: List[int] = field(default_factory=lambda: [0] * len(HISTOGRAM_BUCKETS))
+    _counts: list[int] = field(
+        default_factory=lambda: [0] *
+        len(HISTOGRAM_BUCKETS))
     _total_count: int = 0
     _sum: float = 0.0
     _sum_squares: float = 0.0
@@ -129,7 +132,8 @@ class LatencyHistogram:
 
                     # Calculate how far into the bucket we are
                     prev_cumulative = cumulative_count - count
-                    position_in_bucket = (target_rank - prev_cumulative) / count
+                    position_in_bucket = (
+                        target_rank - prev_cumulative) / count
 
                     # Linear interpolation
                     return bucket_start + position_in_bucket * (
@@ -139,7 +143,7 @@ class LatencyHistogram:
             # Should not reach here, but return max if we do
             return self._max
 
-    def get_percentiles(self, percentiles: List[float]) -> Dict[float, float]:
+    def get_percentiles(self, percentiles: list[float]) -> dict[float, float]:
         """
         Get multiple percentiles efficiently.
 
@@ -235,7 +239,7 @@ class LatencyHistogram:
         # Pearson's second skewness coefficient: 3 * (mean - median) / std_dev
         return 3.0 * (mean - median) / std_dev
 
-    def get_stats(self) -> Dict[str, float]:
+    def get_stats(self) -> dict[str, float]:
         """
         Get comprehensive statistics.
 
@@ -264,7 +268,8 @@ class LatencyHistogram:
                 }
 
         # Calculate percentiles
-        percentiles = self.get_percentiles([50.0, 75.0, 90.0, 95.0, 99.0, 99.9, 99.99])
+        percentiles = self.get_percentiles(
+            [50.0, 75.0, 90.0, 95.0, 99.0, 99.9, 99.99])
 
         mode = self.get_mode()
 
@@ -287,7 +292,7 @@ class LatencyHistogram:
             "p99.99": percentiles[99.99],
         }
 
-    def detect_anomalies(self) -> List[Dict[str, Any]]:
+    def detect_anomalies(self) -> list[dict[str, Any]]:
         """
         Detect latency anomalies.
 
@@ -304,7 +309,8 @@ class LatencyHistogram:
         std_dev = self.get_std_dev()
 
         # Detect outliers (> 3σ from mean)
-        # For histogram data, we check if any buckets beyond mean+3σ have samples
+        # For histogram data, we check if any buckets beyond mean+3σ have
+        # samples
         if std_dev > 0:
             outlier_threshold = mean + 3 * std_dev
 
@@ -328,12 +334,12 @@ class LatencyHistogram:
                 anomalies.append(
                     {
                         "type": "outliers",
-                        "description": f"{outlier_count} samples ({outlier_percentage:.2f}%) exceed 3σ threshold",
+                        "description": f"{outlier_count} samples ({
+                            outlier_percentage:.2f}%) exceed 3σ threshold",
                         "threshold_ms": outlier_threshold,
                         "count": outlier_count,
                         "percentage": outlier_percentage,
-                    }
-                )
+                    })
 
         # Detect bimodal distribution
         # Look for two peaks with a valley between them
@@ -342,8 +348,8 @@ class LatencyHistogram:
             for i in range(1, len(self._counts) - 1):
                 # A peak is where count is greater than both neighbors
                 if (
-                    self._counts[i] > self._counts[i - 1]
-                    and self._counts[i] > self._counts[i + 1]
+                    self._counts[i] > self._counts[i - 1] and
+                    self._counts[i] > self._counts[i + 1]
                 ):
                     # Only consider significant peaks (> 5% of total)
                     if self._counts[i] > self._total_count * 0.05:
@@ -360,20 +366,21 @@ class LatencyHistogram:
             peak2_idx, peak2_value, peak2_count = peaks[1]
 
             # Find minimum count between peaks
-            min_count = min(self._counts[peak1_idx + 1 : peak2_idx])
+            min_count = min(self._counts[peak1_idx + 1: peak2_idx])
 
             # Bimodal if valley is significantly lower than both peaks
             if min_count < peak1_count * 0.5 and min_count < peak2_count * 0.5:
                 anomalies.append(
                     {
                         "type": "bimodal",
-                        "description": f"Bimodal distribution detected with peaks at {peak1_value:.2f}ms and {peak2_value:.2f}ms",
+                        "description": f"Bimodal distribution detected with peaks at {
+                            peak1_value:.2f}ms and {
+                            peak2_value:.2f}ms",
                         "peak1_ms": peak1_value,
                         "peak2_ms": peak2_value,
                         "peak1_count": peak1_count,
                         "peak2_count": peak2_count,
-                    }
-                )
+                    })
 
         # Detect latency spikes (p99 >> p50)
         p50 = self.get_percentile(50.0)
@@ -383,16 +390,20 @@ class LatencyHistogram:
             anomalies.append(
                 {
                     "type": "latency_spike",
-                    "description": f"Latency spike detected: p99 ({p99:.2f}ms) is {p99/p50:.1f}x higher than p50 ({p50:.2f}ms)",
+                    "description": f"Latency spike detected: p99 ({
+                        p99:.2f}ms) is {
+                        p99 /
+                        p50:.1f}x higher than p50 ({
+                        p50:.2f}ms)",
                     "p50_ms": p50,
                     "p99_ms": p99,
-                    "ratio": p99 / p50,
-                }
-            )
+                    "ratio": p99 /
+                    p50,
+                })
 
         return anomalies
 
-    def get_histogram_data(self) -> Dict[str, Any]:
+    def get_histogram_data(self) -> dict[str, Any]:
         """
         Get raw histogram data for plotting.
 
@@ -431,17 +442,19 @@ class LatencyHistogramTracker:
 
     def __init__(self):
         """Initialize the histogram tracker."""
-        self._endpoint_histograms: Dict[str, LatencyHistogram] = defaultdict(
+        self._endpoint_histograms: dict[str, LatencyHistogram] = defaultdict(
             LatencyHistogram
         )
-        self._model_histograms: Dict[str, LatencyHistogram] = defaultdict(
+        self._model_histograms: dict[str, LatencyHistogram] = defaultdict(
             LatencyHistogram
         )
         self._lock = threading.Lock()
 
     def record_latency(
-        self, latency_ms: float, endpoint: str | None = None, model: str | None = None
-    ) -> None:
+            self,
+            latency_ms: float,
+            endpoint: str | None = None,
+            model: str | None = None) -> None:
         """
         Record a latency sample.
 
@@ -457,7 +470,7 @@ class LatencyHistogramTracker:
             if model:
                 self._model_histograms[model].record(latency_ms)
 
-    def get_endpoint_stats(self, endpoint: str) -> Dict[str, float]:
+    def get_endpoint_stats(self, endpoint: str) -> dict[str, float]:
         """
         Get statistics for a specific endpoint.
 
@@ -472,7 +485,7 @@ class LatencyHistogramTracker:
                 return {}
             return self._endpoint_histograms[endpoint].get_stats()
 
-    def get_model_stats(self, model: str) -> Dict[str, float]:
+    def get_model_stats(self, model: str) -> dict[str, float]:
         """
         Get statistics for a specific model.
 
@@ -487,7 +500,7 @@ class LatencyHistogramTracker:
                 return {}
             return self._model_histograms[model].get_stats()
 
-    def get_all_endpoint_stats(self) -> Dict[str, Dict[str, float]]:
+    def get_all_endpoint_stats(self) -> dict[str, dict[str, float]]:
         """
         Get statistics for all endpoints.
 
@@ -500,7 +513,7 @@ class LatencyHistogramTracker:
                 for endpoint, histogram in self._endpoint_histograms.items()
             }
 
-    def get_all_model_stats(self) -> Dict[str, Dict[str, float]]:
+    def get_all_model_stats(self) -> dict[str, dict[str, float]]:
         """
         Get statistics for all models.
 
@@ -513,7 +526,7 @@ class LatencyHistogramTracker:
                 for model, histogram in self._model_histograms.items()
             }
 
-    def detect_endpoint_anomalies(self, endpoint: str) -> List[Dict[str, Any]]:
+    def detect_endpoint_anomalies(self, endpoint: str) -> list[dict[str, Any]]:
         """
         Detect anomalies for a specific endpoint.
 
@@ -528,7 +541,7 @@ class LatencyHistogramTracker:
                 return []
             return self._endpoint_histograms[endpoint].detect_anomalies()
 
-    def detect_model_anomalies(self, model: str) -> List[Dict[str, Any]]:
+    def detect_model_anomalies(self, model: str) -> list[dict[str, Any]]:
         """
         Detect anomalies for a specific model.
 
@@ -543,7 +556,7 @@ class LatencyHistogramTracker:
                 return []
             return self._model_histograms[model].detect_anomalies()
 
-    def get_endpoint_histogram_data(self, endpoint: str) -> Dict[str, Any]:
+    def get_endpoint_histogram_data(self, endpoint: str) -> dict[str, Any]:
         """
         Get histogram data for a specific endpoint.
 
@@ -558,7 +571,7 @@ class LatencyHistogramTracker:
                 return {}
             return self._endpoint_histograms[endpoint].get_histogram_data()
 
-    def get_model_histogram_data(self, model: str) -> Dict[str, Any]:
+    def get_model_histogram_data(self, model: str) -> dict[str, Any]:
         """
         Get histogram data for a specific model.
 
@@ -588,7 +601,8 @@ class LatencyHistogramTracker:
                 lines.append(
                     "# HELP fakeai_latency_histogram_seconds Latency distribution by endpoint"
                 )
-                lines.append("# TYPE fakeai_latency_histogram_seconds histogram")
+                lines.append(
+                    "# TYPE fakeai_latency_histogram_seconds histogram")
 
                 for endpoint, histogram in self._endpoint_histograms.items():
                     data = histogram.get_histogram_data()

@@ -7,7 +7,6 @@ rate limiting enforcement across the FakeAI API.
 
 #  SPDX-License-Identifier: Apache-2.0
 
-import asyncio
 import time
 
 import pytest

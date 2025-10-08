@@ -8,7 +8,6 @@ style modes, multiple images, response formats, model validation, and error cond
 #  SPDX-License-Identifier: Apache-2.0
 
 import base64
-import re
 
 import pytest
 

@@ -47,6 +47,8 @@ class TestImportsFromImagesModule:
 
     def test_import_from_images_module(self):
         """Test importing from fakeai.models.images module."""
+        # ImagesUsageResponse is now in billing module to avoid duplication
+        from fakeai.models.billing import ImagesUsageResponse
         from fakeai.models.images import (
             GeneratedImage,
             ImageGenerationRequest,
@@ -55,7 +57,6 @@ class TestImportsFromImagesModule:
             ImageResponseFormat,
             ImageSize,
             ImageStyle,
-            ImagesUsageResponse,
         )
 
         # Verify classes are imported correctly
@@ -92,6 +93,11 @@ class TestBackwardCompatibility:
             ImageStyle,
             ImagesUsageResponse,
         )
+
+        # ImagesUsageResponse is now in billing module to avoid duplication
+        from fakeai.models.billing import (
+            ImagesUsageResponse as ImagesUsageResponseFromBilling,
+        )
         from fakeai.models.images import GeneratedImage as GeneratedImageFromImages
         from fakeai.models.images import (
             ImageGenerationRequest as ImageGenerationRequestFromImages,
@@ -105,9 +111,6 @@ class TestBackwardCompatibility:
         )
         from fakeai.models.images import ImageSize as ImageSizeFromImages
         from fakeai.models.images import ImageStyle as ImageStyleFromImages
-        from fakeai.models.images import (
-            ImagesUsageResponse as ImagesUsageResponseFromImages,
-        )
 
         # Verify all classes reference the same objects
         assert ImageSize is ImageSizeFromImages
@@ -117,7 +120,8 @@ class TestBackwardCompatibility:
         assert GeneratedImage is GeneratedImageFromImages
         assert ImageGenerationRequest is ImageGenerationRequestFromImages
         assert ImageGenerationResponse is ImageGenerationResponseFromImages
-        assert ImagesUsageResponse is ImagesUsageResponseFromImages
+        # ImagesUsageResponse comes from billing now
+        assert ImagesUsageResponse is ImagesUsageResponseFromBilling
 
 
 class TestImageEnums:
@@ -303,10 +307,27 @@ class TestModelInstantiation:
 
     def test_images_usage_response_with_pagination(self):
         """Test ImagesUsageResponse with pagination."""
-        from fakeai.models import ImagesUsageResponse
+        from fakeai.models import (
+            ImagesUsageResponse,
+            UsageAggregationBucket,
+            UsageResultItem,
+        )
+
+        # Create proper usage bucket with result items
+        bucket = UsageAggregationBucket(
+            start_time=1609459200,
+            end_time=1609545600,
+            results=[
+                UsageResultItem(
+                    input_tokens=100,
+                    output_tokens=50,
+                    num_model_requests=1,
+                )
+            ],
+        )
 
         usage = ImagesUsageResponse(
-            data=[{"some": "data"}],
+            data=[bucket],
             has_more=True,
             next_page="https://api.example.com/v1/usage/images?page=2",
         )
@@ -427,7 +448,8 @@ class TestModuleStructure:
         assert hasattr(images_module, "GeneratedImage")
         assert hasattr(images_module, "ImageGenerationRequest")
         assert hasattr(images_module, "ImageGenerationResponse")
-        assert hasattr(images_module, "ImagesUsageResponse")
+        # Note: ImagesUsageResponse is now in billing module to avoid duplication
+        # It's still available from the main package for backward compatibility
 
     def test_package_init_exports_images(self):
         """Test that package __init__ exports image models."""

@@ -33,8 +33,9 @@ class CompletionRequest(BaseModel):
         default=1.0, ge=0, le=1, description="Nucleus sampling parameter."
     )
     n: int | None = Field(
-        default=1, ge=1, description="Number of completion choices to generate."
-    )
+        default=1,
+        ge=1,
+        description="Number of completion choices to generate.")
     stream: bool | None = Field(
         default=False, description="Whether to stream responses."
     )
@@ -59,7 +60,7 @@ class CompletionRequest(BaseModel):
     )
     frequency_penalty: float | None = Field(
         default=0,
-        ge=-2.0,
+        ge=- 2.0,
         le=2.0,
         description="Penalty for new tokens based on frequency in text so far.",
     )
@@ -87,7 +88,8 @@ class LogProbs(BaseModel):
     top_logprobs: list[dict[str, float]] | None = Field(
         default=None, description="The log probabilities of the most likely tokens."
     )
-    text_offset: list[int] = Field(description="The text offsets of the tokens.")
+    text_offset: list[int] = Field(
+        description="The text offsets of the tokens.")
 
 
 class CompletionChoice(BaseModel):

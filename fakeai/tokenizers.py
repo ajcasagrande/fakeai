@@ -16,9 +16,7 @@ Key features:
 
 #  SPDX-License-Identifier: Apache-2.0
 
-import re
 from functools import lru_cache
-from typing import Optional
 
 # Try to import tiktoken, but don't fail if it's not available
 try:
@@ -310,7 +308,9 @@ def batch_token_count(texts: list[str], model: str = "gpt-4") -> list[int]:
     return [get_token_count(text, model) for text in texts]
 
 
-def estimate_tokens_from_messages(messages: list[dict], model: str = "gpt-4") -> int:
+def estimate_tokens_from_messages(
+        messages: list[dict],
+        model: str = "gpt-4") -> int:
     """
     Estimate token count for a list of chat messages.
 
@@ -409,24 +409,15 @@ def is_tiktoken_available() -> bool:
     return TIKTOKEN_AVAILABLE
 
 
-# Backward compatibility: expose heuristic method with old name
 def calculate_token_count(text: str) -> int:
     """
-    Calculate an approximate token count for the given text.
-
-    This function maintains backward compatibility with the existing codebase.
-    It uses tiktoken when available (via get_token_count) for accurate counting,
-    or falls back to the heuristic method.
+    Calculate token count for the given text using tiktoken.
 
     Args:
         text: The text to count tokens for
 
     Returns:
         Number of tokens in the text
-
-    Note:
-        This function is maintained for backward compatibility.
-        New code should prefer get_token_count() for explicit model specification.
     """
     if not text:
         return 0

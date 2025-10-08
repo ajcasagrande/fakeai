@@ -15,7 +15,6 @@ import hashlib
 import logging
 import re
 import time
-from collections import defaultdict
 from typing import Any, Literal
 
 import numpy as np
@@ -109,7 +108,8 @@ class AutoChunkingStrategy(ChunkingStrategy):
 
                 # Split the long sentence
                 sub_chunks = self._split_long_sentence(sentence)
-                chunks.extend([self._create_chunk([s], metadata) for s in sub_chunks])
+                chunks.extend([self._create_chunk([s], metadata)
+                              for s in sub_chunks])
                 continue
 
             # Check if adding sentence would exceed target
@@ -163,7 +163,8 @@ class AutoChunkingStrategy(ChunkingStrategy):
                     # Keep overlap
                     overlap_size = int(len(current) * self.overlap_ratio)
                     current = current[-overlap_size:] if overlap_size > 0 else []
-                    current_tokens = sum(self._estimate_tokens(w) for w in current)
+                    current_tokens = sum(
+                        self._estimate_tokens(w) for w in current)
             current.append(word)
             current_tokens += word_tokens
 
@@ -192,7 +193,8 @@ class AutoChunkingStrategy(ChunkingStrategy):
         """Estimate token count for text."""
         # Simple heuristic: words + punctuation
         words = len(text.split())
-        punctuation = sum(1 for c in text if c in ".,;:!?()[]{}<>\"'`~@#$%^&*-+=|/\\")
+        punctuation = sum(
+            1 for c in text if c in ".,;:!?()[]{}<>\"'`~@#$%^&*-+=|/\\")
         return max(1, words + punctuation)
 
     def _create_chunk(
@@ -250,7 +252,7 @@ class StaticChunkingStrategy(ChunkingStrategy):
 
         while i < len(words):
             # Extract chunk
-            chunk_words = words[i : i + self.chunk_size]
+            chunk_words = words[i: i + self.chunk_size]
             chunk_text = " ".join(chunk_words)
 
             # If preserve_sentences, try to end at sentence boundary
@@ -406,8 +408,8 @@ class VectorIndex:
         # Apply filters and return top_k
         if filters:
             results = [
-                r for r in results if self._matches_filters(r["metadata"], filters)
-            ]
+                r for r in results if self._matches_filters(
+                    r["metadata"], filters)]
 
         return results[:top_k]
 
@@ -825,7 +827,8 @@ class VectorStoreEngine:
                 preserve_sentences=config.get("preserve_sentences", True),
             )
         else:
-            logger.warning(f"Unknown chunking strategy: {strategy_type}, using auto")
+            logger.warning(
+                f"Unknown chunking strategy: {strategy_type}, using auto")
             return AutoChunkingStrategy()
 
 

@@ -31,9 +31,10 @@ Usage:
 #  SPDX-License-Identifier: Apache-2.0
 
 import logging
-from typing import Any, Dict, Type
+from typing import Any, Optional, Type
 
 from fakeai.config import AppConfig
+from fakeai.events import AsyncEventBus
 from fakeai.handlers.base import EndpointHandler
 from fakeai.metrics import MetricsTracker
 
@@ -59,8 +60,8 @@ class HandlerRegistry:
 
     def __init__(self):
         """Initialize the registry."""
-        self._handlers: Dict[str, Type[EndpointHandler]] = {}
-        self._instances: Dict[str, EndpointHandler] = {}
+        self._handlers: dict[str, Type[EndpointHandler]] = {}
+        self._instances: dict[str, EndpointHandler] = {}
 
     @classmethod
     def instance(cls) -> "HandlerRegistry":
@@ -108,7 +109,9 @@ class HandlerRegistry:
 
         # Register handler
         self._handlers[endpoint] = handler_class
-        logger.info(f"Registered handler {handler_class.__name__} for {endpoint}")
+        logger.info(
+            f"Registered handler {
+                handler_class.__name__} for {endpoint}")
 
         return handler_class
 
@@ -117,6 +120,7 @@ class HandlerRegistry:
         endpoint: str,
         config: AppConfig | None = None,
         metrics_tracker: MetricsTracker | None = None,
+        event_bus: Optional[AsyncEventBus] = None,
     ) -> EndpointHandler | None:
         """
         Get a handler instance for an endpoint.
@@ -127,6 +131,7 @@ class HandlerRegistry:
             endpoint: Endpoint path
             config: Application configuration (required for first instantiation)
             metrics_tracker: Metrics tracker (required for first instantiation)
+            event_bus: Event bus for pub-sub metrics (optional)
 
         Returns:
             Handler instance or None if not registered
@@ -140,7 +145,11 @@ class HandlerRegistry:
 
         # Return cached instance if available
         if endpoint in self._instances:
-            return self._instances[endpoint]
+            instance = self._instances[endpoint]
+            # Update event bus if provided (to support hot reloading)
+            if event_bus and hasattr(instance, 'set_event_bus'):
+                instance.set_event_bus(event_bus)
+            return instance
 
         # Instantiate handler
         if config is None or metrics_tracker is None:
@@ -151,9 +160,12 @@ class HandlerRegistry:
 
         handler_class = self._handlers[endpoint]
         try:
-            handler = handler_class(config, metrics_tracker)
+            handler = handler_class(
+                config, metrics_tracker, event_bus=event_bus)
             self._instances[endpoint] = handler
-            logger.info(f"Instantiated handler {handler_class.__name__} for {endpoint}")
+            logger.info(
+                f"Instantiated handler {
+                    handler_class.__name__} for {endpoint}")
             return handler
         except Exception as e:
             logger.error(f"Failed to instantiate handler for {endpoint}: {e}")
@@ -195,7 +207,7 @@ class HandlerRegistry:
         """
         return list(self._handlers.keys())
 
-    def list_handlers(self) -> Dict[str, Type[EndpointHandler]]:
+    def list_handlers(self) -> dict[str, Type[EndpointHandler]]:
         """
         Get all registered handlers.
 

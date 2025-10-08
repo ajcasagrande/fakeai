@@ -13,8 +13,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "fakeai"))
 
 from models_registry import (
     CAPABILITY_PRESETS,
-    LATENCY_PRESETS,
-    ModelCapabilities,
     ModelRegistry,
     MoEConfig,
     create_model_definition,

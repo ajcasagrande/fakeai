@@ -4,7 +4,6 @@ Configuration behavior tests.
 Tests configuration loading from environment variables and defaults.
 """
 
-import os
 
 import pytest
 

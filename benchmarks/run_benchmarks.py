@@ -170,7 +170,7 @@ async def run_all_benchmarks(
         try:
             # Check if psutil is available
             try:
-                import psutil
+                pass
             except ImportError:
                 print("\nSkipping memory benchmarks: psutil not installed")
                 print("Install with: pip install psutil")

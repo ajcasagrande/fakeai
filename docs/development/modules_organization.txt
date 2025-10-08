@@ -145,7 +145,7 @@ fakeai/
 │
 ├── SHARED (1 module)
 │   └── shared/
-│       └── DECORATORS_README.md Documentation
+│       └── __init__.py              Reserved for future utilities
 │
 ├── STATIC ASSETS (2 files)
 │   └── static/

@@ -29,10 +29,8 @@ from fakeai.models import (
     CompletionRequest,
     CreateBatchRequest,
     EmbeddingRequest,
-    FileObject,
 )
 from fakeai.models_registry.registry import ModelRegistry
-from fakeai.utils import calculate_token_count
 
 if TYPE_CHECKING:
     # Import for type checking only to avoid circular imports
@@ -124,13 +122,12 @@ class BatchService:
         endpoint = "/v1/batches"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
-
             # Validate input file exists
             input_file = await self.file_manager.get_file(request.input_file_id)
             if not input_file:
-                raise ValueError(f"Input file not found: {request.input_file_id}")
+                raise ValueError(
+                    f"Input file not found: {
+                        request.input_file_id}")
 
             # Create batch object
             batch_id = f"batch_{uuid.uuid4().hex}"
@@ -148,7 +145,10 @@ class BatchService:
                 status="validating",
                 created_at=created_at,
                 expires_at=expires_at,
-                request_counts=BatchRequestCounts(total=0, completed=0, failed=0),
+                request_counts=BatchRequestCounts(
+                    total=0,
+                    completed=0,
+                    failed=0),
                 metadata=request.metadata,
             )
 
@@ -159,16 +159,12 @@ class BatchService:
             task = asyncio.create_task(self._process_batch(batch_id))
             self._processing_tasks[batch_id] = task
 
-            # Track response
-            latency = time.time() - start_time
-            self.metrics_tracker.track_response(endpoint, latency)
-
-            logger.info(f"Created batch {batch_id} for endpoint {request.endpoint}")
+            logger.info(
+                f"Created batch {batch_id} for endpoint {
+                    request.endpoint}")
             return batch
 
         except Exception as e:
-            # Track error
-            self.metrics_tracker.track_error(endpoint)
             logger.error(f"Error creating batch: {e}")
             raise
 
@@ -206,13 +202,13 @@ class BatchService:
             file_content_bytes = await self.file_manager.get_file_content(
                 batch.input_file_id
             )
-            file_content = (
-                file_content_bytes.decode("utf-8") if file_content_bytes else ""
-            )
+            file_content = (file_content_bytes.decode(
+                "utf-8") if file_content_bytes else "")
 
             # If no content stored, generate sample requests for testing
             if not file_content:
-                file_content = self._generate_sample_batch_input(batch.endpoint)
+                file_content = self._generate_sample_batch_input(
+                    batch.endpoint)
                 # Store it for testing
                 self._batch_file_contents[batch.input_file_id] = file_content
 
@@ -343,9 +339,9 @@ class BatchService:
             )
 
             logger.info(
-                f"Batch {batch_id} completed: {batch.request_counts.completed} succeeded, "
-                f"{batch.request_counts.failed} failed"
-            )
+                f"Batch {batch_id} completed: {
+                    batch.request_counts.completed} succeeded, " f"{
+                    batch.request_counts.failed} failed")
 
         except asyncio.CancelledError:
             # Batch was cancelled
@@ -368,7 +364,8 @@ class BatchService:
             self.batch_metrics.fail_batch(batch_id, str(e))
             logger.exception(f"Batch {batch_id} failed: {e}")
 
-    async def _execute_batch_request(self, req_data: dict, endpoint: str) -> dict:
+    async def _execute_batch_request(
+            self, req_data: dict, endpoint: str) -> dict:
         """
         Execute a single batch request and return the response as a dict.
 
@@ -428,28 +425,28 @@ class BatchService:
         for i in range(5):
             if endpoint == "/v1/chat/completions":
                 req = {
-                    "custom_id": f"request-{i+1}",
+                    "custom_id": f"request-{i + 1}",
                     "method": "POST",
                     "url": "/v1/chat/completions",
                     "body": {
                         "model": "meta-llama/Llama-3.1-8B-Instruct",
-                        "messages": [{"role": "user", "content": f"Hello world {i+1}"}],
+                        "messages": [{"role": "user", "content": f"Hello world {i + 1}"}],
                         "max_tokens": 50,
                     },
                 }
             elif endpoint == "/v1/embeddings":
                 req = {
-                    "custom_id": f"request-{i+1}",
+                    "custom_id": f"request-{i + 1}",
                     "method": "POST",
                     "url": "/v1/embeddings",
                     "body": {
                         "model": "sentence-transformers/all-mpnet-base-v2",
-                        "input": f"Sample text {i+1}",
+                        "input": f"Sample text {i + 1}",
                     },
                 }
             else:
                 req = {
-                    "custom_id": f"request-{i+1}",
+                    "custom_id": f"request-{i + 1}",
                     "method": "POST",
                     "url": endpoint,
                     "body": {},
@@ -474,22 +471,13 @@ class BatchService:
         endpoint = "/v1/batches"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
-
             batch = self.batches.get(batch_id)
             if not batch:
                 raise ValueError(f"Batch not found: {batch_id}")
 
-            # Track response
-            latency = time.time() - start_time
-            self.metrics_tracker.track_response(endpoint, latency)
-
             return batch
 
         except Exception as e:
-            # Track error
-            self.metrics_tracker.track_error(endpoint)
             logger.error(f"Error retrieving batch {batch_id}: {e}")
             raise
 
@@ -512,9 +500,6 @@ class BatchService:
         endpoint = "/v1/batches"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
-
             batch = self.batches.get(batch_id)
             if not batch:
                 raise ValueError(f"Batch not found: {batch_id}")
@@ -537,15 +522,9 @@ class BatchService:
                 batch.cancelled_at = int(time.time())
                 logger.info(f"Cancelled batch {batch_id}")
 
-            # Track response
-            latency = time.time() - start_time
-            self.metrics_tracker.track_response(endpoint, latency)
-
             return batch
 
         except Exception as e:
-            # Track error
-            self.metrics_tracker.track_error(endpoint)
             logger.error(f"Error cancelling batch {batch_id}: {e}")
             raise
 
@@ -571,9 +550,6 @@ class BatchService:
         endpoint = "/v1/batches"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
-
             # Validate parameters
             if limit < 1 or limit > 100:
                 raise ValueError("Limit must be between 1 and 100")
@@ -591,7 +567,7 @@ class BatchService:
                     after_idx = next(
                         i for i, b in enumerate(all_batches) if b.id == after
                     )
-                    all_batches = all_batches[after_idx + 1 :]
+                    all_batches = all_batches[after_idx + 1:]
                 except StopIteration:
                     pass
 
@@ -602,10 +578,6 @@ class BatchService:
             first_id = batches[0].id if batches else None
             last_id = batches[-1].id if batches else None
 
-            # Track response
-            latency = time.time() - start_time
-            self.metrics_tracker.track_response(endpoint, latency)
-
             return BatchListResponse(
                 data=batches,
                 first_id=first_id,
@@ -614,8 +586,6 @@ class BatchService:
             )
 
         except Exception as e:
-            # Track error
-            self.metrics_tracker.track_error(endpoint)
             logger.error(f"Error listing batches: {e}")
             raise
 

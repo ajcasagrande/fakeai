@@ -23,7 +23,6 @@ Tests the ModelMetricsTracker in live server environment with real API calls.
 
 import concurrent.futures
 import time
-from typing import Any
 
 import pytest
 

@@ -6,7 +6,6 @@ This module tests the realistic logprobs generation for both Chat and Completion
 
 #  SPDX-License-Identifier: Apache-2.0
 
-import pytest
 
 from fakeai.logprobs_enhanced import (
     create_chat_logprobs,

@@ -6,6 +6,7 @@ Validates that requested models exist and are available.
 
 #  SPDX-License-Identifier: Apache-2.0
 
+import re
 from typing import Any
 
 from fakeai.validation.base import ValidationResult
@@ -62,16 +63,28 @@ class ModelAvailabilityValidator:
         if len(model) > 500:
             return False, f"Model ID is too long ({len(model)} characters)"
 
-        # Check for fine-tuned models (format: ft:base:org::id)
+        # Check for fine-tuned models (format: ft:base:org::id or
+        # ft:base:org:id)
         if model.startswith("ft:"):
             parts = model.split(":")
+            # Fine-tuned models should have at least ft:base format (2 parts minimum)
+            # Full format is ft:base:org::id (5 parts with empty slot before id)
+            # or ft:base:org:id (4 parts)
             if len(parts) < 2:
-                return False, "Invalid fine-tuned model format. Expected: ft:base:org::id"
+                return False, "Invalid fine-tuned model format. Expected: ft:base_model or ft:base:org:id"
+
+            # Validate that base model is not empty
+            if len(parts) >= 2 and not parts[1]:
+                return False, "Fine-tuned model must specify a base model"
+
+            # If organization is specified, validate it's a reasonable format
+            if len(parts) >= 3 and parts[2]:
+                # Check org name contains valid characters
+                if not re.match(r"^[a-zA-Z0-9\-_]+$", parts[2]):
+                    return False, "Fine-tuned model organization contains invalid characters"
 
         # Check for invalid characters (very permissive)
         # Allow alphanumeric, hyphens, underscores, slashes, colons, dots
-        import re
-
         if not re.match(r"^[a-zA-Z0-9\-_/:.]+$", model):
             return False, "Model ID contains invalid characters"
 
@@ -126,12 +139,13 @@ class ModelAvailabilityValidator:
                     model_to_check = parts[1]
 
             # Check both the full model ID and just the base name
-            base_model = model_to_check.split("/")[-1] if "/" in model_to_check else model_to_check
+            base_model = model_to_check.split(
+                "/")[-1] if "/" in model_to_check else model_to_check
 
             if (
-                model not in self._available_models
-                and model_to_check not in self._available_models
-                and base_model not in self._available_models
+                model not in self._available_models and
+                model_to_check not in self._available_models and
+                base_model not in self._available_models
             ):
                 return ValidationResult.failure(
                     message=f"Model '{model}' is not available",

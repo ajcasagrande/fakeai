@@ -7,7 +7,6 @@ for more realistic responses instead of template-based generation.
 """
 #  SPDX-License-Identifier: Apache-2.0
 
-import asyncio
 import os
 import sys
 

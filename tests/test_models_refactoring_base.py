@@ -476,7 +476,7 @@ class TestModelValidation:
 
     def test_content_part_union_type(self):
         """Test ContentPart union type."""
-        from fakeai.models import ContentPart, ImageContent, ImageUrl, TextContent
+        from fakeai.models import ImageContent, ImageUrl, TextContent
 
         # TextContent should be valid
         text_content = TextContent(text="Hello")

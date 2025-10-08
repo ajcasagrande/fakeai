@@ -21,10 +21,9 @@ import asyncio
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import AsyncIterator, Optional
+from typing import Optional
 
-import httpx
-from openai import APIError, AsyncOpenAI
+from openai import AsyncOpenAI
 
 # Base URL for FakeAI server
 BASE_URL = "http://localhost:8000"

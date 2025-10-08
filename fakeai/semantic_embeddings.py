@@ -87,9 +87,8 @@ class SemanticEmbeddingGenerator:
 
         # Get model config
         self.model_config = self.MODEL_CONFIGS.get(
-            model_name,
-            {"dimensions": 384, "max_seq_length": 256, "description": "Unknown model"},
-        )
+            model_name, {
+                "dimensions": 384, "max_seq_length": 256, "description": "Unknown model"}, )
         self.native_dimensions = self.model_config["dimensions"]
 
         logger.info(
@@ -118,7 +117,9 @@ class SemanticEmbeddingGenerator:
             return False
 
         try:
-            logger.info(f"Loading sentence transformer model: {self.model_name}")
+            logger.info(
+                f"Loading sentence transformer model: {
+                    self.model_name}")
 
             # Determine device
             device = None
@@ -170,7 +171,8 @@ class SemanticEmbeddingGenerator:
         return self._load_model()
 
     @lru_cache(maxsize=512)
-    def _encode_cached(self, text: str, dimensions: int | None) -> tuple[float, ...]:
+    def _encode_cached(self, text: str, dimensions: int |
+                       None) -> tuple[float, ...]:
         """
         Cached encoding for single text.
 
@@ -224,7 +226,9 @@ class SemanticEmbeddingGenerator:
 
         # Handle list of texts
         if not self.is_available():
-            return [self._fallback_embedding(text, dimensions) for text in texts]
+            return [
+                self._fallback_embedding(
+                    text, dimensions) for text in texts]
 
         # Use batch encoding for efficiency
         return self.encode_batch(texts, dimensions)
@@ -247,7 +251,9 @@ class SemanticEmbeddingGenerator:
             List of embeddings
         """
         if not self.is_available():
-            return [self._fallback_embedding(text, dimensions) for text in texts]
+            return [
+                self._fallback_embedding(
+                    text, dimensions) for text in texts]
 
         # Check cache first for all texts
         cached_results = []
@@ -297,7 +303,10 @@ class SemanticEmbeddingGenerator:
         cached_results.sort(key=lambda x: x[0])
         return [embedding for _, embedding in cached_results]
 
-    def get_similarity(self, embedding1: list[float], embedding2: list[float]) -> float:
+    def get_similarity(
+            self,
+            embedding1: list[float],
+            embedding2: list[float]) -> float:
         """
         Calculate cosine similarity between two embeddings.
 
@@ -399,16 +408,20 @@ class SemanticEmbeddingGenerator:
         return {
             "model_name": self.model_name,
             "native_dimensions": self.native_dimensions,
-            "max_seq_length": self.model_config.get("max_seq_length", 256),
-            "description": self.model_config.get("description", "Unknown model"),
+            "max_seq_length": self.model_config.get(
+                "max_seq_length",
+                256),
+            "description": self.model_config.get(
+                "description",
+                "Unknown model"),
             "use_gpu": self.use_gpu,
             "available": self.is_available(),
             "loaded": self._model_loaded,
             "device": (
-                getattr(self._model, "device", "unknown")
-                if self._model
-                else "not loaded"
-            ),
+                getattr(
+                    self._model,
+                    "device",
+                    "unknown") if self._model else "not loaded"),
         }
 
 

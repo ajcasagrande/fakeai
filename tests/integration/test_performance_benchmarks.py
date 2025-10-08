@@ -9,13 +9,13 @@ Tests system performance under various load conditions:
 - Startup time
 """
 
-import asyncio
 import gc
-import time
-import pytest
-import psutil
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import psutil
+import pytest
 from fastapi.testclient import TestClient
 
 from fakeai.app import app

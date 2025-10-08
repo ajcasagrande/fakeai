@@ -21,7 +21,14 @@ def estimate_audio_duration(text: str, speed: float = 1.0) -> float:
 
     Returns:
         Estimated duration in seconds
+
+    Raises:
+        ValueError: If speed is not in the valid range (0.25 to 4.0)
     """
+    # Validate speed parameter
+    if not (0.25 <= speed <= 4.0):
+        raise ValueError(f"Speed must be between 0.25 and 4.0, got {speed}")
+
     # Count words (roughly)
     word_count = len(text.split())
 
@@ -37,7 +44,9 @@ def estimate_audio_duration(text: str, speed: float = 1.0) -> float:
     return max(0.1, adjusted_duration)  # Minimum 0.1 seconds
 
 
-def generate_wav_audio(duration_seconds: float, sample_rate: int = 24000) -> bytes:
+def generate_wav_audio(
+        duration_seconds: float,
+        sample_rate: int = 24000) -> bytes:
     """
     Generate a minimal valid WAV audio file with silence.
 
@@ -149,7 +158,14 @@ def generate_simulated_audio(
 
     Returns:
         Bytes containing the audio file in the requested format
+
+    Raises:
+        ValueError: If speed is not in the valid range (0.25 to 4.0)
     """
+    # Validate speed parameter
+    if not (0.25 <= speed <= 4.0):
+        raise ValueError(f"Speed must be between 0.25 and 4.0, got {speed}")
+
     # Estimate duration based on text and speed
     duration = estimate_audio_duration(text, speed)
 

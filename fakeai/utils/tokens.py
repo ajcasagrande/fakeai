@@ -16,19 +16,19 @@ def tokenize_text(text: str) -> list[str]:
     Split text into token-equivalent chunks.
 
     Each token is approximately:
-    - A word (e.g., "hello")
-    - A punctuation mark (e.g., ".", ",")
-    - A word with attached punctuation (e.g., "hello,")
+    - A word with optional leading space (e.g., " hello", "hello")
+    - Punctuation with optional leading space (e.g., " .", ".")
+    - Newline sequences (e.g., "\n", "\n\n")
 
-    This mimics how actual tokenizers work, where punctuation
-    is often separated as individual tokens.
+    This mimics how GPT tokenizers work, where many tokens include
+    a leading space. PRESERVES FORMATTING for proper markdown rendering.
     """
     if not text:
         return []
 
-    # Split on word boundaries while keeping punctuation separate
-    # This regex splits on spaces but also separates punctuation
-    pattern = r"\b\w+\b|[^\w\s]"
+    # Split similar to GPT tokenizers: capture leading spaces with words/punctuation
+    # Newlines are kept separate, words and punctuation may have leading spaces
+    pattern = r"\n+| ?\w+| ?[^\w\s\n]"
     tokens = re.findall(pattern, text)
     return tokens
 

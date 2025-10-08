@@ -7,8 +7,6 @@ and dynamic endpoint registry.
 
 import time
 
-import pytest
-
 from fakeai.dynamo_advanced import (
     BlockState,
     DisaggregatedRouter,

@@ -12,6 +12,8 @@ import time
 import uuid
 from typing import Any
 
+from fakeai.utils.audio_generation import generate_simulated_audio
+
 
 def estimate_audio_tokens(duration_seconds: float) -> int:
     """
@@ -74,7 +76,8 @@ def extract_audio_from_content(messages: list[Any]) -> list[tuple[bytes, str]]:
         if isinstance(msg.content, list):
             for part in msg.content:
                 # Handle dict (from JSON)
-                if isinstance(part, dict) and part.get("type") == "input_audio":
+                if isinstance(part, dict) and part.get(
+                        "type") == "input_audio":
                     input_audio = part.get("input_audio", {})
                     audio_data = input_audio.get("data", "")
                     audio_format = input_audio.get("format", "wav")
@@ -97,7 +100,8 @@ def extract_audio_from_content(messages: list[Any]) -> list[tuple[bytes, str]]:
                         if audio_data:
                             try:
                                 audio_bytes = base64.b64decode(audio_data)
-                                audio_inputs.append((audio_bytes, audio_format))
+                                audio_inputs.append(
+                                    (audio_bytes, audio_format))
                             except Exception:
                                 # Invalid base64, skip
                                 pass
@@ -149,8 +153,7 @@ def transcribe_audio_input(audio_bytes: bytes, audio_format: str) -> str:
     else:
         transcription = (
             "Hello, how can I help you today? I'd like to know more about your services "
-            "and how they can benefit my business. Can you provide some details?"
-        )
+            "and how they can benefit my business. Can you provide some details?")
 
     return transcription
 
@@ -172,8 +175,6 @@ def generate_audio_output(
     Returns:
         Dictionary containing audio output data
     """
-    from fakeai.utils import estimate_audio_duration, generate_simulated_audio
-
     # Generate audio bytes
     audio_bytes = generate_simulated_audio(
         text=text,

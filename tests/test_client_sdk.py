@@ -20,7 +20,6 @@ from fakeai import (
     measure_stream_timing,
     temporary_server,
 )
-from fakeai.client import fakeai_client, fakeai_client_with_auth, fakeai_running_server
 
 
 class TestFakeAIClientBasics:

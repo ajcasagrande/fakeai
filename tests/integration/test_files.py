@@ -17,8 +17,6 @@ This module provides comprehensive integration tests for:
 """
 
 import asyncio
-import base64
-import hashlib
 import io
 import json
 from typing import Any

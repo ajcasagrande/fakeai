@@ -13,19 +13,11 @@ import hashlib
 import io
 import random
 import re
-import struct
 import wave
 from typing import Any
 
 from faker import Faker
 
-from fakeai.models import (
-    TranscriptionRequest,
-    TranscriptionResponse,
-    TranscriptionSegment,
-    TranscriptionWord,
-    VerboseTranscriptionResponse,
-)
 from fakeai.utils import calculate_token_count
 
 fake = Faker()
@@ -201,7 +193,8 @@ class AudioTranscriber:
         )
 
         # Translate to English (simulated)
-        translated_text = self._translate_to_english(original_text, detected_language)
+        translated_text = self._translate_to_english(
+            original_text, detected_language)
 
         # Return in requested format
         if response_format == "text":
@@ -557,16 +550,22 @@ class AudioTranscriber:
             start_time = current_time
             # Add small random variance to segment duration
             variance = random.uniform(0.8, 1.2)
-            end_time = min(current_time + segment_duration * variance, duration)
+            end_time = min(
+                current_time +
+                segment_duration *
+                variance,
+                duration)
 
             # Generate token IDs (simulated)
             token_count = calculate_token_count(sentence)
-            token_ids = [random.randint(1000, 50000) for _ in range(token_count)]
+            token_ids = [random.randint(1000, 50000)
+                         for _ in range(token_count)]
 
             # Calculate segment metrics
             avg_logprob = random.uniform(-0.5, -0.05)  # Higher confidence
             compression_ratio = len(sentence) / token_count
-            no_speech_prob = random.uniform(0.0, 0.05)  # Low probability of no speech
+            no_speech_prob = random.uniform(
+                0.0, 0.05)  # Low probability of no speech
 
             segment = {
                 "id": idx,

@@ -5,7 +5,6 @@ Tests that CLI arguments properly override environment variables
 and that all configuration options work correctly together.
 """
 
-import json
 
 import pytest
 

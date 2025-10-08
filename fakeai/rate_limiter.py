@@ -11,7 +11,6 @@ token bucket algorithm with continuous refill.
 import threading
 import time
 from dataclasses import dataclass
-from typing import Literal
 
 from fakeai.rate_limiter_metrics import RateLimiterMetrics
 
@@ -138,30 +137,33 @@ class RateLimiter:
 
     def __new__(cls):
         """Ensure only one instance exists (singleton pattern)."""
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = super(RateLimiter, cls).__new__(cls)
-                cls._instance._initialized = False
-            return cls._instance
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(RateLimiter, cls).__new__(cls)
+                    cls._instance._initialized = False
+        return cls._instance
 
     def __init__(self):
         """Initialize the rate limiter (only once)."""
-        if self._initialized:
-            return
+        # Move _initialized check inside lock to prevent TOCTOU race condition
+        with self._lock:
+            if self._initialized:
+                return
 
-        # Per-API-key buckets: key -> {"rpm": bucket, "tpm": bucket}
-        self._buckets: dict[str, dict[str, RateLimitBucket]] = {}
-        self._config_lock = threading.Lock()
+            # Per-API-key buckets: key -> {"rpm": bucket, "tpm": bucket}
+            self._buckets: dict[str, dict[str, RateLimitBucket]] = {}
+            self._config_lock = threading.Lock()
 
-        # Default configuration (can be overridden)
-        self._default_tier = "tier-1"
-        self._rpm_override: int | None = None
-        self._tpm_override: int | None = None
+            # Default configuration (can be overridden)
+            self._default_tier = "tier-1"
+            self._rpm_override: int | None = None
+            self._tpm_override: int | None = None
 
-        # Metrics tracker integration
-        self.metrics = RateLimiterMetrics()
+            # Metrics tracker integration
+            self.metrics = RateLimiterMetrics()
 
-        self._initialized = True
+            self._initialized = True
 
     def configure(
         self,
@@ -182,7 +184,8 @@ class RateLimiter:
             self._rpm_override = rpm_override
             self._tpm_override = tpm_override
 
-    def _get_or_create_buckets(self, api_key: str) -> dict[str, RateLimitBucket]:
+    def _get_or_create_buckets(
+            self, api_key: str) -> dict[str, RateLimitBucket]:
         """Get or create rate limit buckets for an API key."""
         if api_key not in self._buckets:
             # Determine limits
@@ -302,7 +305,8 @@ class RateLimiter:
 
         return True, None, headers
 
-    def _build_headers(self, buckets: dict[str, RateLimitBucket]) -> dict[str, str]:
+    def _build_headers(
+            self, buckets: dict[str, RateLimitBucket]) -> dict[str, str]:
         """
         Build x-ratelimit-* headers for the response.
 

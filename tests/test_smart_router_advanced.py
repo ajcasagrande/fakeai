@@ -7,7 +7,6 @@ and optimization features.
 
 #  SPDX-License-Identifier: Apache-2.0
 
-import time
 
 import pytest
 

@@ -19,7 +19,6 @@ Features:
 - P2P memory transfers
 """
 
-import collections
 import math
 import random
 import threading
@@ -129,7 +128,9 @@ class DCGMFieldValue:
 class HistoricalMetric:
     """Historical tracking for a single metric."""
 
-    values: Deque[float] = field(default_factory=lambda: deque(maxlen=60))  # 60 seconds
+    values: Deque[float] = field(
+        default_factory=lambda: deque(
+            maxlen=60))  # 60 seconds
 
     def add(self, value: float):
         self.values.append(value)
@@ -203,11 +204,13 @@ class SimulatedGPU:
     complete snapshots; readers access latest snapshot without blocking.
     """
 
-    def __init__(self, gpu_id: int, spec: GPUSpec, simulator: "DCGMMetricsSimulator"):
+    def __init__(self, gpu_id: int, spec: GPUSpec,
+                 simulator: "DCGMMetricsSimulator"):
         self.gpu_id = gpu_id
         self.spec = spec
         self.simulator = simulator
-        self.uuid = f"GPU-{gpu_id:08x}-{random.randint(0, 0xffffff):06x}-simulated"
+        self.uuid = f"GPU-{gpu_id:08x}-{random.randint(0,
+                                                       0xffffff):06x}-simulated"
         self.device_name = f"nvidia{gpu_id}"
         self.pci_bus_id = f"00000000:{gpu_id:02X}:00.0"
 
@@ -302,8 +305,10 @@ class SimulatedGPU:
         return 1555.0  # Default
 
     def set_workload(
-        self, compute_intensity: float, memory_intensity: float, batch_size: int = 1
-    ):
+            self,
+            compute_intensity: float,
+            memory_intensity: float,
+            batch_size: int = 1):
         """
         Set simulated workload characteristics.
 
@@ -379,8 +384,10 @@ class SimulatedGPU:
         )
 
         # Memory temperature follows GPU temp with lag
-        self.memory_temp = self.current_temperature * 0.85 + random.uniform(-2, 2)
-        self.hotspot_temp = self.current_temperature * 1.1 + random.uniform(0, 5)
+        self.memory_temp = self.current_temperature * \
+            0.85 + random.uniform(-2, 2)
+        self.hotspot_temp = self.current_temperature * \
+            1.1 + random.uniform(0, 5)
 
         # Check for thermal throttling
         self._update_throttling()
@@ -393,7 +400,8 @@ class SimulatedGPU:
 
         # Update total energy (power * time)
         energy_joules = self.current_power * delta_seconds
-        self.total_energy_mj += int(energy_joules * 1000)  # Convert to millijoules
+        # Convert to millijoules
+        self.total_energy_mj += int(energy_joules * 1000)
 
         # Update memory bandwidth utilization
         self._update_memory_bandwidth()
@@ -556,8 +564,10 @@ class SimulatedGPU:
         self.pcie_rx_throughput = pcie_max_bandwidth * rx_factor
 
         # Accumulate bytes transferred
-        self.pcie_tx_bytes += int(self.pcie_tx_throughput * 1e9 * delta_seconds)
-        self.pcie_rx_bytes += int(self.pcie_rx_throughput * 1e9 * delta_seconds)
+        self.pcie_tx_bytes += int(self.pcie_tx_throughput *
+                                  1e9 * delta_seconds)
+        self.pcie_rx_bytes += int(self.pcie_rx_throughput *
+                                  1e9 * delta_seconds)
 
     def _update_nvlink_traffic(self, delta_seconds: float):
         """Update NVLink traffic (coordinated between GPUs)."""
@@ -624,7 +634,8 @@ class SimulatedGPU:
     def _simulate_ecc_errors(self):
         """Simulate ECC errors - increase with memory stress."""
         # Base error rate increases with memory utilization and temperature
-        stress_factor = self.memory_utilization * (self.current_temperature / 70.0)
+        stress_factor = self.memory_utilization * \
+            (self.current_temperature / 70.0)
 
         # Single-bit errors (correctable)
         sbe_probability = 0.00001 * (1.0 + stress_factor * 5.0)
@@ -632,7 +643,8 @@ class SimulatedGPU:
             self.ecc_sbe_total += 1
 
             # Distribute across memory locations
-            location = random.choice(["l1", "l2", "device", "register", "texture"])
+            location = random.choice(
+                ["l1", "l2", "device", "register", "texture"])
             if location == "l1":
                 self.ecc_sbe_l1 += 1
             elif location == "l2":
@@ -787,7 +799,10 @@ class SimulatedGPU:
             for fid in field_ids
         }
 
-    def _compute_field_value(self, field_id: int, timestamp: int) -> DCGMFieldValue:
+    def _compute_field_value(
+            self,
+            field_id: int,
+            timestamp: int) -> DCGMFieldValue:
         """Get field value without acquiring lock (must be called with lock held)."""
         # Device information (50-99)
         if field_id == 50:  # DCGM_FI_DEV_NAME
@@ -797,20 +812,26 @@ class SimulatedGPU:
         elif field_id == 59:  # DCGM_FI_DEV_PCI_BUSID
             return DCGMFieldValue(field_id, self.pci_bus_id, timestamp, "s")
         elif field_id == 60:  # DCGM_FI_DEV_SERIAL
-            return DCGMFieldValue(field_id, f"SIM{self.gpu_id:010d}", timestamp, "s")
+            return DCGMFieldValue(
+                field_id, f"SIM{
+                    self.gpu_id:010d}", timestamp, "s")
         elif field_id == 61:  # DCGM_FI_DEV_COUNT
-            return DCGMFieldValue(field_id, self.simulator.num_gpus, timestamp, "i")
+            return DCGMFieldValue(
+                field_id, self.simulator.num_gpus, timestamp, "i")
 
         # Clocks (100-109)
         elif field_id == 100:  # DCGM_FI_DEV_SM_CLOCK
-            return DCGMFieldValue(field_id, self.current_sm_clock, timestamp, "i")
+            return DCGMFieldValue(
+                field_id, self.current_sm_clock, timestamp, "i")
         elif field_id == 101:  # DCGM_FI_DEV_MEM_CLOCK
-            return DCGMFieldValue(field_id, self.current_mem_clock, timestamp, "i")
+            return DCGMFieldValue(
+                field_id, self.current_mem_clock, timestamp, "i")
         elif field_id == 102:  # DCGM_FI_DEV_VIDEO_CLOCK
             video_clock = int(self.current_sm_clock * 0.8)
             return DCGMFieldValue(field_id, video_clock, timestamp, "i")
         elif field_id == 103:  # DCGM_FI_DEV_APP_SM_CLOCK (application clock)
-            return DCGMFieldValue(field_id, self.target_sm_clock, timestamp, "i")
+            return DCGMFieldValue(
+                field_id, self.target_sm_clock, timestamp, "i")
 
         # Temperature (150-159)
         elif field_id == 150:  # DCGM_FI_DEV_GPU_TEMP
@@ -818,17 +839,26 @@ class SimulatedGPU:
                 field_id, int(self.current_temperature), timestamp, "i"
             )
         elif field_id == 151:  # DCGM_FI_DEV_MEMORY_TEMP
-            return DCGMFieldValue(field_id, int(self.memory_temp), timestamp, "i")
+            return DCGMFieldValue(
+                field_id, int(
+                    self.memory_temp), timestamp, "i")
         elif field_id == 152:  # DCGM_FI_DEV_GPU_MAX_OP_TEMP (hotspot)
-            return DCGMFieldValue(field_id, int(self.hotspot_temp), timestamp, "i")
+            return DCGMFieldValue(
+                field_id, int(
+                    self.hotspot_temp), timestamp, "i")
 
         # Power (155-159)
         elif field_id == 155:  # DCGM_FI_DEV_POWER_USAGE
             return DCGMFieldValue(field_id, self.current_power, timestamp, "d")
         elif field_id == 156:  # DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION
-            return DCGMFieldValue(field_id, self.total_energy_mj, timestamp, "i")
+            return DCGMFieldValue(
+                field_id, self.total_energy_mj, timestamp, "i")
         elif field_id == 157:  # DCGM_FI_DEV_POWER_MGMT_LIMIT
-            return DCGMFieldValue(field_id, self.spec.power_limit_watts, timestamp, "d")
+            return DCGMFieldValue(
+                field_id,
+                self.spec.power_limit_watts,
+                timestamp,
+                "d")
         elif field_id == 158:  # DCGM_FI_DEV_POWER_MGMT_LIMIT_MIN
             return DCGMFieldValue(
                 field_id, self.spec.power_limit_watts * 0.5, timestamp, "d"
@@ -846,32 +876,50 @@ class SimulatedGPU:
             mem_util_pct = int(self.memory_utilization * 100)
             return DCGMFieldValue(field_id, mem_util_pct, timestamp, "i")
         elif field_id == 205:  # DCGM_FI_DEV_ENC_UTIL (encoder)
-            enc_util = int(self.workload_utilization * random.uniform(0.1, 0.3) * 100)
+            enc_util = int(
+                self.workload_utilization *
+                random.uniform(
+                    0.1,
+                    0.3) *
+                100)
             return DCGMFieldValue(field_id, enc_util, timestamp, "i")
         elif field_id == 206:  # DCGM_FI_DEV_DEC_UTIL (decoder)
-            dec_util = int(self.workload_utilization * random.uniform(0.1, 0.2) * 100)
+            dec_util = int(
+                self.workload_utilization *
+                random.uniform(
+                    0.1,
+                    0.2) *
+                100)
             return DCGMFieldValue(field_id, dec_util, timestamp, "i")
         elif field_id == 207:  # DCGM_FI_DEV_XID_ERRORS
             return DCGMFieldValue(field_id, self.xid_errors, timestamp, "i")
         elif field_id == 208:  # DCGM_FI_DEV_PCIE_REPLAY_COUNTER
-            return DCGMFieldValue(field_id, self.pcie_replay_count, timestamp, "i")
+            return DCGMFieldValue(
+                field_id, self.pcie_replay_count, timestamp, "i")
         elif field_id == 209:  # DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_TOTAL
             total_crc = sum(self.nvlink_crc_errors)
             return DCGMFieldValue(field_id, total_crc, timestamp, "i")
 
         # Memory (250-259)
         elif field_id == 250:  # DCGM_FI_DEV_FB_FREE
-            used_mib = int(self.spec.memory_total_mib * self.memory_utilization)
+            used_mib = int(
+                self.spec.memory_total_mib *
+                self.memory_utilization)
             free_mib = self.spec.memory_total_mib - used_mib
             return DCGMFieldValue(field_id, free_mib, timestamp, "i")
         elif field_id == 251:  # DCGM_FI_DEV_FB_USED
-            used_mib = int(self.spec.memory_total_mib * self.memory_utilization)
+            used_mib = int(
+                self.spec.memory_total_mib *
+                self.memory_utilization)
             return DCGMFieldValue(field_id, used_mib, timestamp, "i")
         elif field_id == 252:  # DCGM_FI_DEV_FB_RESERVED
-            reserved_mib = int(self.spec.memory_total_mib * 0.02)  # 2% reserved
+            reserved_mib = int(
+                self.spec.memory_total_mib *
+                0.02)  # 2% reserved
             return DCGMFieldValue(field_id, reserved_mib, timestamp, "i")
         elif field_id == 253:  # DCGM_FI_DEV_FB_TOTAL
-            return DCGMFieldValue(field_id, self.spec.memory_total_mib, timestamp, "i")
+            return DCGMFieldValue(
+                field_id, self.spec.memory_total_mib, timestamp, "i")
 
         # ECC Errors (600-650)
         elif field_id == 610:  # DCGM_FI_DEV_ECC_SBE_VOL_TOTAL
@@ -881,11 +929,14 @@ class SimulatedGPU:
         elif field_id == 612:  # DCGM_FI_DEV_ECC_SBE_VOL_L2
             return DCGMFieldValue(field_id, self.ecc_sbe_l2, timestamp, "i")
         elif field_id == 613:  # DCGM_FI_DEV_ECC_SBE_VOL_DEV
-            return DCGMFieldValue(field_id, self.ecc_sbe_device, timestamp, "i")
+            return DCGMFieldValue(
+                field_id, self.ecc_sbe_device, timestamp, "i")
         elif field_id == 614:  # DCGM_FI_DEV_ECC_SBE_VOL_REG
-            return DCGMFieldValue(field_id, self.ecc_sbe_register, timestamp, "i")
+            return DCGMFieldValue(
+                field_id, self.ecc_sbe_register, timestamp, "i")
         elif field_id == 615:  # DCGM_FI_DEV_ECC_SBE_VOL_TEX
-            return DCGMFieldValue(field_id, self.ecc_sbe_texture, timestamp, "i")
+            return DCGMFieldValue(
+                field_id, self.ecc_sbe_texture, timestamp, "i")
         elif field_id == 620:  # DCGM_FI_DEV_ECC_DBE_VOL_TOTAL
             return DCGMFieldValue(field_id, self.ecc_dbe_total, timestamp, "i")
         elif field_id == 621:  # DCGM_FI_DEV_ECC_DBE_VOL_L1
@@ -894,15 +945,20 @@ class SimulatedGPU:
         elif field_id == 632:  # DCGM_FI_DEV_ECC_DBE_AGG_TOTAL
             return DCGMFieldValue(field_id, self.ecc_dbe_total, timestamp, "i")
         elif field_id == 641:  # DCGM_FI_DEV_RETIRED_SBE
-            retired_sbe = int(self.ecc_sbe_total * 0.01)  # 1% require retirement
+            retired_sbe = int(
+                self.ecc_sbe_total *
+                0.01)  # 1% require retirement
             return DCGMFieldValue(field_id, retired_sbe, timestamp, "i")
         elif field_id == 642:  # DCGM_FI_DEV_RETIRED_DBE
-            retired_dbe = int(self.ecc_dbe_total * 0.5)  # 50% require retirement
+            retired_dbe = int(
+                self.ecc_dbe_total *
+                0.5)  # 50% require retirement
             return DCGMFieldValue(field_id, retired_dbe, timestamp, "i")
 
         # Performance state (700-710)
         elif field_id == 700:  # DCGM_FI_DEV_PSTATE
-            return DCGMFieldValue(field_id, self.performance_state, timestamp, "i")
+            return DCGMFieldValue(
+                field_id, self.performance_state, timestamp, "i")
         elif field_id == 701:  # DCGM_FI_DEV_SLOWDOWN_TEMP
             return DCGMFieldValue(
                 field_id, self.spec.throttle_temp_celsius, timestamp, "i"
@@ -913,22 +969,27 @@ class SimulatedGPU:
             sm_active = self.workload_utilization * 100
             return DCGMFieldValue(field_id, sm_active, timestamp, "d")
         elif field_id == 1003:  # DCGM_FI_PROF_SM_OCCUPANCY
-            occupancy = self.workload_utilization * random.uniform(0.6, 0.9) * 100
+            occupancy = self.workload_utilization * \
+                random.uniform(0.6, 0.9) * 100
             return DCGMFieldValue(field_id, occupancy, timestamp, "d")
         elif field_id == 1004:  # DCGM_FI_PROF_PIPE_TENSOR_ACTIVE
-            tensor_active = self.workload_utilization * random.uniform(0.7, 0.95) * 100
+            tensor_active = self.workload_utilization * \
+                random.uniform(0.7, 0.95) * 100
             return DCGMFieldValue(field_id, tensor_active, timestamp, "d")
         elif field_id == 1005:  # DCGM_FI_PROF_DRAM_ACTIVE
             dram_active = self.memory_utilization * 100
             return DCGMFieldValue(field_id, dram_active, timestamp, "d")
         elif field_id == 1006:  # DCGM_FI_PROF_PIPE_FP64_ACTIVE
-            fp64_active = self.workload_utilization * random.uniform(0.3, 0.6) * 100
+            fp64_active = self.workload_utilization * \
+                random.uniform(0.3, 0.6) * 100
             return DCGMFieldValue(field_id, fp64_active, timestamp, "d")
         elif field_id == 1007:  # DCGM_FI_PROF_PIPE_FP32_ACTIVE
-            fp32_active = self.workload_utilization * random.uniform(0.5, 0.8) * 100
+            fp32_active = self.workload_utilization * \
+                random.uniform(0.5, 0.8) * 100
             return DCGMFieldValue(field_id, fp32_active, timestamp, "d")
         elif field_id == 1008:  # DCGM_FI_PROF_PIPE_FP16_ACTIVE
-            fp16_active = self.workload_utilization * random.uniform(0.8, 0.95) * 100
+            fp16_active = self.workload_utilization * \
+                random.uniform(0.8, 0.95) * 100
             return DCGMFieldValue(field_id, fp16_active, timestamp, "d")
         elif field_id == 1009:  # DCGM_FI_PROF_PCIE_TX_BYTES
             return DCGMFieldValue(field_id, self.pcie_tx_bytes, timestamp, "i")
@@ -961,9 +1022,8 @@ class SimulatedGPU:
 
         # Fan speed (1567-1568)
         elif field_id == 1567:  # DCGM_FI_DEV_FAN_SPEED
-            avg_fan = (
-                sum(self.fan_speeds) // len(self.fan_speeds) if self.fan_speeds else 0
-            )
+            avg_fan = (sum(self.fan_speeds) //
+                       len(self.fan_speeds) if self.fan_speeds else 0)
             return DCGMFieldValue(field_id, avg_fan, timestamp, "i")
         elif field_id == 1568:  # DCGM_FI_DEV_FAN_SPEED_0 (first fan)
             fan_speed = self.fan_speeds[0] if self.fan_speeds else 0
@@ -985,18 +1045,25 @@ class SimulatedGPU:
             return DCGMFieldValue(field_id, reasons, timestamp, "i")
         elif field_id == 1571:  # Thermal throttle (bool)
             return DCGMFieldValue(
-                field_id, 1 if self.throttle_reasons.thermal else 0, timestamp, "i"
-            )
+                field_id,
+                1 if self.throttle_reasons.thermal else 0,
+                timestamp,
+                "i")
         elif field_id == 1572:  # Power throttle (bool)
             return DCGMFieldValue(
-                field_id, 1 if self.throttle_reasons.power else 0, timestamp, "i"
-            )
+                field_id,
+                1 if self.throttle_reasons.power else 0,
+                timestamp,
+                "i")
         elif field_id == 1573:  # HW slowdown (bool)
             return DCGMFieldValue(
-                field_id, 1 if self.throttle_reasons.hw_slowdown else 0, timestamp, "i"
-            )
+                field_id,
+                1 if self.throttle_reasons.hw_slowdown else 0,
+                timestamp,
+                "i")
         elif field_id == 1574:  # Slowdown reason enum
-            return DCGMFieldValue(field_id, self.slowdown_reason.value, timestamp, "i")
+            return DCGMFieldValue(
+                field_id, self.slowdown_reason.value, timestamp, "i")
 
         # XID errors (1590)
         elif field_id == 1590:  # DCGM_FI_DEV_XID_ERRORS_TOTAL
@@ -1004,7 +1071,9 @@ class SimulatedGPU:
 
         # Process stats (2000-2010)
         elif field_id == 2000:  # Process count
-            return DCGMFieldValue(field_id, len(self.processes), timestamp, "i")
+            return DCGMFieldValue(
+                field_id, len(
+                    self.processes), timestamp, "i")
         elif field_id == 2001:  # Total process memory
             total_mem = sum(p.memory_mib for p in self.processes)
             return DCGMFieldValue(field_id, total_mem, timestamp, "i")
@@ -1017,28 +1086,40 @@ class SimulatedGPU:
         # Historical percentiles (2100-2120)
         elif field_id == 2100:  # Temperature P50
             return DCGMFieldValue(
-                field_id, self.history["temperature"].get_percentile(50), timestamp, "d"
-            )
+                field_id,
+                self.history["temperature"].get_percentile(50),
+                timestamp,
+                "d")
         elif field_id == 2101:  # Temperature P90
             return DCGMFieldValue(
-                field_id, self.history["temperature"].get_percentile(90), timestamp, "d"
-            )
+                field_id,
+                self.history["temperature"].get_percentile(90),
+                timestamp,
+                "d")
         elif field_id == 2102:  # Temperature P99
             return DCGMFieldValue(
-                field_id, self.history["temperature"].get_percentile(99), timestamp, "d"
-            )
+                field_id,
+                self.history["temperature"].get_percentile(99),
+                timestamp,
+                "d")
         elif field_id == 2103:  # Power P50
             return DCGMFieldValue(
-                field_id, self.history["power"].get_percentile(50), timestamp, "d"
-            )
+                field_id,
+                self.history["power"].get_percentile(50),
+                timestamp,
+                "d")
         elif field_id == 2104:  # Power P90
             return DCGMFieldValue(
-                field_id, self.history["power"].get_percentile(90), timestamp, "d"
-            )
+                field_id,
+                self.history["power"].get_percentile(90),
+                timestamp,
+                "d")
         elif field_id == 2105:  # Power P99
             return DCGMFieldValue(
-                field_id, self.history["power"].get_percentile(99), timestamp, "d"
-            )
+                field_id,
+                self.history["power"].get_percentile(99),
+                timestamp,
+                "d")
 
         else:
             # Unknown field - return blank
@@ -1056,8 +1137,9 @@ class SimulatedGPU:
         """
         snapshot = self._snapshot_cache  # Atomic read
         return snapshot.get(
-            field_id, DCGMFieldValue(field_id, 0, int(time.time() * 1_000_000), "i")
-        )
+            field_id, DCGMFieldValue(
+                field_id, 0, int(
+                    time.time() * 1_000_000), "i"))
 
 
 class DCGMMetricsSimulator:
@@ -1081,7 +1163,8 @@ class DCGMMetricsSimulator:
         self.gpu_spec = GPU_SPECS.get(gpu_model, GPU_SPECS["H100-80GB"])
 
         # Create simulated GPUs
-        self.gpus = [SimulatedGPU(i, self.gpu_spec, self) for i in range(num_gpus)]
+        self.gpus = [SimulatedGPU(i, self.gpu_spec, self)
+                     for i in range(num_gpus)]
 
         # Multi-GPU coordination
         self.active_collective_op = None
@@ -1089,7 +1172,8 @@ class DCGMMetricsSimulator:
 
         # Background update thread
         self._stop_event = threading.Event()
-        self._update_thread = threading.Thread(target=self._update_loop, daemon=True)
+        self._update_thread = threading.Thread(
+            target=self._update_loop, daemon=True)
         self._update_thread.start()
 
     def set_workload(
@@ -1106,8 +1190,10 @@ class DCGMMetricsSimulator:
             )
 
     def set_global_workload(
-        self, compute_intensity: float, memory_intensity: float, batch_size: int = 1
-    ):
+            self,
+            compute_intensity: float,
+            memory_intensity: float,
+            batch_size: int = 1):
         """Set workload for all GPUs."""
         for gpu in self.gpus:
             gpu.set_workload(compute_intensity, memory_intensity, batch_size)
@@ -1125,7 +1211,11 @@ class DCGMMetricsSimulator:
         for gpu in self.gpus:
             gpu.end_collective_operation()
 
-    def simulate_p2p_transfer(self, src_gpu: int, dst_gpu: int, bytes_transferred: int):
+    def simulate_p2p_transfer(
+            self,
+            src_gpu: int,
+            dst_gpu: int,
+            bytes_transferred: int):
         """Simulate P2P memory transfer between GPUs."""
         if 0 <= src_gpu < self.num_gpus and 0 <= dst_gpu < self.num_gpus:
             if dst_gpu < len(self.gpus[src_gpu].p2p_bytes_sent):
@@ -1161,8 +1251,8 @@ class DCGMMetricsSimulator:
 
             # Coordinate NCCL operations (end after 5 seconds)
             if (
-                self.active_collective_op
-                and (current_time - self.collective_start_time) > 5.0
+                self.active_collective_op and
+                (current_time - self.collective_start_time) > 5.0
             ):
                 self.end_collective_operation()
 
@@ -1174,7 +1264,8 @@ class DCGMMetricsSimulator:
             return self.gpus[gpu_id].get_field_value(field_id)
         return DCGMFieldValue(field_id, 0, int(time.time() * 1_000_000), "i")
 
-    def get_all_gpu_field_values(self, field_id: int) -> dict[int, DCGMFieldValue]:
+    def get_all_gpu_field_values(
+            self, field_id: int) -> dict[int, DCGMFieldValue]:
         """Get field value from all GPUs."""
         return {gpu.gpu_id: gpu.get_field_value(field_id) for gpu in self.gpus}
 
@@ -1266,7 +1357,11 @@ class DCGMMetricsSimulator:
             for gpu, snapshot in zip(self.gpus, gpu_snapshots):
                 if field_id in snapshot:
                     field_value = snapshot[field_id]
-                    labels = f'gpu="{gpu.gpu_id}",UUID="{gpu.uuid}",device="{gpu.device_name}",modelName="{self.gpu_spec.name}"'
+                    labels = f'gpu="{
+                        gpu.gpu_id}",UUID="{
+                        gpu.uuid}",device="{
+                        gpu.device_name}",modelName="{
+                        self.gpu_spec.name}"'
                     lines.append(f"{name}{{{labels}}} {field_value.value}")
 
             lines.append("")  # Blank line between metrics

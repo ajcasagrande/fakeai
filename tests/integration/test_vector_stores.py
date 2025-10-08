@@ -5,7 +5,6 @@ chunking strategies, expiration policies, search operations,
 and concurrent access.
 """
 
-import json
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed

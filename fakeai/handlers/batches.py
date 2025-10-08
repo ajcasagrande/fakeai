@@ -5,12 +5,15 @@ This handler delegates to the BatchService for batch processing operations.
 """
 #  SPDX-License-Identifier: Apache-2.0
 
+from typing import Optional
+
 from fakeai.config import AppConfig
+from fakeai.events import AsyncEventBus
 from fakeai.file_manager import FileManager
 from fakeai.handlers.base import EndpointHandler, RequestContext
 from fakeai.handlers.registry import register_handler
 from fakeai.metrics import MetricsTracker
-from fakeai.models import Batch, BatchListResponse, CreateBatchRequest
+from fakeai.models import Batch, CreateBatchRequest
 from fakeai.services.batch_service import BatchService
 
 
@@ -34,14 +37,20 @@ class BatchHandler(EndpointHandler[CreateBatchRequest, Batch]):
         self,
         config: AppConfig,
         metrics_tracker: MetricsTracker,
+        event_bus: Optional[AsyncEventBus] = None,
     ):
         """Initialize the handler."""
-        super().__init__(config, metrics_tracker)
+        super().__init__(config, metrics_tracker, event_bus=event_bus)
+        from fakeai.batch_metrics import BatchMetricsTracker
+        from fakeai.models_registry import ModelRegistry
+
         self.file_manager = FileManager()
         self.batch_service = BatchService(
             config=config,
             metrics_tracker=metrics_tracker,
             file_manager=self.file_manager,
+            model_registry=ModelRegistry(),
+            batch_metrics=BatchMetricsTracker(),
         )
 
     def endpoint_path(self) -> str:

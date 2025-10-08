@@ -140,6 +140,7 @@ class TestBatchCreationWithInputFile:
     """Integration tests for batch creation with input files."""
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_batch_creation_with_valid_input_file(
         self, batch_service, file_manager, parent_service_mock
     ):
@@ -192,6 +193,7 @@ class TestBatchCreationWithInputFile:
         assert completed_batch.request_counts.completed == 5
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_batch_creation_with_large_input_file(
         self, batch_service, file_manager, parent_service_mock
     ):
@@ -243,6 +245,7 @@ class TestBatchStatusRetrieval:
     """Integration tests for batch status retrieval."""
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_batch_status_during_processing(
         self, batch_service, file_manager, parent_service_mock
     ):
@@ -468,6 +471,7 @@ class TestBatchCompletionAndOutputFile:
     """Integration tests for batch completion and output file generation."""
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_batch_completion_with_output_file(
         self, batch_service, file_manager, parent_service_mock
     ):
@@ -583,6 +587,7 @@ class TestBatchErrorsAndErrorFile:
     """Integration tests for batch errors and error file generation."""
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_batch_with_errors_creates_error_file(
         self, batch_service, file_manager, parent_service_mock
     ):
@@ -672,6 +677,7 @@ class TestBatchDifferentEndpoints:
     """Integration tests for batches with different endpoints."""
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_batch_chat_completions_endpoint(
         self, batch_service, file_manager, parent_service_mock
     ):
@@ -791,6 +797,7 @@ class TestBatchLargeProcessing:
     """Integration tests for large batch processing."""
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_large_batch_100_requests(
         self, batch_service, file_manager, parent_service_mock
     ):
@@ -851,6 +858,7 @@ class TestBatchCustomIdTracking:
     """Integration tests for custom_id tracking."""
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_custom_id_preserved_in_output(
         self, batch_service, file_manager, parent_service_mock
     ):
@@ -956,6 +964,7 @@ class TestConcurrentBatchOperations:
     """Integration tests for concurrent batch operations."""
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_concurrent_batch_creation(
         self, batch_service, file_manager, parent_service_mock
     ):
@@ -1097,6 +1106,7 @@ class TestBatchProgressTracking:
     """Integration tests for batch progress tracking."""
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_batch_request_counts_update(
         self, batch_service, file_manager, parent_service_mock
     ):

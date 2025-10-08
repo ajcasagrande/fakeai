@@ -7,7 +7,7 @@ metadata, and conversion to OpenAI format.
 
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from .capabilities import CAPABILITY_PRESETS, ModelCapabilities
 
@@ -46,7 +46,7 @@ class ModelDefinition:
     deprecation_message: Optional[str] = None
 
     # Custom fields
-    custom_fields: Dict[str, Any] = field(default_factory=dict)
+    custom_fields: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Validate model definition."""
@@ -61,39 +61,35 @@ class ModelDefinition:
         if not self.display_name:
             self.display_name = self.model_id
 
-    def to_openai_model(self) -> Dict[str, Any]:
+    def to_openai_model(self) -> dict[str, Any]:
         """
         Convert to OpenAI Model format.
 
         Returns:
             Dict matching OpenAI API Model schema
         """
-        return {
-            "id": self.model_id,
-            "object": "model",
-            "created": self.created,
-            "owned_by": self.owned_by,
-            "permission": [
-                {
-                    "id": f"modelperm-{self.model_id}",
-                    "object": "model_permission",
-                    "created": self.created,
-                    "allow_create_engine": False,
-                    "allow_sampling": True,
-                    "allow_logprobs": True,
-                    "allow_search_indices": False,
-                    "allow_view": True,
-                    "allow_fine_tuning": self.capabilities.supports_fine_tuning,
-                    "organization": "*",
-                    "group": None,
-                    "is_blocking": False,
+        return {"id": self.model_id,
+                "object": "model",
+                "created": self.created,
+                "owned_by": self.owned_by,
+                "permission": [{"id": f"modelperm-{self.model_id}",
+                                "object": "model_permission",
+                                "created": self.created,
+                                "allow_create_engine": False,
+                                "allow_sampling": True,
+                                "allow_logprobs": True,
+                                "allow_search_indices": False,
+                                "allow_view": True,
+                                "allow_fine_tuning": self.capabilities.supports_fine_tuning,
+                                "organization": "*",
+                                "group": None,
+                                "is_blocking": False,
+                                }],
+                "root": self.root or self.model_id,
+                "parent": self.parent,
                 }
-            ],
-            "root": self.root or self.model_id,
-            "parent": self.parent,
-        }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert to dictionary with full details.
 

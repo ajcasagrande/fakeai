@@ -18,7 +18,6 @@ Verifies:
 import asyncio
 import json
 import time
-from unittest.mock import Mock, patch
 
 import pytest
 
@@ -26,7 +25,7 @@ from fakeai.config import AppConfig
 from fakeai.dcgm_metrics import DCGMMetricsSimulator
 from fakeai.dynamo_metrics import DynamoMetricsCollector
 from fakeai.fakeai_service import FakeAIService
-from fakeai.kv_cache import KVCacheMetrics, SmartRouter, tokenize_for_cache
+from fakeai.kv_cache import KVCacheMetrics
 from fakeai.metrics import MetricsTracker
 from fakeai.metrics_aggregator import HealthStatus, MetricsAggregator
 from fakeai.models import (

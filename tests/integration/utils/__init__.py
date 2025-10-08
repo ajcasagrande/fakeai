@@ -1,8 +1,9 @@
 """Test utilities for integration tests."""
 
-from fastapi.testclient import TestClient
 import httpx
+from fastapi.testclient import TestClient
 from httpx import ASGITransport
+
 from fakeai.app import app
 
 
@@ -19,7 +20,6 @@ class FakeAIClient:
     def close(self):
         """Close the client."""
         # TestClient doesn't need explicit closing, but we provide this for compatibility
-        pass
 
     def get(self, url: str, **kwargs):
         """Make a GET request."""

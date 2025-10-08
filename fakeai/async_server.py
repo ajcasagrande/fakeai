@@ -11,7 +11,7 @@ Uses:
 """
 
 import asyncio
-import sys
+from typing import Any
 
 try:
     import uvloop
@@ -124,7 +124,9 @@ async def async_gather_with_timeout(tasks, timeout: float = 10.0):
         )
         return results
     except asyncio.TimeoutError:
-        return [TimeoutError(f"Operation timed out after {timeout}s") for _ in tasks]
+        return [
+            TimeoutError(
+                f"Operation timed out after {timeout}s") for _ in tasks]
 
 
 class AsyncConnectionPool:
@@ -176,7 +178,7 @@ class AsyncCache:
 
     def __init__(self, default_ttl: float = 300.0):
         self.default_ttl = default_ttl
-        self._cache: dict[str, tuple[any, float]] = {}
+        self._cache: dict[str, tuple[Any, float]] = {}
         self._lock = asyncio.Lock()
         self._cleanup_task = None
 
@@ -192,7 +194,7 @@ class AsyncCache:
                     del self._cache[key]
             return None
 
-    async def set(self, key: str, value: any, ttl: float | None = None):
+    async def set(self, key: str, value: Any, ttl: float | None = None):
         """Set value in cache with TTL."""
         if ttl is None:
             ttl = self.default_ttl
@@ -239,7 +241,10 @@ class AsyncCache:
                 pass
 
 
-async def async_batch_processor(items: list, process_func, batch_size: int = 10):
+async def async_batch_processor(
+        items: list,
+        process_func,
+        batch_size: int = 10):
     """
     Process items in batches asynchronously.
 
@@ -254,7 +259,7 @@ async def async_batch_processor(items: list, process_func, batch_size: int = 10)
     results = []
 
     for i in range(0, len(items), batch_size):
-        batch = items[i : i + batch_size]
+        batch = items[i: i + batch_size]
         batch_results = await asyncio.gather(
             *[process_func(item) for item in batch], return_exceptions=True
         )

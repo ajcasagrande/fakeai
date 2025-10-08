@@ -88,8 +88,6 @@ class FileService:
         endpoint = "/v1/files"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             # Validate parameters
             if limit < 1 or limit > 10000:
@@ -101,8 +99,10 @@ class FileService:
             # Validate purpose if provided
             if purpose and purpose not in self.file_manager.VALID_PURPOSES:
                 raise ValueError(
-                    f"Invalid purpose '{purpose}'. Valid purposes: {', '.join(sorted(self.file_manager.VALID_PURPOSES))}"
-                )
+                    f"Invalid purpose '{purpose}'. Valid purposes: {
+                        ', '.join(
+                            sorted(
+                                self.file_manager.VALID_PURPOSES))}")
 
             # Get files from file manager
             files = await self.file_manager.list_files(
@@ -112,15 +112,9 @@ class FileService:
                 order=order,
             )
 
-            # Track response
-            latency = time.time() - start_time
-            self.metrics_tracker.track_response(endpoint, latency)
-
             return FileListResponse(data=files)
 
         except Exception as e:
-            # Track error
-            self.metrics_tracker.track_error(endpoint)
             logger.error(f"Error listing files: {e}")
             raise
 
@@ -152,8 +146,6 @@ class FileService:
         endpoint = "/v1/files"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             # Validate parameters
             if not filename:
@@ -171,8 +163,10 @@ class FileService:
             # Validate purpose
             if purpose not in self.file_manager.VALID_PURPOSES:
                 raise ValueError(
-                    f"Invalid purpose '{purpose}'. Valid purposes: {', '.join(sorted(self.file_manager.VALID_PURPOSES))}"
-                )
+                    f"Invalid purpose '{purpose}'. Valid purposes: {
+                        ', '.join(
+                            sorted(
+                                self.file_manager.VALID_PURPOSES))}")
 
             # Upload file via file manager
             file_object = await self.file_manager.upload_file(
@@ -182,24 +176,18 @@ class FileService:
                 user_id=user_id,
             )
 
-            # Track response
-            latency = time.time() - start_time
-            self.metrics_tracker.track_response(endpoint, latency)
-
             logger.info(
-                f"File uploaded successfully: {file_object.id} ({file_object.filename}, {file_object.bytes} bytes)"
-            )
+                f"File uploaded successfully: {
+                    file_object.id} ({
+                    file_object.filename}, {
+                    file_object.bytes} bytes)")
 
             return file_object
 
         except (FileValidationError, FileQuotaError) as e:
-            # Track error
-            self.metrics_tracker.track_error(endpoint)
             logger.warning(f"File upload failed: {e}")
             raise
         except Exception as e:
-            # Track error
-            self.metrics_tracker.track_error(endpoint)
             logger.error(f"Error uploading file: {e}")
             raise
 
@@ -221,8 +209,6 @@ class FileService:
         endpoint = "/v1/files"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             # Validate parameter
             if not file_id:
@@ -231,20 +217,12 @@ class FileService:
             # Get file from file manager
             file_object = await self.file_manager.get_file(file_id)
 
-            # Track response
-            latency = time.time() - start_time
-            self.metrics_tracker.track_response(endpoint, latency)
-
             return file_object
 
         except FileNotFoundError as e:
-            # Track error
-            self.metrics_tracker.track_error(endpoint)
             logger.warning(f"File not found: {file_id}")
             raise
         except Exception as e:
-            # Track error
-            self.metrics_tracker.track_error(endpoint)
             logger.error(f"Error getting file: {e}")
             raise
 
@@ -266,8 +244,6 @@ class FileService:
         endpoint = "/v1/files"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             # Validate parameter
             if not file_id:
@@ -276,22 +252,14 @@ class FileService:
             # Delete file via file manager
             result = await self.file_manager.delete_file(file_id)
 
-            # Track response
-            latency = time.time() - start_time
-            self.metrics_tracker.track_response(endpoint, latency)
-
             logger.info(f"File deleted successfully: {file_id}")
 
             return result
 
         except FileNotFoundError as e:
-            # Track error
-            self.metrics_tracker.track_error(endpoint)
             logger.warning(f"File not found: {file_id}")
             raise
         except Exception as e:
-            # Track error
-            self.metrics_tracker.track_error(endpoint)
             logger.error(f"Error deleting file: {e}")
             raise
 
@@ -313,8 +281,6 @@ class FileService:
         endpoint = "/v1/files"
 
         try:
-            # Track request
-            self.metrics_tracker.track_request(endpoint)
 
             # Validate parameter
             if not file_id:
@@ -323,24 +289,17 @@ class FileService:
             # Get file content from file manager
             content = await self.file_manager.get_file_content(file_id)
 
-            # Track response
-            latency = time.time() - start_time
-            self.metrics_tracker.track_response(endpoint, latency)
-
             return content
 
         except FileNotFoundError as e:
-            # Track error
-            self.metrics_tracker.track_error(endpoint)
             logger.warning(f"File not found: {file_id}")
             raise
         except Exception as e:
-            # Track error
-            self.metrics_tracker.track_error(endpoint)
             logger.error(f"Error getting file content: {e}")
             raise
 
-    async def get_user_quota_info(self, user_id: str = "default") -> dict[str, Any]:
+    async def get_user_quota_info(
+            self, user_id: str = "default") -> dict[str, Any]:
         """
         Get quota information for a user.
 
@@ -352,7 +311,10 @@ class FileService:
         """
         return await self.file_manager.get_user_quota_info(user_id)
 
-    async def verify_checksum(self, file_id: str, expected_checksum: str) -> bool:
+    async def verify_checksum(
+            self,
+            file_id: str,
+            expected_checksum: str) -> bool:
         """
         Verify file checksum for integrity.
 

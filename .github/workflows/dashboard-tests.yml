@@ -1,0 +1,269 @@
+name: Dashboard Tests
+
+on:
+  push:
+    branches: [main, develop, sagemaker]
+    paths:
+      - 'fakeai/dashboard/**'
+      - '.github/workflows/dashboard-tests.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'fakeai/dashboard/**'
+      - '.github/workflows/dashboard-tests.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  DASHBOARD_DIR: fakeai/dashboard
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.DASHBOARD_DIR }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ env.DASHBOARD_DIR }}
+        run: npm ci
+
+      - name: Run type checking
+        working-directory: ${{ env.DASHBOARD_DIR }}
+        run: npm run type-check
+
+      - name: Run unit tests
+        working-directory: ${{ env.DASHBOARD_DIR }}
+        run: npm run test:coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          files: ${{ env.DASHBOARD_DIR }}/coverage/lcov.info
+          flags: dashboard-unit
+          name: dashboard-unit-tests
+          fail_ci_if_error: false
+
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: |
+            ${{ env.DASHBOARD_DIR }}/coverage/
+            ${{ env.DASHBOARD_DIR }}/test-report.html
+          retention-days: 30
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.DASHBOARD_DIR }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ env.DASHBOARD_DIR }}
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: ${{ env.DASHBOARD_DIR }}
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Run E2E tests
+        working-directory: ${{ env.DASHBOARD_DIR }}
+        run: npm run test:e2e
+        env:
+          CI: true
+          PLAYWRIGHT_BASE_URL: http://localhost:5173
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: ${{ env.DASHBOARD_DIR }}/playwright-report/
+          retention-days: 30
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: ${{ env.DASHBOARD_DIR }}/playwright-results/
+          retention-days: 30
+
+  visual-regression:
+    name: Visual Regression Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.DASHBOARD_DIR }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ env.DASHBOARD_DIR }}
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: ${{ env.DASHBOARD_DIR }}
+        run: npx playwright install --with-deps chromium
+
+      - name: Run visual regression tests
+        working-directory: ${{ env.DASHBOARD_DIR }}
+        run: npm run test:visual
+        env:
+          CI: true
+
+      - name: Upload visual diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-diffs
+          path: ${{ env.DASHBOARD_DIR }}/playwright-results/
+          retention-days: 30
+
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.DASHBOARD_DIR }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ env.DASHBOARD_DIR }}
+        run: npm ci
+
+      - name: Run performance tests
+        working-directory: ${{ env.DASHBOARD_DIR }}
+        run: npm run test:perf
+
+      - name: Upload performance results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-test-results
+          path: ${{ env.DASHBOARD_DIR }}/coverage/benchmark-results.json
+          retention-days: 30
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.DASHBOARD_DIR }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ env.DASHBOARD_DIR }}
+        run: npm ci
+
+      - name: Run linter
+        working-directory: ${{ env.DASHBOARD_DIR }}
+        run: npm run lint
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.DASHBOARD_DIR }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ env.DASHBOARD_DIR }}
+        run: npm ci
+
+      - name: Build project
+        working-directory: ${{ env.DASHBOARD_DIR }}
+        run: npm run build
+
+      - name: Check build size
+        working-directory: ${{ env.DASHBOARD_DIR }}
+        run: |
+          BUILD_SIZE=$(du -sh dist | cut -f1)
+          echo "Build size: $BUILD_SIZE"
+          echo "build_size=$BUILD_SIZE" >> $GITHUB_OUTPUT
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-dist
+          path: ${{ env.DASHBOARD_DIR }}/dist/
+          retention-days: 7
+
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [unit-tests, e2e-tests, visual-regression, performance-tests, lint, build]
+    timeout-minutes: 5
+
+    steps:
+      - name: Check test results
+        run: |
+          echo "Unit Tests: ${{ needs.unit-tests.result }}"
+          echo "E2E Tests: ${{ needs.e2e-tests.result }}"
+          echo "Visual Regression: ${{ needs.visual-regression.result }}"
+          echo "Performance Tests: ${{ needs.performance-tests.result }}"
+          echo "Lint: ${{ needs.lint.result }}"
+          echo "Build: ${{ needs.build.result }}"
+
+      - name: Determine overall result
+        if: contains(needs.*.result, 'failure')
+        run: exit 1

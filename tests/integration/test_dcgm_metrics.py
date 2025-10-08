@@ -20,12 +20,11 @@ Coverage:
 13. GPU telemetry data
 """
 
-import json
 import time
 
 import pytest
 
-from .utils import FakeAIClient, ServerManager
+from .utils import FakeAIClient
 
 # Mark all tests as integration and metrics tests
 pytestmark = [pytest.mark.integration, pytest.mark.metrics]

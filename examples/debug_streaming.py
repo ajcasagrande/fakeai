@@ -10,7 +10,6 @@ in the FakeAI server.
 import asyncio
 import json
 import time
-from typing import Any, Dict, List, Optional
 
 from openai import AsyncOpenAI
 

@@ -8,11 +8,13 @@ content for potential policy violations across multiple categories.
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ModerationCategories(BaseModel):
     """Boolean flags for moderation categories."""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     sexual: bool = Field(default=False, description="Sexual content.")
     hate: bool = Field(default=False, description="Hate speech.")
@@ -36,8 +38,9 @@ class ModerationCategories(BaseModel):
         alias="harassment/threatening",
     )
     self_harm_intent: bool = Field(
-        default=False, description="Self-harm intent.", alias="self-harm/intent"
-    )
+        default=False,
+        description="Self-harm intent.",
+        alias="self-harm/intent")
     self_harm_instructions: bool = Field(
         default=False,
         description="Self-harm instructions.",
@@ -45,8 +48,9 @@ class ModerationCategories(BaseModel):
     )
     violence: bool = Field(default=False, description="Violent content.")
     violence_graphic: bool = Field(
-        default=False, description="Graphic violence.", alias="violence/graphic"
-    )
+        default=False,
+        description="Graphic violence.",
+        alias="violence/graphic")
     illicit: bool = Field(default=False, description="Illicit activities.")
     illicit_violent: bool = Field(
         default=False,
@@ -54,21 +58,31 @@ class ModerationCategories(BaseModel):
         alias="illicit/violent",
     )
 
-    class Config:
-        populate_by_name = True
-
 
 class ModerationCategoryScores(BaseModel):
     """Confidence scores for moderation categories (0.0-1.0)."""
 
-    sexual: float = Field(default=0.0, ge=0.0, le=1.0, description="Sexual content score.")
-    hate: float = Field(default=0.0, ge=0.0, le=1.0, description="Hate speech score.")
+    model_config = ConfigDict(populate_by_name=True)
+
+    sexual: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Sexual content score.")
+    hate: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Hate speech score.")
     harassment: float = Field(
         default=0.0, ge=0.0, le=1.0, description="Harassment score."
     )
     self_harm: float = Field(
-        default=0.0, ge=0.0, le=1.0, description="Self-harm score.", alias="self-harm"
-    )
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Self-harm score.",
+        alias="self-harm")
     sexual_minors: float = Field(
         default=0.0,
         ge=0.0,
@@ -104,7 +118,11 @@ class ModerationCategoryScores(BaseModel):
         description="Self-harm instructions score.",
         alias="self-harm/instructions",
     )
-    violence: float = Field(default=0.0, ge=0.0, le=1.0, description="Violence score.")
+    violence: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Violence score.")
     violence_graphic: float = Field(
         default=0.0,
         ge=0.0,
@@ -112,7 +130,8 @@ class ModerationCategoryScores(BaseModel):
         description="Graphic violence score.",
         alias="violence/graphic",
     )
-    illicit: float = Field(default=0.0, ge=0.0, le=1.0, description="Illicit score.")
+    illicit: float = Field(default=0.0, ge=0.0, le=1.0,
+                           description="Illicit score.")
     illicit_violent: float = Field(
         default=0.0,
         ge=0.0,
@@ -121,16 +140,14 @@ class ModerationCategoryScores(BaseModel):
         alias="illicit/violent",
     )
 
-    class Config:
-        populate_by_name = True
-
 
 class ModerationResult(BaseModel):
     """Single moderation result."""
 
     flagged: bool = Field(description="True if any category violated.")
     categories: ModerationCategories = Field(description="Category flags.")
-    category_scores: ModerationCategoryScores = Field(description="Category scores.")
+    category_scores: ModerationCategoryScores = Field(
+        description="Category scores.")
     category_applied_input_types: dict[str, list[str]] = Field(
         default_factory=dict,
         description="Which input types (text/image) triggered each category.",

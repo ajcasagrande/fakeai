@@ -7,7 +7,6 @@ savings, batch savings, budget management, and cost optimization features.
 """
 
 import time
-from typing import Any
 
 import pytest
 

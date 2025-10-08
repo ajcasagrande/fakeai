@@ -9,7 +9,6 @@ along with utilities for starting/stopping the server and validating responses.
 
 import contextlib
 import subprocess
-import threading
 import time
 from typing import Any, Generator
 
@@ -110,7 +109,6 @@ class FakeAIClient:
             RuntimeError: If server fails to start within timeout
         """
         import sys
-        from pathlib import Path
 
         # Build command to start server
         cmd = [
@@ -152,7 +150,8 @@ class FakeAIClient:
                     if response.status == 200:
                         # Check if server reports ready
                         data = json.loads(response.read().decode("utf-8"))
-                        if data.get("ready", True):  # Default true for backward compat
+                        if data.get(
+                                "ready", True):  # Default true for backward compat
                             return
             except Exception:
                 pass
@@ -301,7 +300,8 @@ def assert_response_valid(response: ChatCompletion) -> None:
     # Validate first choice
     choice = response.choices[0]
     assert choice.message is not None, "Message is missing"
-    assert choice.message.role == "assistant", f"Invalid role: {choice.message.role}"
+    assert choice.message.role == "assistant", f"Invalid role: {
+        choice.message.role}"
     assert choice.finish_reason is not None, "Finish reason is missing"
 
     # Validate usage
@@ -310,8 +310,8 @@ def assert_response_valid(response: ChatCompletion) -> None:
         assert response.usage.completion_tokens >= 0, "Invalid completion tokens"
         assert response.usage.total_tokens >= 0, "Invalid total tokens"
         assert (
-            response.usage.total_tokens
-            == response.usage.prompt_tokens + response.usage.completion_tokens
+            response.usage.total_tokens ==
+            response.usage.prompt_tokens + response.usage.completion_tokens
         ), "Total tokens doesn't match sum"
 
 
@@ -344,12 +344,12 @@ def assert_tokens_in_range(
         ), f"Prompt tokens {usage.prompt_tokens} > maximum {max_prompt}"
 
     assert (
-        usage.completion_tokens >= min_completion
-    ), f"Completion tokens {usage.completion_tokens} < minimum {min_completion}"
+        usage.completion_tokens >= min_completion), f"Completion tokens {
+        usage.completion_tokens} < minimum {min_completion}"
     if max_completion is not None:
         assert (
-            usage.completion_tokens <= max_completion
-        ), f"Completion tokens {usage.completion_tokens} > maximum {max_completion}"
+            usage.completion_tokens <= max_completion), f"Completion tokens {
+            usage.completion_tokens} > maximum {max_completion}"
 
 
 def assert_cache_hit(response: ChatCompletion) -> None:
@@ -371,7 +371,8 @@ def assert_cache_hit(response: ChatCompletion) -> None:
         if hasattr(details, "cached_tokens"):
             assert details.cached_tokens > 0, "No cached tokens found"
         else:
-            raise AssertionError("prompt_tokens_details has no cached_tokens field")
+            raise AssertionError(
+                "prompt_tokens_details has no cached_tokens field")
     else:
         raise AssertionError("Usage has no prompt_tokens_details")
 
@@ -613,9 +614,8 @@ def measure_stream_timing(stream) -> dict[str, float]:
     # Calculate inter-token latency
     avg_itl = 0.0
     if len(chunk_times) > 1:
-        latencies = [
-            chunk_times[i] - chunk_times[i - 1] for i in range(1, len(chunk_times))
-        ]
+        latencies = [chunk_times[i] - chunk_times[i - 1]
+                     for i in range(1, len(chunk_times))]
         avg_itl = sum(latencies) / len(latencies)
 
     return {

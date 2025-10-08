@@ -7,7 +7,6 @@ abuse detection, and CORS policies.
 
 #  SPDX-License-Identifier: Apache-2.0
 
-import time
 from datetime import datetime, timedelta
 
 import pytest
@@ -473,7 +472,6 @@ class TestSecurityBestPractices:
         """Test that rate limit headers are included when enabled."""
         # This would require enabling rate limiting in the test config
         # and making authenticated requests
-        pass
 
     def test_security_headers_on_errors(self):
         """Test that security headers are present even on error responses."""

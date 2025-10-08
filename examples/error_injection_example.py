@@ -9,8 +9,6 @@ to test error handling in your applications.
 
 import time
 
-from openai import OpenAI
-
 from fakeai.config import AppConfig
 from fakeai.error_injector import ErrorInjector, ErrorType
 

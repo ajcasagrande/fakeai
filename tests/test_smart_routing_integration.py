@@ -19,11 +19,6 @@ including:
 
 #  SPDX-License-Identifier: Apache-2.0
 
-import asyncio
-import random
-import statistics
-import time
-from typing import Any
 
 import pytest
 
@@ -34,7 +29,6 @@ from fakeai.smart_router_advanced import (
     HealthThresholds,
     RoutingStrategy,
 )
-
 
 # ============================================================================
 # Fixtures

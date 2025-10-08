@@ -33,7 +33,9 @@ class ImageUrl(BaseModel):
 class ImageContent(BaseModel):
     """Image content part."""
 
-    type: Literal["image_url"] = Field(default="image_url", description="Content type.")
+    type: Literal["image_url"] = Field(
+        default="image_url",
+        description="Content type.")
     image_url: ImageUrl = Field(description="Image URL configuration.")
 
 
@@ -67,7 +69,9 @@ class VideoUrl(BaseModel):
 class VideoContent(BaseModel):
     """Video content part (NVIDIA Cosmos extension)."""
 
-    type: Literal["video_url"] = Field(default="video_url", description="Content type.")
+    type: Literal["video_url"] = Field(
+        default="video_url",
+        description="Content type.")
     video_url: VideoUrl = Field(description="Video URL configuration.")
 
 
@@ -97,11 +101,15 @@ class RagDocument(BaseModel):
 
     id: str = Field(description="Document ID.")
     content: str = Field(description="Document content/text.")
-    score: float = Field(description="Relevance score (0.0-1.0).", ge=0.0, le=1.0)
+    score: float = Field(
+        description="Relevance score (0.0-1.0).",
+        ge=0.0,
+        le=1.0)
     metadata: dict[str, Any] | None = Field(
         default=None, description="Optional document metadata."
     )
-    source: str | None = Field(default=None, description="Document source/origin.")
+    source: str | None = Field(default=None,
+                               description="Document source/origin.")
 
 
 # Union type for content parts

@@ -6,8 +6,9 @@ context management, and metrics tracking.
 """
 #  SPDX-License-Identifier: Apache-2.0
 
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import AsyncMock, Mock
 
 from fakeai.config import AppConfig
 from fakeai.handlers.base import EndpointHandler, RequestContext, StreamingHandler

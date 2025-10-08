@@ -156,7 +156,6 @@ class AudioService:
         # Track character count as token usage
         # TTS APIs typically charge per character, not per token
         character_count = len(request.input)
-        self.metrics_tracker.track_tokens("/v1/audio/speech", character_count)
 
         # Log the generation
         logger.info(

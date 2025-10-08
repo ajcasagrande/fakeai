@@ -10,14 +10,13 @@ Implements complete Dynamo architecture including:
 - Dynamic endpoint registration
 """
 
-import asyncio
 import threading
 import time
 import uuid
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 # ============================================================================
 # KVBM - KV Block Manager
@@ -68,7 +67,7 @@ class KVBlockPool:
         self.tier = tier
         self.capacity = capacity_blocks
         self.active_pool: dict[str, KVBlock] = {}
-        self.inactive_pool: deque[KVBlock] = deque()
+        self.inactive_pool: deque[KVBlock] = deque(maxlen=capacity_blocks)
         self._lock = threading.Lock()
 
     def allocate_block(self, size_tokens: int = 16) -> KVBlock | None:
@@ -168,10 +167,38 @@ class KVBlockManager:
         return block
 
     def transition_state(self, block_id: str, new_state: BlockState):
-        """Transition block to new state."""
+        """
+        Transition block to new state with validation.
+
+        Valid transitions:
+        RESET -> PARTIAL
+        PARTIAL -> COMPLETE
+        COMPLETE -> REGISTERED
+        """
         with self._lock:
-            if block_id in self.block_registry:
-                self.block_registry[block_id].state = new_state
+            if block_id not in self.block_registry:
+                return
+
+            block = self.block_registry[block_id]
+            current_state = block.state
+
+            # Validate state transitions
+            valid_transitions = {
+                BlockState.RESET: [BlockState.PARTIAL],
+                BlockState.PARTIAL: [BlockState.COMPLETE],
+                BlockState.COMPLETE: [BlockState.REGISTERED],
+                BlockState.REGISTERED: [],  # Terminal state
+            }
+
+            if new_state in valid_transitions.get(current_state, []):
+                block.state = new_state
+            else:
+                # Log invalid transition but don't fail
+                import logging
+                logging.warning(
+                    f"Invalid block state transition: {current_state.value} -> {new_state.value} "
+                    f"for block {block_id}"
+                )
 
     def offload_to_tier(self, block_id: str, target_tier: MemoryTier) -> bool:
         """
@@ -219,7 +246,9 @@ class KVBlockManager:
                 return False
 
             # Find LRU block
-            lru_block = min(pool.active_pool.values(), key=lambda b: b.last_accessed)
+            lru_block = min(
+                pool.active_pool.values(),
+                key=lambda b: b.last_accessed)
 
             # Evict
             pool.release_block(lru_block.block_id)
@@ -231,11 +260,14 @@ class KVBlockManager:
         """Get KVBM statistics."""
         return {
             "pools": {
-                tier.value: pool.get_stats() for tier, pool in self.pools.items()
-            },
-            "total_blocks": len(self.block_registry),
-            "evictions_by_tier": dict(self.evictions_by_tier),
-            "transfers": dict(self.transfers_between_tiers),
+                tier.value: pool.get_stats() for tier,
+                pool in self.pools.items()},
+            "total_blocks": len(
+                self.block_registry),
+            "evictions_by_tier": dict(
+                self.evictions_by_tier),
+            "transfers": dict(
+                self.transfers_between_tiers),
         }
 
 
@@ -295,7 +327,8 @@ class SLABasedPlanner:
         self.current_allocation = WorkerAllocation()
 
         # Historical metrics
-        self.request_rate_history: deque[tuple[float, float]] = deque(maxlen=100)
+        self.request_rate_history: deque[tuple[float, float]] = deque(
+            maxlen=100)
         self.ttft_history: deque[float] = deque(maxlen=1000)
         self.itl_history: deque[float] = deque(maxlen=1000)
 
@@ -309,7 +342,11 @@ class SLABasedPlanner:
 
         self._lock = threading.Lock()
 
-    def record_request_metrics(self, ttft_ms: float, itl_ms: float, request_count: int):
+    def record_request_metrics(
+            self,
+            ttft_ms: float,
+            itl_ms: float,
+            request_count: int):
         """Record metrics for planning."""
         with self._lock:
             timestamp = time.time()
@@ -324,8 +361,10 @@ class SLABasedPlanner:
 
         if self.predictor_type == LoadPredictor.CONSTANT:
             # Use recent average
-            recent_rates = [rate for _, rate in list(self.request_rate_history)[-10:]]
-            return sum(recent_rates) / len(recent_rates) if recent_rates else 0.0
+            recent_rates = [rate for _, rate in list(
+                self.request_rate_history)[-10:]]
+            return sum(recent_rates) / \
+                len(recent_rates) if recent_rates else 0.0
 
         elif self.predictor_type == LoadPredictor.ARIMA:
             # Simplified ARIMA: linear trend + average
@@ -334,12 +373,14 @@ class SLABasedPlanner:
                 recent_rates = [
                     rate for _, rate in list(self.request_rate_history)[-10:]
                 ]
-                return sum(recent_rates) / len(recent_rates) if recent_rates else 0.0
+                return sum(recent_rates) / \
+                    len(recent_rates) if recent_rates else 0.0
 
             rates = [rate for _, rate in self.request_rate_history]
             # Simple trend: compare recent to older
             recent_avg = sum(rates[-5:]) / 5 if len(rates) >= 5 else rates[-1]
-            older_avg = sum(rates[-10:-5]) / 5 if len(rates) >= 10 else recent_avg
+            older_avg = sum(rates[-10:-5]) / \
+                5 if len(rates) >= 10 else recent_avg
 
             trend = recent_avg - older_avg
             predicted = recent_avg + trend  # Project trend forward
@@ -378,8 +419,16 @@ class SLABasedPlanner:
         decode_throughput_per_gpu = 1.0 / (self.sla_target.itl_ms / 1000.0)
 
         # Calculate required workers
-        prefill_workers = max(1, math.ceil(predicted_load / prefill_throughput_per_gpu))
-        decode_workers = max(1, math.ceil(predicted_load / decode_throughput_per_gpu))
+        prefill_workers = max(
+            1,
+            math.ceil(
+                predicted_load /
+                prefill_throughput_per_gpu))
+        decode_workers = max(
+            1,
+            math.ceil(
+                predicted_load /
+                decode_throughput_per_gpu))
 
         return WorkerAllocation(
             prefill_workers=prefill_workers,
@@ -401,8 +450,8 @@ class SLABasedPlanner:
         current = self.current_allocation
 
         if (
-            required.prefill_workers != current.prefill_workers
-            or required.decode_workers != current.decode_workers
+            required.prefill_workers != current.prefill_workers or
+            required.decode_workers != current.decode_workers
         ):
             return True, required
 
@@ -565,7 +614,7 @@ class PrefillQueue:
 
     def __init__(self, max_capacity: int = 100):
         self.max_capacity = max_capacity
-        self.queue: deque[PrefillQueueItem] = deque()
+        self.queue: deque[PrefillQueueItem] = deque(maxlen=max_capacity)
 
         # Metrics
         self.total_enqueued = 0
@@ -587,9 +636,12 @@ class PrefillQueue:
                 self.total_rejected += 1
                 return False
 
+            # Note: deque with maxlen will auto-evict oldest if at capacity
+            # but we check above to avoid silent drops
             self.queue.append(item)
             self.total_enqueued += 1
-            self.max_depth_observed = max(self.max_depth_observed, len(self.queue))
+            self.max_depth_observed = max(
+                self.max_depth_observed, len(self.queue))
 
             return True
 
@@ -621,7 +673,8 @@ class PrefillQueue:
 
             if self.queue:
                 current_time = time.time()
-                wait_times = [current_time - item.enqueue_time for item in self.queue]
+                wait_times = [current_time -
+                              item.enqueue_time for item in self.queue]
                 avg_wait_time = sum(wait_times) / len(wait_times)
 
             return {
@@ -733,7 +786,11 @@ class DynamicEndpointRegistry:
                 self.endpoints[endpoint_id].status = status
                 self.endpoints[endpoint_id].last_health_check = time.time()
 
-    def record_request(self, endpoint_id: str, success: bool, latency_ms: float):
+    def record_request(
+            self,
+            endpoint_id: str,
+            success: bool,
+            latency_ms: float):
         """Record request metrics for endpoint."""
         with self._lock:
             if endpoint_id not in self.endpoints:
@@ -755,11 +812,12 @@ class DynamicEndpointRegistry:
         """Get all endpoints serving a specific model."""
         with self._lock:
             endpoint_ids = self.endpoints_by_model.get(model, [])
-            return [
-                self.endpoints[eid] for eid in endpoint_ids if eid in self.endpoints
-            ]
+            return [self.endpoints[eid]
+                    for eid in endpoint_ids if eid in self.endpoints]
 
-    def get_healthy_endpoints(self, model: str | None = None) -> list[EndpointInfo]:
+    def get_healthy_endpoints(
+            self,
+            model: str | None = None) -> list[EndpointInfo]:
         """Get all healthy endpoints, optionally filtered by model."""
         with self._lock:
             endpoints = self.endpoints.values()
@@ -773,8 +831,10 @@ class DynamicEndpointRegistry:
         """Get registry statistics."""
         with self._lock:
             total = len(self.endpoints)
-            healthy = sum(1 for e in self.endpoints.values() if e.status == "healthy")
-            degraded = sum(1 for e in self.endpoints.values() if e.status == "degraded")
+            healthy = sum(1 for e in self.endpoints.values()
+                          if e.status == "healthy")
+            degraded = sum(1 for e in self.endpoints.values()
+                           if e.status == "degraded")
             unhealthy = sum(
                 1 for e in self.endpoints.values() if e.status == "unhealthy"
             )
@@ -841,7 +901,10 @@ class DynamoSystem:
 
         # Initialize SLA planner
         if sla_target is None:
-            sla_target = SLATarget(ttft_ms=500.0, itl_ms=50.0, throughput_rps=10.0)
+            sla_target = SLATarget(
+                ttft_ms=500.0,
+                itl_ms=50.0,
+                throughput_rps=10.0)
 
         self.planner = SLABasedPlanner(
             sla_target=sla_target,

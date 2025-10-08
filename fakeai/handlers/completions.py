@@ -5,11 +5,12 @@ This handler supports both streaming and non-streaming text completions (legacy)
 """
 #  SPDX-License-Identifier: Apache-2.0
 
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 from fakeai.config import AppConfig
+from fakeai.events import AsyncEventBus
 from fakeai.fakeai_service import FakeAIService
-from fakeai.handlers.base import RequestContext, StreamingHandler
+from fakeai.handlers.base import EndpointHandler, RequestContext, StreamingHandler
 from fakeai.handlers.registry import register_handler
 from fakeai.metrics import MetricsTracker
 from fakeai.models import CompletionChunk, CompletionRequest, CompletionResponse
@@ -37,9 +38,10 @@ class CompletionHandler(
         self,
         config: AppConfig,
         metrics_tracker: MetricsTracker,
+        event_bus: Optional[AsyncEventBus] = None,
     ):
         """Initialize the handler."""
-        super().__init__(config, metrics_tracker)
+        super().__init__(config, metrics_tracker, event_bus=event_bus)
         self.service = FakeAIService(config)
 
     def endpoint_path(self) -> str:
@@ -71,14 +73,6 @@ class CompletionHandler(
             CompletionResponse with generated text
         """
         response = await self.service.create_completion(request)
-
-        # Track token usage
-        if response.usage:
-            self.metrics_tracker.track_tokens(
-                context.endpoint,
-                response.usage.total_tokens,
-            )
-
         return response
 
     async def execute_stream(
@@ -96,34 +90,9 @@ class CompletionHandler(
         Yields:
             CompletionChunk objects
         """
-        # Track start of stream
-        stream_id = context.request_id
-        self.metrics_tracker.start_stream(stream_id, context.endpoint)
-
-        total_tokens = 0
-        first_token = True
-
-        try:
-            async for chunk in self.service.create_completion_stream(request):
-                # Track first token
-                if first_token:
-                    self.metrics_tracker.track_stream_first_token(stream_id)
-                    first_token = False
-
-                # Track token
-                self.metrics_tracker.track_stream_token(stream_id)
-                total_tokens += 1
-
-                yield chunk
-
-            # Track completion
-            self.metrics_tracker.complete_stream(stream_id, context.endpoint)
-            self.metrics_tracker.track_tokens(context.endpoint, total_tokens)
-
-        except Exception as e:
-            # Track failure
-            self.metrics_tracker.fail_stream(stream_id, context.endpoint, str(e))
-            raise
+        # All streaming metrics now tracked via events in base handler
+        async for chunk in self.service.create_completion_stream(request):
+            yield chunk
 
     async def __call__(
         self,
@@ -133,19 +102,14 @@ class CompletionHandler(
     ):
         """Route to streaming or non-streaming handler."""
         if request.stream:
+            # Use streaming handler (calls StreamingHandler.__call__ with
+            # events)
             return await StreamingHandler.__call__(
                 self, request, fastapi_request, request_id
             )
         else:
-            self.metrics_tracker.track_request(self.endpoint_path())
-            context = self.create_context(request, fastapi_request, request_id)
-            context.streaming = False
-
-            try:
-                await self.pre_process(request, context)
-                response = await self.execute(request, context)
-                response = await self.post_process(response, context)
-                return response
-            except Exception as error:
-                await self.on_error(error, context)
-                raise
+            # Use non-streaming handler (calls EndpointHandler.__call__ with
+            # events)
+            return await EndpointHandler.__call__(
+                self, request, fastapi_request, request_id
+            )

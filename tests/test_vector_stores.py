@@ -5,7 +5,6 @@ Tests complete vector store CRUD operations, file management,
 chunking strategies, expiration policies, and search simulation.
 """
 
-import time
 
 import pytest
 

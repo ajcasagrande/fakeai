@@ -8,11 +8,10 @@ including per-key metrics, quota tracking, throttling analytics, and abuse detec
 #  SPDX-License-Identifier: Apache-2.0
 
 import time
-from unittest.mock import patch
 
 import pytest
 
-from fakeai.rate_limiter_metrics import KeyMetrics, RateLimiterMetrics, ThrottleEvent
+from fakeai.rate_limiter_metrics import RateLimiterMetrics
 
 
 @pytest.fixture

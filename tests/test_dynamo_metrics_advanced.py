@@ -13,15 +13,12 @@ Comprehensive test suite covering:
 import time
 import uuid
 
-import pytest
-
 from fakeai.dynamo_metrics_advanced import (
     AdvancedDynamoMetrics,
     AdvancedRequestMetrics,
     BatchOptimizer,
     DisaggregationTracker,
     QueueManager,
-    QueuePhase,
     RequestPriority,
 )
 

@@ -20,7 +20,8 @@ class ModelPermission(BaseModel):
     object: Literal["model_permission"] = Field(
         default="model_permission", description="The object type."
     )
-    created: int = Field(description="Unix timestamp when this permission was created.")
+    created: int = Field(
+        description="Unix timestamp when this permission was created.")
     allow_create_engine: bool = Field(
         description="Whether the user can create engines with this model."
     )
@@ -34,12 +35,15 @@ class ModelPermission(BaseModel):
         description="Whether search indices are allowed for this model."
     )
     allow_view: bool = Field(description="Whether the model can be viewed.")
-    allow_fine_tuning: bool = Field(description="Whether the model can be fine-tuned.")
-    organization: str = Field(description="The organization this permission is for.")
+    allow_fine_tuning: bool = Field(
+        description="Whether the model can be fine-tuned.")
+    organization: str = Field(
+        description="The organization this permission is for.")
     group: str | None = Field(
         default=None, description="The group this permission is for."
     )
-    is_blocking: bool = Field(description="Whether this permission is blocking.")
+    is_blocking: bool = Field(
+        description="Whether this permission is blocking.")
 
 
 class ModelPricing(BaseModel):
@@ -52,41 +56,42 @@ class ModelPricing(BaseModel):
         description="Cost per 1 million output tokens in USD."
     )
     cached_input_per_million: float | None = Field(
-        default=None, description="Cost per 1 million cached input tokens in USD."
-    )
+        default=None, description="Cost per 1 million cached input tokens in USD.")
 
 
 class Model(BaseModel):
     """OpenAI model information."""
 
     id: str = Field(description="The model identifier.")
-    object: Literal["model"] = Field(default="model", description="The object type.")
-    created: int = Field(description="Unix timestamp when this model was created.")
+    object: Literal["model"] = Field(
+        default="model", description="The object type.")
+    created: int = Field(
+        description="Unix timestamp when this model was created.")
     owned_by: str = Field(description="Organization that owns the model.")
     permission: list[ModelPermission] = Field(
         description="List of permissions for this model."
     )
     root: str | None = Field(
-        default=None, description="Root model from which this model was created."
-    )
+        default=None,
+        description="Root model from which this model was created.")
     parent: str | None = Field(
-        default=None, description="Parent model from which this model was created."
-    )
+        default=None,
+        description="Parent model from which this model was created.")
     context_window: int = Field(
         default=8192, description="Maximum context window size in tokens."
     )
     max_output_tokens: int = Field(
-        default=4096, description="Maximum number of tokens that can be generated."
-    )
+        default=4096,
+        description="Maximum number of tokens that can be generated.")
     supports_vision: bool = Field(
-        default=False, description="Whether the model supports vision/image inputs."
-    )
+        default=False,
+        description="Whether the model supports vision/image inputs.")
     supports_audio: bool = Field(
         default=False, description="Whether the model supports audio inputs."
     )
     supports_tools: bool = Field(
-        default=True, description="Whether the model supports function/tool calling."
-    )
+        default=True,
+        description="Whether the model supports function/tool calling.")
     training_cutoff: str | None = Field(
         default=None, description="Training data cutoff date (YYYY-MM format)."
     )
@@ -98,7 +103,8 @@ class Model(BaseModel):
 class ModelListResponse(BaseModel):
     """Response for listing available models."""
 
-    object: Literal["list"] = Field(default="list", description="The object type.")
+    object: Literal["list"] = Field(
+        default="list", description="The object type.")
     data: list[Model] = Field(description="List of model objects.")
 
 
@@ -109,14 +115,16 @@ class ModelCapabilitiesResponse(BaseModel):
     object: Literal["model.capabilities"] = Field(
         default="model.capabilities", description="The object type."
     )
-    context_window: int = Field(description="Maximum context window size in tokens.")
+    context_window: int = Field(
+        description="Maximum context window size in tokens.")
     max_output_tokens: int = Field(
         description="Maximum number of tokens that can be generated."
     )
     supports_vision: bool = Field(
         description="Whether the model supports vision/image inputs."
     )
-    supports_audio: bool = Field(description="Whether the model supports audio inputs.")
+    supports_audio: bool = Field(
+        description="Whether the model supports audio inputs.")
     supports_tools: bool = Field(
         description="Whether the model supports function/tool calling."
     )
@@ -131,14 +139,16 @@ class ModelCapabilitiesResponse(BaseModel):
 class PromptTokensDetails(BaseModel):
     """Breakdown of prompt tokens."""
 
-    cached_tokens: int = Field(default=0, description="Number of cached tokens.")
+    cached_tokens: int = Field(
+        default=0, description="Number of cached tokens.")
     audio_tokens: int = Field(default=0, description="Number of audio tokens.")
 
 
 class CompletionTokensDetails(BaseModel):
     """Breakdown of completion tokens."""
 
-    reasoning_tokens: int = Field(default=0, description="Number of reasoning tokens.")
+    reasoning_tokens: int = Field(
+        default=0, description="Number of reasoning tokens.")
     audio_tokens: int = Field(default=0, description="Number of audio tokens.")
     accepted_prediction_tokens: int = Field(
         default=0, description="Number of accepted prediction tokens."
@@ -151,7 +161,8 @@ class CompletionTokensDetails(BaseModel):
 class Usage(BaseModel):
     """Token usage information."""
 
-    prompt_tokens: int = Field(description="Number of tokens used in the prompt.")
+    prompt_tokens: int = Field(
+        description="Number of tokens used in the prompt.")
     completion_tokens: int | None = Field(
         default=None, description="Number of tokens used in the completion."
     )
@@ -168,8 +179,8 @@ class Usage(BaseModel):
         default=None, description="Alias for prompt_tokens in Responses API."
     )
     output_tokens: int | None = Field(
-        default=None, description="Alias for completion_tokens in Responses API."
-    )
+        default=None,
+        description="Alias for completion_tokens in Responses API.")
 
 
 class ErrorDetail(BaseModel):
@@ -205,4 +216,5 @@ class AudioOutput(BaseModel):
     id: str = Field(description="Unique identifier for the audio output.")
     data: str = Field(description="Base64-encoded audio data.")
     transcript: str = Field(description="Text transcript of the audio.")
-    expires_at: int = Field(description="Unix timestamp when the audio expires.")
+    expires_at: int = Field(
+        description="Unix timestamp when the audio expires.")

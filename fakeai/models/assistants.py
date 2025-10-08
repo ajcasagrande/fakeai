@@ -9,7 +9,7 @@ threads, messages, runs, and run steps for building AI agent applications.
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from ._base import Usage
 
@@ -37,8 +37,9 @@ class Assistant(BaseModel):
         default=None, max_length=256, description="The name of the assistant."
     )
     description: str | None = Field(
-        default=None, max_length=512, description="The description of the assistant."
-    )
+        default=None,
+        max_length=512,
+        description="The description of the assistant.")
     model: str = Field(description="Model used by the assistant.")
     instructions: str | None = Field(
         default=None,
@@ -68,6 +69,39 @@ class Assistant(BaseModel):
         description="Response format (auto, text, json_object, json_schema).",
     )
 
+    @field_validator("name")
+    @classmethod
+    def validate_name_length(cls, v: str | None) -> str | None:
+        """Validate name length."""
+        if v is not None and len(v) > 256:
+            raise ValueError("Name must not exceed 256 characters")
+        return v
+
+    @field_validator("description")
+    @classmethod
+    def validate_description_length(cls, v: str | None) -> str | None:
+        """Validate description length."""
+        if v is not None and len(v) > 512:
+            raise ValueError("Description must not exceed 512 characters")
+        return v
+
+    @field_validator("instructions")
+    @classmethod
+    def validate_instructions_length(cls, v: str | None) -> str | None:
+        """Validate instructions length."""
+        if v is not None and len(v) > 256000:
+            raise ValueError("Instructions must not exceed 256000 characters")
+        return v
+
+    @field_validator("tools")
+    @classmethod
+    def validate_tools_length(
+            cls, v: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Validate tools list length."""
+        if len(v) > 128:
+            raise ValueError("Tools list must not exceed 128 items")
+        return v
+
 
 class CreateAssistantRequest(BaseModel):
     """Request to create an assistant."""
@@ -77,8 +111,9 @@ class CreateAssistantRequest(BaseModel):
         default=None, max_length=256, description="Name of the assistant."
     )
     description: str | None = Field(
-        default=None, max_length=512, description="Description of the assistant."
-    )
+        default=None,
+        max_length=512,
+        description="Description of the assistant.")
     instructions: str | None = Field(
         default=None, max_length=256000, description="System instructions."
     )
@@ -101,6 +136,39 @@ class CreateAssistantRequest(BaseModel):
         default="auto", description="Response format."
     )
 
+    @field_validator("name")
+    @classmethod
+    def validate_name_length(cls, v: str | None) -> str | None:
+        """Validate name length."""
+        if v is not None and len(v) > 256:
+            raise ValueError("Name must not exceed 256 characters")
+        return v
+
+    @field_validator("description")
+    @classmethod
+    def validate_description_length(cls, v: str | None) -> str | None:
+        """Validate description length."""
+        if v is not None and len(v) > 512:
+            raise ValueError("Description must not exceed 512 characters")
+        return v
+
+    @field_validator("instructions")
+    @classmethod
+    def validate_instructions_length(cls, v: str | None) -> str | None:
+        """Validate instructions length."""
+        if v is not None and len(v) > 256000:
+            raise ValueError("Instructions must not exceed 256000 characters")
+        return v
+
+    @field_validator("tools")
+    @classmethod
+    def validate_tools_length(
+            cls, v: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Validate tools list length."""
+        if len(v) > 128:
+            raise ValueError("Tools list must not exceed 128 items")
+        return v
+
 
 class ModifyAssistantRequest(BaseModel):
     """Request to modify an assistant."""
@@ -119,14 +187,52 @@ class ModifyAssistantRequest(BaseModel):
     tool_resources: AssistantToolResources | None = Field(
         default=None, description="Tool resources."
     )
-    metadata: dict[str, str] | None = Field(default=None, description="Metadata.")
+    metadata: dict[str, str] | None = Field(
+        default=None, description="Metadata.")
     temperature: float | None = Field(
         default=None, ge=0.0, le=2.0, description="Temperature."
     )
-    top_p: float | None = Field(default=None, ge=0.0, le=1.0, description="Top-p.")
+    top_p: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Top-p.")
     response_format: str | dict[str, Any] | None = Field(
         default=None, description="Response format."
     )
+
+    @field_validator("name")
+    @classmethod
+    def validate_name_length(cls, v: str | None) -> str | None:
+        """Validate name length."""
+        if v is not None and len(v) > 256:
+            raise ValueError("Name must not exceed 256 characters")
+        return v
+
+    @field_validator("description")
+    @classmethod
+    def validate_description_length(cls, v: str | None) -> str | None:
+        """Validate description length."""
+        if v is not None and len(v) > 512:
+            raise ValueError("Description must not exceed 512 characters")
+        return v
+
+    @field_validator("instructions")
+    @classmethod
+    def validate_instructions_length(cls, v: str | None) -> str | None:
+        """Validate instructions length."""
+        if v is not None and len(v) > 256000:
+            raise ValueError("Instructions must not exceed 256000 characters")
+        return v
+
+    @field_validator("tools")
+    @classmethod
+    def validate_tools_length(
+            cls, v: list[dict[str, Any]] | None) -> list[dict[str, Any]] | None:
+        """Validate tools list length."""
+        if v is not None and len(v) > 128:
+            raise ValueError("Tools list must not exceed 128 items")
+        return v
 
 
 class AssistantList(BaseModel):
@@ -134,16 +240,20 @@ class AssistantList(BaseModel):
 
     object: Literal["list"] = Field(default="list", description="Object type.")
     data: list[Assistant] = Field(description="List of assistant objects.")
-    first_id: str | None = Field(default=None, description="First assistant ID.")
+    first_id: str | None = Field(
+        default=None, description="First assistant ID.")
     last_id: str | None = Field(default=None, description="Last assistant ID.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more results.")
 
 
 class Thread(BaseModel):
     """OpenAI Thread object."""
 
     id: str = Field(description="The thread ID.")
-    object: Literal["thread"] = Field(default="thread", description="Object type.")
+    object: Literal["thread"] = Field(
+        default="thread", description="Object type.")
     created_at: int = Field(description="Unix timestamp of creation.")
     metadata: dict[str, str] = Field(
         default_factory=dict, description="User-defined metadata."
@@ -170,7 +280,8 @@ class CreateThreadRequest(BaseModel):
 class ModifyThreadRequest(BaseModel):
     """Request to modify a thread."""
 
-    metadata: dict[str, str] | None = Field(default=None, description="Metadata.")
+    metadata: dict[str, str] | None = Field(
+        default=None, description="Metadata.")
     tool_resources: AssistantToolResources | None = Field(
         default=None, description="Tool resources."
     )
@@ -190,7 +301,8 @@ class ThreadMessage(BaseModel):
     assistant_id: str | None = Field(
         default=None, description="Assistant ID if role is assistant."
     )
-    run_id: str | None = Field(default=None, description="Run ID if created by a run.")
+    run_id: str | None = Field(default=None,
+                               description="Run ID if created by a run.")
     attachments: list[dict[str, Any]] | None = Field(
         default=None, description="File attachments."
     )
@@ -219,7 +331,9 @@ class MessageList(BaseModel):
     data: list[ThreadMessage] = Field(description="List of message objects.")
     first_id: str | None = Field(default=None, description="First message ID.")
     last_id: str | None = Field(default=None, description="Last message ID.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more results.")
 
 
 class RunStatus(str, Enum):
@@ -273,7 +387,8 @@ class Run(BaseModel):
         default=None, description="Details about incompletion."
     )
     model: str = Field(description="Model used.")
-    instructions: str | None = Field(default=None, description="Instructions used.")
+    instructions: str | None = Field(
+        default=None, description="Instructions used.")
     tools: list[dict[str, Any]] = Field(
         default_factory=list, description="Tools used in run."
     )
@@ -281,7 +396,8 @@ class Run(BaseModel):
         default_factory=dict, description="User-defined metadata."
     )
     usage: Usage | None = Field(default=None, description="Token usage.")
-    temperature: float | None = Field(default=None, description="Temperature used.")
+    temperature: float | None = Field(
+        default=None, description="Temperature used.")
     top_p: float | None = Field(default=None, description="Top-p used.")
     max_prompt_tokens: int | None = Field(
         default=None, description="Max prompt tokens."
@@ -308,7 +424,8 @@ class CreateRunRequest(BaseModel):
 
     assistant_id: str = Field(description="Assistant ID to use.")
     model: str | None = Field(default=None, description="Override model.")
-    instructions: str | None = Field(default=None, description="Override instructions.")
+    instructions: str | None = Field(
+        default=None, description="Override instructions.")
     additional_instructions: str | None = Field(
         default=None, description="Additional instructions to append."
     )
@@ -324,7 +441,11 @@ class CreateRunRequest(BaseModel):
     temperature: float | None = Field(
         default=None, ge=0.0, le=2.0, description="Temperature."
     )
-    top_p: float | None = Field(default=None, ge=0.0, le=1.0, description="Top-p.")
+    top_p: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Top-p.")
     max_prompt_tokens: int | None = Field(
         default=None, description="Max prompt tokens."
     )
@@ -349,7 +470,8 @@ class CreateRunRequest(BaseModel):
 class ModifyRunRequest(BaseModel):
     """Request to modify a run (only metadata supported)."""
 
-    metadata: dict[str, str] | None = Field(default=None, description="Metadata.")
+    metadata: dict[str, str] | None = Field(
+        default=None, description="Metadata.")
 
 
 class RunList(BaseModel):
@@ -359,7 +481,9 @@ class RunList(BaseModel):
     data: list[Run] = Field(description="List of run objects.")
     first_id: str | None = Field(default=None, description="First run ID.")
     last_id: str | None = Field(default=None, description="Last run ID.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more results.")
 
 
 class RunStep(BaseModel):
@@ -373,21 +497,25 @@ class RunStep(BaseModel):
     run_id: str = Field(description="Run ID.")
     assistant_id: str = Field(description="Assistant ID.")
     thread_id: str = Field(description="Thread ID.")
-    type: Literal["message_creation", "tool_calls"] = Field(description="Step type.")
-    status: Literal["in_progress", "cancelled", "failed", "completed", "expired"] = (
-        Field(description="Step status.")
-    )
+    type: Literal["message_creation", "tool_calls"] = Field(
+        description="Step type.")
+    status: Literal["in_progress", "cancelled", "failed",
+                    "completed", "expired"] = (Field(description="Step status."))
     cancelled_at: int | None = Field(
         default=None, description="Cancellation timestamp."
     )
-    completed_at: int | None = Field(default=None, description="Completion timestamp.")
-    expired_at: int | None = Field(default=None, description="Expiration timestamp.")
-    failed_at: int | None = Field(default=None, description="Failure timestamp.")
+    completed_at: int | None = Field(
+        default=None, description="Completion timestamp.")
+    expired_at: int | None = Field(
+        default=None, description="Expiration timestamp.")
+    failed_at: int | None = Field(
+        default=None, description="Failure timestamp.")
     last_error: dict[str, Any] | None = Field(
         default=None, description="Error details."
     )
     step_details: dict[str, Any] = Field(description="Step-specific details.")
-    usage: Usage | None = Field(default=None, description="Token usage for this step.")
+    usage: Usage | None = Field(default=None,
+                                description="Token usage for this step.")
     metadata: dict[str, str] = Field(
         default_factory=dict, description="User-defined metadata."
     )
@@ -400,4 +528,6 @@ class RunStepList(BaseModel):
     data: list[RunStep] = Field(description="List of run step objects.")
     first_id: str | None = Field(default=None, description="First step ID.")
     last_id: str | None = Field(default=None, description="Last step ID.")
-    has_more: bool = Field(default=False, description="Whether there are more results.")
+    has_more: bool = Field(
+        default=False,
+        description="Whether there are more results.")

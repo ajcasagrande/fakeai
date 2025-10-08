@@ -39,3 +39,11 @@ class AsyncExecutor:
         # Run the potentially CPU-bound function in a thread pool
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(self.executor, lambda: func(*args, **kwargs))
+
+    def shutdown(self, wait: bool = True) -> None:
+        """Shutdown the executor and cleanup resources.
+
+        Args:
+            wait: If True, wait for all pending tasks to complete before shutting down
+        """
+        self.executor.shutdown(wait=wait)

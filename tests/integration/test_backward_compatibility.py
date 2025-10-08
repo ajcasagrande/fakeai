@@ -32,7 +32,7 @@ def client():
 def test_old_imports_still_work():
     """Test that old import paths still work."""
     # Core imports
-    from fakeai import FakeAIService, AppConfig, app
+    from fakeai import AppConfig, FakeAIService, app
 
     assert FakeAIService is not None
     assert AppConfig is not None
@@ -44,9 +44,8 @@ def test_client_utilities_importable():
     try:
         from fakeai import (
             FakeAIClient,
-            temporary_server,
             assert_response_valid,
-            assert_tokens_in_range,
+            temporary_server,
         )
 
         assert FakeAIClient is not None
@@ -60,8 +59,8 @@ def test_client_utilities_importable():
 def test_deprecated_imports_still_work():
     """Test that deprecated but still supported imports work."""
     # Test various import patterns
-    from fakeai.fakeai_service import FakeAIService
     from fakeai.config import AppConfig
+    from fakeai.fakeai_service import FakeAIService
     from fakeai.models import ChatCompletionRequest
 
     assert FakeAIService is not None
@@ -498,7 +497,6 @@ def test_config_fields_backward_compatible():
 
 def test_environment_variables_backward_compatible():
     """Test that environment variable names haven't changed."""
-    import os
 
     # Test that old env vars are recognized
     old_env_vars = [
@@ -519,7 +517,6 @@ def test_environment_variables_backward_compatible():
 
 def test_cli_commands_exist():
     """Test that CLI commands haven't been removed."""
-    from fakeai.cli import app as cli_app
 
     # Should have main commands
     # (Hard to test without actually running CLI)

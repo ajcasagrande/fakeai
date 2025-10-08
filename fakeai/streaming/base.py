@@ -10,7 +10,7 @@ used throughout the streaming system.
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, AsyncIterator, Protocol
+from typing import Any, AsyncIterator, Protocol, runtime_checkable
 
 
 class StreamType(Enum):
@@ -205,6 +205,7 @@ class StreamMetrics:
         }
 
 
+@runtime_checkable
 class StreamingGenerator(Protocol):
     """
     Protocol for streaming generators.
@@ -230,6 +231,7 @@ class StreamingGenerator(Protocol):
         ...
 
 
+@runtime_checkable
 class ChunkFormatter(Protocol):
     """
     Protocol for chunk formatters.
@@ -285,8 +287,10 @@ class StreamTimeoutException(Exception):
     """Exception raised when a stream exceeds its timeout."""
 
     def __init__(
-        self, stream_id: str, timeout_seconds: float, message: str = "Stream timeout"
-    ):
+            self,
+            stream_id: str,
+            timeout_seconds: float,
+            message: str = "Stream timeout"):
         self.stream_id = stream_id
         self.timeout_seconds = timeout_seconds
         self.message = message

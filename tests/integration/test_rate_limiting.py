@@ -18,7 +18,6 @@ This module tests rate limiting functionality end-to-end, including:
 
 #  SPDX-License-Identifier: Apache-2.0
 
-import asyncio
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any

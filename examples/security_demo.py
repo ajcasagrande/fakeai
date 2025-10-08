@@ -10,7 +10,6 @@ This script demonstrates various security features including:
 """
 #  SPDX-License-Identifier: Apache-2.0
 
-import time
 from datetime import datetime, timedelta
 
 from fakeai.security import (

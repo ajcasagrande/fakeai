@@ -22,13 +22,24 @@ Design principles:
 
 import logging
 import time
+import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, AsyncGenerator, Generic, TypeVar
+from typing import Any, AsyncGenerator, Generic, Optional, TypeVar
 
 from fastapi import Request
 
 from fakeai.config import AppConfig
+from fakeai.events import (
+    AsyncEventBus,
+    EventEmitterMixin,
+    RequestCompletedEvent,
+    RequestFailedEvent,
+    RequestStartedEvent,
+    StreamCompletedEvent,
+    StreamFailedEvent,
+    StreamStartedEvent,
+)
 from fakeai.metrics import MetricsTracker
 
 logger = logging.getLogger(__name__)
@@ -73,7 +84,7 @@ class RequestContext:
         return time.time() - self.start_time
 
 
-class EndpointHandler(ABC, Generic[TRequest, TResponse]):
+class EndpointHandler(EventEmitterMixin, ABC, Generic[TRequest, TResponse]):
     """
     Base class for all endpoint handlers.
 
@@ -109,17 +120,23 @@ class EndpointHandler(ABC, Generic[TRequest, TResponse]):
     def __init__(
         self,
         config: AppConfig,
-        metrics_tracker: MetricsTracker,
+        metrics_tracker: Optional[MetricsTracker] = None,
+        event_bus: Optional[AsyncEventBus] = None,
     ):
         """
         Initialize the handler.
 
         Args:
             config: Application configuration
-            metrics_tracker: Metrics tracker singleton
+            metrics_tracker: DEPRECATED - kept for compatibility but not used
+            event_bus: Event bus for pub-sub metrics (required for metrics)
         """
+        # Initialize EventEmitterMixin first
+        super().__init__(event_bus=event_bus)
+
         self.config = config
-        self.metrics_tracker = metrics_tracker
+        self.metrics_tracker = metrics_tracker  # Deprecated, not used
+        self.context: Optional[RequestContext] = None
 
     @abstractmethod
     def endpoint_path(self) -> str:
@@ -129,7 +146,6 @@ class EndpointHandler(ABC, Generic[TRequest, TResponse]):
         Returns:
             Endpoint path (e.g., "/v1/chat/completions")
         """
-        pass
 
     @abstractmethod
     async def execute(
@@ -153,7 +169,6 @@ class EndpointHandler(ABC, Generic[TRequest, TResponse]):
         Raises:
             Exception: Any errors during processing
         """
-        pass
 
     async def pre_process(
         self,
@@ -173,7 +188,6 @@ class EndpointHandler(ABC, Generic[TRequest, TResponse]):
         Raises:
             Exception: If validation or preparation fails
         """
-        pass
 
     async def post_process(
         self,
@@ -186,7 +200,7 @@ class EndpointHandler(ABC, Generic[TRequest, TResponse]):
         Override this method to add custom response processing,
         logging, or metrics tracking.
 
-        Default implementation tracks basic metrics.
+        Default implementation tracks basic metrics via events.
 
         Args:
             response: Response object
@@ -195,9 +209,7 @@ class EndpointHandler(ABC, Generic[TRequest, TResponse]):
         Returns:
             Processed response (may be modified)
         """
-        # Track response metrics (latency is passed to track_response)
         elapsed = context.elapsed_time()
-        self.metrics_tracker.track_response(context.endpoint, elapsed)
 
         logger.info(
             f"{context.endpoint} completed: "
@@ -220,15 +232,12 @@ class EndpointHandler(ABC, Generic[TRequest, TResponse]):
         Override this method to add custom error handling, logging,
         or metrics tracking.
 
-        Default implementation tracks error metrics and logs the error.
+        Default implementation tracks error metrics via events and logs the error.
 
         Args:
             error: Exception that was raised
             context: Request context
         """
-        # Track error metrics
-        self.metrics_tracker.track_error(context.endpoint)
-
         logger.error(
             f"{context.endpoint} failed: "
             f"request_id={context.request_id}, "
@@ -345,11 +354,25 @@ class EndpointHandler(ABC, Generic[TRequest, TResponse]):
         Raises:
             Exception: Any errors during processing
         """
-        # Track request
-        self.metrics_tracker.track_request(self.endpoint_path())
 
         # Create context
         context = self.create_context(request, fastapi_request, request_id)
+        self.context = context  # Store for event emission
+
+        # Emit request started event
+        await self.emit(RequestStartedEvent(
+            event_id=str(uuid.uuid4()),
+            timestamp=time.time(),
+            request_id=context.request_id,
+            endpoint=context.endpoint,
+            method="POST",
+            model=context.model,
+            user_id=context.user_id,
+            api_key=context.api_key,
+            client_ip=context.client_ip,
+            streaming=context.streaming,
+            metadata={"api_key": context.api_key},
+        ))
 
         try:
             # Pre-process
@@ -361,15 +384,55 @@ class EndpointHandler(ABC, Generic[TRequest, TResponse]):
             # Post-process
             response = await self.post_process(response, context)
 
+            # Emit request completed event
+            elapsed = context.elapsed_time()
+            # Extract token usage safely
+            usage = getattr(response, 'usage', None)
+            input_tokens = getattr(usage, 'prompt_tokens', 0) if usage else 0
+            output_tokens = getattr(
+                usage, 'completion_tokens', 0) if usage else 0
+            cached_tokens = getattr(usage, 'cached_tokens', 0) if usage else 0
+
+            await self.emit(RequestCompletedEvent(
+                event_id=str(uuid.uuid4()),
+                timestamp=time.time(),
+                request_id=context.request_id,
+                endpoint=context.endpoint,
+                model=context.model or "unknown",
+                duration_ms=elapsed * 1000,
+                status_code=200,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cached_tokens=cached_tokens,
+                metadata={"api_key": context.api_key, "user_id": context.user_id},
+            ))
+
             return response
 
         except Exception as error:
             # Handle error
             await self.on_error(error, context)
+
+            # Emit request failed event
+            elapsed = context.elapsed_time()
+            await self.emit(RequestFailedEvent(
+                event_id=str(uuid.uuid4()),
+                timestamp=time.time(),
+                request_id=context.request_id,
+                endpoint=context.endpoint,
+                model=context.model,
+                duration_ms=elapsed * 1000,
+                error_type=type(error).__name__,
+                error_message=str(error),
+                status_code=500,
+                metadata={"api_key": context.api_key},
+            ))
+
             raise
 
 
-class StreamingHandler(EndpointHandler[TRequest, TResponse], Generic[TRequest, TResponse]):
+class StreamingHandler(
+        EndpointHandler[TRequest, TResponse], Generic[TRequest, TResponse]):
     """
     Base class for streaming endpoint handlers.
 
@@ -439,7 +502,8 @@ class StreamingHandler(EndpointHandler[TRequest, TResponse], Generic[TRequest, T
         Raises:
             NotImplementedError: Always
         """
-        raise NotImplementedError("Streaming handlers should implement execute_stream()")
+        raise NotImplementedError(
+            "Streaming handlers should implement execute_stream()")
 
     def create_context(
         self,
@@ -474,11 +538,36 @@ class StreamingHandler(EndpointHandler[TRequest, TResponse], Generic[TRequest, T
         Raises:
             Exception: Any errors during processing
         """
-        # Track request
-        self.metrics_tracker.track_request(self.endpoint_path())
 
         # Create context
         context = self.create_context(request, fastapi_request, request_id)
+        self.context = context  # Store for event emission
+
+        # Emit request started event
+        await self.emit(RequestStartedEvent(
+            event_id=str(uuid.uuid4()),
+            timestamp=time.time(),
+            request_id=context.request_id,
+            endpoint=context.endpoint,
+            method="POST",
+            model=context.model,
+            user_id=context.user_id,
+            api_key=context.api_key,
+            client_ip=context.client_ip,
+            streaming=True,
+            metadata={"api_key": context.api_key},
+        ))
+
+        # Emit stream started event
+        await self.emit(StreamStartedEvent(
+            event_id=str(uuid.uuid4()),
+            timestamp=time.time(),
+            request_id=context.request_id,
+            stream_id=context.request_id,
+            endpoint=context.endpoint,
+            model=context.model or "unknown",
+            input_tokens=getattr(request, 'max_tokens', 0),
+        ))
 
         try:
             # Pre-process
@@ -498,7 +587,34 @@ class StreamingHandler(EndpointHandler[TRequest, TResponse], Generic[TRequest, T
             # Handlers can override post_process to handle this case
             await self.post_process(None, context)  # type: ignore
 
+            # Emit stream completed event
+            elapsed = context.elapsed_time()
+            await self.emit(StreamCompletedEvent(
+                event_id=str(uuid.uuid4()),
+                timestamp=time.time(),
+                request_id=context.request_id,
+                stream_id=context.request_id,
+                endpoint=context.endpoint,
+                duration_ms=elapsed * 1000,
+                token_count=chunk_count,
+                finish_reason="stop",
+            ))
+
         except Exception as error:
             # Handle error
             await self.on_error(error, context)
+
+            # Emit stream failed event
+            elapsed = context.elapsed_time()
+            await self.emit(StreamFailedEvent(
+                event_id=str(uuid.uuid4()),
+                timestamp=time.time(),
+                request_id=context.request_id,
+                stream_id=context.request_id,
+                endpoint=context.endpoint,
+                duration_ms=elapsed * 1000,
+                error_message=str(error),
+                token_count=context.metadata.get("chunk_count", 0),
+            ))
+
             raise

@@ -7,14 +7,17 @@ for images in chat completions. Supports low, high, and auto detail modes.
 
 #  SPDX-License-Identifier: Apache-2.0
 
-import base64
 import math
 import re
 from typing import Any
 from urllib.parse import urlparse
 
 
-def calculate_image_tokens(width: int, height: int, detail: str, model: str) -> int:
+def calculate_image_tokens(
+        width: int,
+        height: int,
+        detail: str,
+        model: str) -> int:
     """
     Calculate image tokens using OpenAI's tile-based formula.
 
@@ -69,9 +72,9 @@ def calculate_image_tokens(width: int, height: int, detail: str, model: str) -> 
 
     # Different models use different base costs
     is_mini = (
-        "mini" in model.lower()
-        or model.endswith("gpt-oss-20b")
-        or "gpt-oss-20b" == model.split("/")[-1]
+        "mini" in model.lower() or
+        model.endswith("gpt-oss-20b") or
+        "gpt-oss-20b" == model.split("/")[-1]
     )
     if is_mini:
         # openai/gpt-oss-20b (mini models): 2833 + (5667 × tiles)
@@ -133,7 +136,8 @@ def parse_image_dimensions_from_url(url: str) -> tuple[int, int] | None:
     return (1024, 1024)
 
 
-def extract_image_content(content: str | list[Any] | None) -> list[dict[str, Any]]:
+def extract_image_content(
+        content: str | list[Any] | None) -> list[dict[str, Any]]:
     """
     Extract image content parts from message content.
 
@@ -162,7 +166,8 @@ def extract_image_content(content: str | list[Any] | None) -> list[dict[str, Any
         # Handle Pydantic model format
         elif hasattr(part, "type") and part.type == "image_url":
             if hasattr(part, "image_url"):
-                url = part.image_url.url if hasattr(part.image_url, "url") else ""
+                url = part.image_url.url if hasattr(
+                    part.image_url, "url") else ""
                 detail = (
                     part.image_url.detail
                     if hasattr(part.image_url, "detail")
@@ -174,7 +179,9 @@ def extract_image_content(content: str | list[Any] | None) -> list[dict[str, Any
     return images
 
 
-def calculate_message_image_tokens(content: str | list[Any] | None, model: str) -> int:
+def calculate_message_image_tokens(
+        content: str | list[Any] | None,
+        model: str) -> int:
     """
     Calculate total image tokens for a message.
 

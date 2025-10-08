@@ -13,7 +13,6 @@ import threading
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any
 
@@ -167,7 +166,8 @@ IMAGE_PRICING = [
 AUDIO_PRICING = {
     "tts-1": AudioPricing("tts-1", 15.00),  # $15 per 1M chars
     "tts-1-hd": AudioPricing("tts-1-hd", 30.00),  # $30 per 1M chars
-    "whisper-1": AudioPricing("whisper-1", 6.00),  # $6 per 1M chars (0.006 per minute)
+    # $6 per 1M chars (0.006 per minute)
+    "whisper-1": AudioPricing("whisper-1", 6.00),
 }
 
 # Fine-tuning pricing (training cost per 1M tokens)
@@ -190,53 +190,57 @@ class CostTracker:
     _lock = threading.Lock()
 
     def __new__(cls):
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = super(CostTracker, cls).__new__(cls)
-                cls._instance._initialized = False
-            return cls._instance
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(CostTracker, cls).__new__(cls)
+                    cls._instance._initialized = False
+        return cls._instance
 
     def __init__(self):
-        if self._initialized:
-            return
+        # Move _initialized check inside lock to prevent TOCTOU race condition
+        with self._lock:
+            if self._initialized:
+                return
 
-        # Usage tracking
-        self._usage_records: list[UsageRecord] = []
-        self._usage_lock = threading.Lock()
+            # Usage tracking
+            self._usage_records: list[UsageRecord] = []
+            self._usage_lock = threading.Lock()
 
-        # Per-key aggregated costs
-        self._costs_by_key: dict[str, float] = defaultdict(float)
-        self._costs_by_model: dict[str, float] = defaultdict(float)
-        self._costs_by_endpoint: dict[str, float] = defaultdict(float)
+            # Per-key aggregated costs
+            self._costs_by_key: dict[str, float] = defaultdict(float)
+            self._costs_by_model: dict[str, float] = defaultdict(float)
+            self._costs_by_endpoint: dict[str, float] = defaultdict(float)
 
-        # Token tracking
-        self._tokens_by_key: dict[str, dict[str, int]] = defaultdict(
-            lambda: {
-                "prompt_tokens": 0,
-                "completion_tokens": 0,
-                "cached_tokens": 0,
-                "total_tokens": 0,
-            }
-        )
+            # Token tracking
+            self._tokens_by_key: dict[str, dict[str, int]] = defaultdict(
+                lambda: {
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "cached_tokens": 0,
+                    "total_tokens": 0,
+                }
+            )
 
-        # Budget management
-        self._budgets: dict[str, BudgetConfig] = {}
-        self._budget_lock = threading.Lock()
+            # Budget management
+            self._budgets: dict[str, BudgetConfig] = {}
+            self._budget_lock = threading.Lock()
 
-        # Optimization tracking
-        self._suggestions: list[CostOptimizationSuggestion] = []
-        self._model_usage_count: dict[str, dict[str, int]] = defaultdict(
-            lambda: defaultdict(int)
-        )
+            # Optimization tracking
+            self._suggestions: list[CostOptimizationSuggestion] = []
+            self._model_usage_count: dict[str, dict[str, int]] = defaultdict(
+                lambda: defaultdict(int)
+            )
 
-        # Start background budget reset thread
-        self._stop_thread = False
-        self._budget_reset_thread = threading.Thread(target=self._budget_reset_loop)
-        self._budget_reset_thread.daemon = True
-        self._budget_reset_thread.start()
+            # Start background budget reset thread
+            self._stop_thread = False
+            self._budget_reset_thread = threading.Thread(
+                target=self._budget_reset_loop)
+            self._budget_reset_thread.daemon = True
+            self._budget_reset_thread.start()
 
-        self._initialized = True
-        logger.info("Cost tracker initialized")
+            self._initialized = True
+            logger.info("Cost tracker initialized")
 
     def record_usage(
         self,
@@ -331,8 +335,8 @@ class CostTracker:
                 if base_model in FINE_TUNING_PRICING:
                     pricing = FINE_TUNING_PRICING[base_model]
                     cost = (
-                        prompt_tokens / 1_000_000 * pricing["input"]
-                        + completion_tokens / 1_000_000 * pricing["output"]
+                        prompt_tokens / 1_000_000 * pricing["input"] +
+                        completion_tokens / 1_000_000 * pricing["output"]
                     )
                     return cost
 
@@ -344,9 +348,9 @@ class CostTracker:
 
             for pricing in IMAGE_PRICING:
                 if (
-                    pricing.model == model
-                    and pricing.size == size
-                    and pricing.quality == quality
+                    pricing.model == model and
+                    pricing.size == size and
+                    pricing.quality == quality
                 ):
                     return pricing.price * n
 
@@ -357,7 +361,8 @@ class CostTracker:
         if endpoint in ["/v1/audio/speech", "/v1/audio/transcriptions"]:
             if model in AUDIO_PRICING:
                 chars = metadata.get("characters", 0)
-                return chars / 1_000_000 * AUDIO_PRICING[model].price_per_million_chars
+                return chars / 1_000_000 * \
+                    AUDIO_PRICING[model].price_per_million_chars
             return 0.0
 
         # Text/chat models
@@ -370,30 +375,36 @@ class CostTracker:
             # Calculate cached input cost (if applicable)
             if cached_tokens > 0 and pricing.cached_input_price_per_million:
                 cached_cost = (
-                    cached_tokens / 1_000_000 * pricing.cached_input_price_per_million
-                )
+                    cached_tokens /
+                    1_000_000 *
+                    pricing.cached_input_price_per_million)
                 # Subtract cached tokens from regular input cost
                 input_cost = (
-                    (prompt_tokens - cached_tokens)
-                    / 1_000_000
-                    * pricing.input_price_per_million
+                    (prompt_tokens - cached_tokens) /
+                    1_000_000 *
+                    pricing.input_price_per_million
                 )
                 input_cost += cached_cost
 
             # Calculate output cost
             output_cost = (
-                completion_tokens / 1_000_000 * pricing.output_price_per_million
-            )
+                completion_tokens /
+                1_000_000 *
+                pricing.output_price_per_million)
 
             return input_cost + output_cost
 
         # Unknown model - use GPT-3.5 turbo pricing as default
-        logger.warning(f"Unknown model pricing for {model}, using default pricing")
+        logger.warning(
+            f"Unknown model pricing for {model}, using default pricing")
         default_pricing = MODEL_PRICING["gpt-3.5-turbo"]
         return (
-            prompt_tokens / 1_000_000 * default_pricing.input_price_per_million
-            + completion_tokens / 1_000_000 * default_pricing.output_price_per_million
-        )
+            prompt_tokens /
+            1_000_000 *
+            default_pricing.input_price_per_million +
+            completion_tokens /
+            1_000_000 *
+            default_pricing.output_price_per_million)
 
     def get_cost_by_key(
         self, api_key: str, period_hours: int | None = None
@@ -426,8 +437,7 @@ class CostTracker:
                     "used": budget.used,
                     "remaining": budget.limit - budget.used,
                     "percentage": (
-                        (budget.used / budget.limit * 100) if budget.limit > 0 else 0
-                    ),
+                        (budget.used / budget.limit * 100) if budget.limit > 0 else 0),
                     "period": budget.period.value,
                 }
 
@@ -470,7 +480,8 @@ class CostTracker:
                 "period_hours": period_hours,
             }
 
-    def get_cost_by_model(self, period_hours: int | None = None) -> dict[str, float]:
+    def get_cost_by_model(self, period_hours: int |
+                          None = None) -> dict[str, float]:
         """
         Get costs aggregated by model.
 
@@ -483,7 +494,8 @@ class CostTracker:
         with self._usage_lock:
             if period_hours:
                 cutoff_time = time.time() - (period_hours * 3600)
-                records = [r for r in self._usage_records if r.timestamp >= cutoff_time]
+                records = [
+                    r for r in self._usage_records if r.timestamp >= cutoff_time]
             else:
                 records = self._usage_records
 
@@ -493,7 +505,8 @@ class CostTracker:
 
             return dict(costs)
 
-    def get_cost_by_endpoint(self, period_hours: int | None = None) -> dict[str, float]:
+    def get_cost_by_endpoint(self, period_hours: int |
+                             None = None) -> dict[str, float]:
         """
         Get costs aggregated by endpoint.
 
@@ -506,7 +519,8 @@ class CostTracker:
         with self._usage_lock:
             if period_hours:
                 cutoff_time = time.time() - (period_hours * 3600)
-                records = [r for r in self._usage_records if r.timestamp >= cutoff_time]
+                records = [
+                    r for r in self._usage_records if r.timestamp >= cutoff_time]
             else:
                 records = self._usage_records
 
@@ -564,8 +578,9 @@ class CostTracker:
                 )
 
         logger.info(
-            f"Budget set for {api_key}: ${limit} ({period.value}, {limit_type.value})"
-        )
+            f"Budget set for {api_key}: ${limit} ({
+                period.value}, {
+                limit_type.value})")
 
     def check_budget(self, api_key: str) -> tuple[float, float, bool]:
         """
@@ -599,8 +614,8 @@ class CostTracker:
 
             # Check if we've hit the alert threshold
             if (
-                not budget.alerted
-                and budget.used >= budget.limit * budget.alert_threshold
+                not budget.alerted and
+                budget.used >= budget.limit * budget.alert_threshold
             ):
                 budget.alerted = True
                 logger.warning(
@@ -616,8 +631,9 @@ class CostTracker:
                     )
                 else:
                     logger.warning(
-                        f"Budget exceeded (soft limit) for {api_key}: ${budget.used:.4f} / ${budget.limit:.2f}"
-                    )
+                        f"Budget exceeded (soft limit) for {api_key}: ${
+                            budget.used:.4f} / ${
+                            budget.limit:.2f}")
 
     def _budget_reset_loop(self) -> None:
         """Background thread to reset budgets periodically."""
@@ -642,8 +658,8 @@ class CostTracker:
 
                 if should_reset:
                     logger.info(
-                        f"Resetting budget for {api_key}: ${budget.used:.4f} used in last period"
-                    )
+                        f"Resetting budget for {api_key}: ${
+                            budget.used:.4f} used in last period")
                     budget.used = 0.0
                     budget.alerted = False
                     budget.last_reset = current_time
@@ -669,7 +685,8 @@ class CostTracker:
                     if r.api_key == api_key and r.timestamp >= cutoff_time
                 ]
             else:
-                records = [r for r in self._usage_records if r.timestamp >= cutoff_time]
+                records = [
+                    r for r in self._usage_records if r.timestamp >= cutoff_time]
 
             if not records:
                 return 0.0
@@ -743,9 +760,9 @@ class CostTracker:
                         api_key=api_key,
                         suggestion_type="enable_caching",
                         description=(
-                            f"Enable prompt caching to reduce costs. "
-                            f"With {len(records)} requests in 24h, caching could save ~${estimated_cache_savings:.2f}/day."
-                        ),
+                            f"Enable prompt caching to reduce costs. " f"With {
+                                len(records)} requests in 24h, caching could save ~${
+                                estimated_cache_savings:.2f}/day."),
                         potential_savings=estimated_cache_savings * 30,
                         details={
                             "requests_per_day": len(records),
@@ -774,7 +791,8 @@ class CostTracker:
             return [s for s in self._suggestions if s.api_key == api_key]
         return self._suggestions.copy()
 
-    def get_cache_savings(self, api_key: str | None = None) -> dict[str, float]:
+    def get_cache_savings(self, api_key: str |
+                          None = None) -> dict[str, float]:
         """
         Calculate cost savings from cache hits.
 
@@ -786,7 +804,8 @@ class CostTracker:
         """
         with self._usage_lock:
             if api_key:
-                records = [r for r in self._usage_records if r.api_key == api_key]
+                records = [
+                    r for r in self._usage_records if r.api_key == api_key]
             else:
                 records = self._usage_records
 
@@ -796,12 +815,13 @@ class CostTracker:
             # Using GPT-4o pricing as reference
             gpt4o_pricing = MODEL_PRICING["gpt-4o"]
             regular_cost = (
-                total_cached_tokens / 1_000_000 * gpt4o_pricing.input_price_per_million
-            )
+                total_cached_tokens /
+                1_000_000 *
+                gpt4o_pricing.input_price_per_million)
             cached_cost = (
-                total_cached_tokens
-                / 1_000_000
-                * gpt4o_pricing.cached_input_price_per_million
+                total_cached_tokens /
+                1_000_000 *
+                gpt4o_pricing.cached_input_price_per_million
             )
             savings = (
                 regular_cost - cached_cost
@@ -816,7 +836,8 @@ class CostTracker:
                 "cached_cost": cached_cost,
             }
 
-    def get_batch_savings(self, api_key: str | None = None) -> dict[str, float]:
+    def get_batch_savings(self, api_key: str |
+                          None = None) -> dict[str, float]:
         """
         Calculate cost savings from batch processing.
 
@@ -837,8 +858,7 @@ class CostTracker:
                 ]
             else:
                 records = [
-                    r for r in self._usage_records if r.endpoint == "/v1/batches"
-                ]
+                    r for r in self._usage_records if r.endpoint == "/v1/batches"]
 
             if not records:
                 return {
@@ -854,9 +874,9 @@ class CostTracker:
             # Calculate savings (50% discount on completion tokens)
             gpt4o_pricing = MODEL_PRICING["gpt-4o"]
             regular_cost = (
-                total_completion_tokens
-                / 1_000_000
-                * gpt4o_pricing.output_price_per_million
+                total_completion_tokens /
+                1_000_000 *
+                gpt4o_pricing.output_price_per_million
             )
             batch_cost = regular_cost * 0.5
             savings = regular_cost - batch_cost
@@ -935,7 +955,9 @@ class CostTracker:
                 self._model_usage_count.clear()
                 self._suggestions.clear()
 
-        logger.info(f"Cleared cost history{f' for {api_key}' if api_key else ''}")
+        logger.info(
+            f"Cleared cost history{
+                f' for {api_key}' if api_key else ''}")
 
     def shutdown(self) -> None:
         """Shutdown the cost tracker."""

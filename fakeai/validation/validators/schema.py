@@ -8,7 +8,8 @@ Validates that requests conform to expected Pydantic models.
 
 from typing import Any, Type
 
-from pydantic import BaseModel, ValidationError as PydanticValidationError
+from pydantic import BaseModel
+from pydantic import ValidationError as PydanticValidationError
 
 from fakeai.validation.base import ValidationResult
 
@@ -50,11 +51,13 @@ class SchemaValidator:
         Returns:
             ValidationResult indicating success or failure
         """
-        # If request is already a validated Pydantic model of the correct type, it's valid
+        # If request is already a validated Pydantic model of the correct type,
+        # it's valid
         if isinstance(request, self._schema):
             return ValidationResult.success(
-                metadata={"schema": self._schema.__name__, "validated_model": request}
-            )
+                metadata={
+                    "schema": self._schema.__name__,
+                    "validated_model": request})
 
         # Convert to dict if it's a Pydantic model of a different type
         if isinstance(request, BaseModel):

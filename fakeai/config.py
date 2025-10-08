@@ -14,7 +14,9 @@ class AppConfig(BaseSettings):
     """Application configuration settings."""
 
     # Server settings
-    host: str = Field(default="127.0.0.1", description="Host to bind the server to.")
+    host: str = Field(
+        default="127.0.0.1",
+        description="Host to bind the server to.")
     port: int = Field(default=8000, description="Port to bind the server to.")
     debug: bool = Field(default=False, description="Enable debug mode.")
 
@@ -26,8 +28,8 @@ class AppConfig(BaseSettings):
         default=True, description="Add random variation to response delays."
     )
     max_variance: float = Field(
-        default=0.3, description="Maximum variance for random delays (as a factor)."
-    )
+        default=0.3,
+        description="Maximum variance for random delays (as a factor).")
 
     # API settings
     api_keys: list[str] = Field(
@@ -37,17 +39,18 @@ class AppConfig(BaseSettings):
     require_api_key: bool = Field(
         default=False, description="Whether to require API key authentication."
     )
-    rate_limit_enabled: bool = Field(default=False, description="Enable rate limiting.")
+    rate_limit_enabled: bool = Field(
+        default=False, description="Enable rate limiting.")
     rate_limit_tier: str = Field(
         default="tier-1",
         description="Rate limit tier (free, tier-1, tier-2, tier-3, tier-4, tier-5).",
     )
     rate_limit_rpm: int | None = Field(
-        default=None, description="Custom requests per minute limit (overrides tier)."
-    )
+        default=None,
+        description="Custom requests per minute limit (overrides tier).")
     rate_limit_tpm: int | None = Field(
-        default=None, description="Custom tokens per minute limit (overrides tier)."
-    )
+        default=None,
+        description="Custom tokens per minute limit (overrides tier).")
 
     # Security settings (disabled by default for easy testing)
     enable_security: bool = Field(
@@ -64,8 +67,7 @@ class AppConfig(BaseSettings):
         default=False, description="Enable injection attack detection."
     )
     enable_abuse_detection: bool = Field(
-        default=False, description="Enable IP-based abuse detection and banning."
-    )
+        default=False, description="Enable IP-based abuse detection and banning.")
     max_request_size: int = Field(
         default=100 * 1024 * 1024,
         description="Maximum request size in bytes (default: 100 MB).",
@@ -101,11 +103,10 @@ class AppConfig(BaseSettings):
         default=16, description="Block size for KV cache (default: 16 tokens)."
     )
     kv_cache_num_workers: int = Field(
-        default=4, description="Number of parallel workers for cache processing."
-    )
+        default=4, description="Number of parallel workers for cache processing.")
     kv_overlap_weight: float = Field(
-        default=1.0, description="Weight for overlap scoring in KV cache (0.0-2.0)."
-    )
+        default=1.0,
+        description="Weight for overlap scoring in KV cache (0.0-2.0).")
 
     # Safety settings (disabled by default for easy testing)
     enable_moderation: bool = Field(
@@ -115,15 +116,14 @@ class AppConfig(BaseSettings):
         default=0.5, description="Threshold for content moderation (0.0-1.0)."
     )
     enable_refusals: bool = Field(
-        default=False, description="Enable refusal responses for harmful content."
-    )
+        default=False,
+        description="Enable refusal responses for harmful content.")
     enable_safety_features: bool = Field(
         default=False,
         description="Enable safety refusal mechanism for harmful content.",
     )
     enable_jailbreak_detection: bool = Field(
-        default=False, description="Enable jailbreak/prompt injection detection."
-    )
+        default=False, description="Enable jailbreak/prompt injection detection.")
     prepend_safety_message: bool = Field(
         default=False,
         description="Prepend safety guidelines as system message when no system message exists.",
@@ -131,8 +131,8 @@ class AppConfig(BaseSettings):
 
     # Audio settings
     enable_audio: bool = Field(
-        default=True, description="Enable audio input/output in chat completions."
-    )
+        default=True,
+        description="Enable audio input/output in chat completions.")
     default_voice: str = Field(
         default="alloy",
         description="Default voice for audio output (alloy, echo, fable, onyx, nova, shimmer, etc.).",
@@ -152,19 +152,17 @@ class AppConfig(BaseSettings):
         description="Sentence transformer model for semantic embeddings.",
     )
     embedding_use_gpu: bool = Field(
-        default=True, description="Use GPU for embedding generation if available."
-    )
+        default=True,
+        description="Use GPU for embedding generation if available.")
 
     # Image generation settings
     generate_actual_images: bool = Field(
-        default=True, description="Generate actual images instead of fake URLs."
-    )
+        default=True, description="Generate actual images instead of fake URLs.")
     image_storage_backend: str = Field(
         default="memory", description="Image storage backend (memory or disk)."
     )
     image_retention_hours: int = Field(
-        default=1, description="Hours to retain generated images before cleanup."
-    )
+        default=1, description="Hours to retain generated images before cleanup.")
 
     # LLM Generation settings
     use_llm_generation: bool = Field(
@@ -193,8 +191,7 @@ class AppConfig(BaseSettings):
 
     # Performance settings
     enable_context_validation: bool = Field(
-        default=True, description="Enable context window validation and warnings."
-    )
+        default=True, description="Enable context window validation and warnings.")
     strict_token_counting: bool = Field(
         default=False,
         description="Use strict token counting (slower but more accurate).",
@@ -210,11 +207,9 @@ class AppConfig(BaseSettings):
         description="Timeout between individual tokens in streaming (default: 30 seconds).",
     )
     stream_keepalive_enabled: bool = Field(
-        default=True, description="Enable keep-alive heartbeat for long streams."
-    )
+        default=True, description="Enable keep-alive heartbeat for long streams.")
     stream_keepalive_interval_seconds: float = Field(
-        default=15.0, description="Interval between keep-alive heartbeats in seconds."
-    )
+        default=15.0, description="Interval between keep-alive heartbeats in seconds.")
 
     # Latency simulation settings (TTFT and ITL)
     ttft_ms: float = Field(
@@ -351,7 +346,8 @@ class AppConfig(BaseSettings):
     def validate_moderation_threshold(cls, v: float) -> float:
         """Validate moderation threshold."""
         if not 0.0 <= v <= 1.0:
-            raise ValueError("Moderation threshold must be between 0.0 and 1.0")
+            raise ValueError(
+                "Moderation threshold must be between 0.0 and 1.0")
         return v
 
     @field_validator("default_voice")
@@ -372,8 +368,9 @@ class AppConfig(BaseSettings):
         }
         if v not in valid_voices:
             raise ValueError(
-                f"Default voice must be one of: {', '.join(sorted(valid_voices))}"
-            )
+                f"Default voice must be one of: {
+                    ', '.join(
+                        sorted(valid_voices))}")
         return v
 
     @field_validator("default_audio_format")
@@ -382,15 +379,17 @@ class AppConfig(BaseSettings):
         valid_formats = {"mp3", "opus", "aac", "flac", "wav", "pcm16"}
         if v not in valid_formats:
             raise ValueError(
-                f"Default audio format must be one of: {', '.join(sorted(valid_formats))}"
-            )
+                f"Default audio format must be one of: {
+                    ', '.join(
+                        sorted(valid_formats))}")
         return v
 
     @field_validator("max_request_size")
     def validate_max_request_size(cls, v: int) -> int:
         """Validate maximum request size."""
         if v < 1024:  # At least 1 KB
-            raise ValueError("Maximum request size must be at least 1024 bytes")
+            raise ValueError(
+                "Maximum request size must be at least 1024 bytes")
         if v > 100 * 1024 * 1024:  # At most 100 MB
             raise ValueError("Maximum request size cannot exceed 100 MB")
         return v
@@ -399,7 +398,8 @@ class AppConfig(BaseSettings):
     def validate_abuse_cleanup_interval(cls, v: int) -> int:
         """Validate abuse cleanup interval."""
         if v < 60:  # At least 1 minute
-            raise ValueError("Abuse cleanup interval must be at least 60 seconds")
+            raise ValueError(
+                "Abuse cleanup interval must be at least 60 seconds")
         return v
 
     @field_validator("cors_allowed_origins")
@@ -435,8 +435,9 @@ class AppConfig(BaseSettings):
         valid_backends = {"memory", "disk"}
         if v not in valid_backends:
             raise ValueError(
-                f"Image storage backend must be one of: {', '.join(sorted(valid_backends))}"
-            )
+                f"Image storage backend must be one of: {
+                    ', '.join(
+                        sorted(valid_backends))}")
         return v
 
     @field_validator("image_retention_hours")
@@ -445,7 +446,8 @@ class AppConfig(BaseSettings):
         if v < 0:
             raise ValueError("Image retention hours cannot be negative")
         if v > 168:  # 1 week max
-            raise ValueError("Image retention hours cannot exceed 168 (1 week)")
+            raise ValueError(
+                "Image retention hours cannot exceed 168 (1 week)")
         return v
 
     @field_validator("file_storage_backend")
@@ -454,15 +456,17 @@ class AppConfig(BaseSettings):
         valid_backends = {"memory", "disk"}
         if v not in valid_backends:
             raise ValueError(
-                f"File storage backend must be one of: {', '.join(sorted(valid_backends))}"
-            )
+                f"File storage backend must be one of: {
+                    ', '.join(
+                        sorted(valid_backends))}")
         return v
 
     @field_validator("error_injection_rate")
     def validate_error_injection_rate(cls, v: float) -> float:
         """Validate error injection rate."""
         if not 0.0 <= v <= 1.0:
-            raise ValueError("Error injection rate must be between 0.0 and 1.0")
+            raise ValueError(
+                "Error injection rate must be between 0.0 and 1.0")
         return v
 
     @field_validator("error_injection_types")

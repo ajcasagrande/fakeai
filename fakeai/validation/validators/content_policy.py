@@ -81,17 +81,25 @@ class ContentPolicyValidator:
             content_to_check.append(context["content"])
 
         # Check messages
-        if "messages" in context and context["messages"]:
+        if "messages" in context:
             messages = context["messages"]
-            for msg in messages:
-                if isinstance(msg, dict) and "content" in msg:
-                    content = msg["content"]
-                    if isinstance(content, str):
-                        content_to_check.append(content)
-                elif hasattr(msg, "content") and msg.content:
-                    content = msg.content
-                    if isinstance(content, str):
-                        content_to_check.append(content)
+            # Handle empty messages array
+            if messages is not None and not messages:
+                result.add_warning(
+                    message="Messages array is empty",
+                    code="empty_messages",
+                    param="messages",
+                )
+            elif messages:
+                for msg in messages:
+                    if isinstance(msg, dict) and "content" in msg:
+                        content = msg["content"]
+                        if isinstance(content, str):
+                            content_to_check.append(content)
+                    elif hasattr(msg, "content") and msg.content:
+                        content = msg.content
+                        if isinstance(content, str):
+                            content_to_check.append(content)
 
         # Extract content from request if available
         if hasattr(request, "messages"):
@@ -124,13 +132,15 @@ class ContentPolicyValidator:
 
             if self._strict_mode:
                 result.add_error(
-                    message=f"Content may violate usage policies. Flagged terms: {', '.join(unique_violations)}",
+                    message=f"Content may violate usage policies. Flagged terms: {
+                        ', '.join(unique_violations)}",
                     code="content_policy_violation",
                     param="content",
                 )
             else:
                 result.add_warning(
-                    message=f"Content may violate usage policies. Flagged terms: {', '.join(unique_violations)}",
+                    message=f"Content may violate usage policies. Flagged terms: {
+                        ', '.join(unique_violations)}",
                     code="content_policy_warning",
                     param="content",
                 )

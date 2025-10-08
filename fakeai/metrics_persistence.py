@@ -7,7 +7,6 @@ multiple export formats, query capabilities, and replay support.
 """
 #  SPDX-License-Identifier: Apache-2.0
 
-import gzip
 import json
 import logging
 import os
@@ -18,7 +17,7 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +122,8 @@ class MetricsPersistence:
             )
             self._connection_local.conn.execute("PRAGMA journal_mode=WAL")
             self._connection_local.conn.execute("PRAGMA synchronous=NORMAL")
-            self._connection_local.conn.execute("PRAGMA cache_size=-64000")  # 64MB
+            self._connection_local.conn.execute(
+                "PRAGMA cache_size=-64000")  # 64MB
         return self._connection_local.conn
 
     def _init_database(self) -> None:
@@ -227,8 +227,7 @@ class MetricsPersistence:
                                         model=None,
                                         metric_name=f"streaming_{key}_{sub_key}",
                                         metric_value=float(sub_value),
-                                    )
-                                )
+                                    ))
             elif isinstance(endpoints, dict):
                 for endpoint, stats in endpoints.items():
                     if isinstance(stats, dict):
@@ -241,8 +240,7 @@ class MetricsPersistence:
                                         model=None,
                                         metric_name=f"{metric_type}_{stat_name}",
                                         metric_value=float(stat_value),
-                                    )
-                                )
+                                    ))
 
         # Batch insert for efficiency
         if snapshots:
@@ -488,7 +486,10 @@ class MetricsPersistence:
             f"Exported {len(result.snapshots)} metrics to {output_path} ({format.value})"
         )
 
-    def _export_jsonl(self, snapshots: list[MetricSnapshot], output_path: Path) -> None:
+    def _export_jsonl(
+            self,
+            snapshots: list[MetricSnapshot],
+            output_path: Path) -> None:
         """Export to JSON Lines format."""
         with open(output_path, "w") as f:
             for snapshot in snapshots:
@@ -503,15 +504,17 @@ class MetricsPersistence:
                 )
                 f.write(line + "\n")
 
-    def _export_csv(self, snapshots: list[MetricSnapshot], output_path: Path) -> None:
+    def _export_csv(
+            self,
+            snapshots: list[MetricSnapshot],
+            output_path: Path) -> None:
         """Export to CSV format."""
         import csv
 
         with open(output_path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(
-                ["timestamp", "endpoint", "model", "metric_name", "metric_value"]
-            )
+            writer.writerow(["timestamp", "endpoint", "model",
+                             "metric_name", "metric_value"])
             for snapshot in snapshots:
                 writer.writerow(
                     [
@@ -626,7 +629,8 @@ class MetricsPersistence:
 
                 # Model
                 model_len = struct.unpack("H", f.read(2))[0]
-                model = f.read(model_len).decode("utf-8") if model_len > 0 else None
+                model = f.read(model_len).decode(
+                    "utf-8") if model_len > 0 else None
 
                 # Metric name
                 metric_name_len = struct.unpack("H", f.read(2))[0]
@@ -776,15 +780,18 @@ class MetricsPersistence:
         min_time, max_time = cursor.fetchone()
 
         # Unique endpoints
-        cursor.execute("SELECT COUNT(DISTINCT endpoint) FROM metrics_timeseries")
+        cursor.execute(
+            "SELECT COUNT(DISTINCT endpoint) FROM metrics_timeseries")
         unique_endpoints = cursor.fetchone()[0]
 
         # Unique metrics
-        cursor.execute("SELECT COUNT(DISTINCT metric_name) FROM metrics_timeseries")
+        cursor.execute(
+            "SELECT COUNT(DISTINCT metric_name) FROM metrics_timeseries")
         unique_metrics = cursor.fetchone()[0]
 
         # Database size
-        db_size_bytes = os.path.getsize(self.db_path) if self.db_path.exists() else 0
+        db_size_bytes = os.path.getsize(
+            self.db_path) if self.db_path.exists() else 0
 
         return {
             "total_records": total_records,

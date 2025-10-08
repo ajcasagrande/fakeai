@@ -12,7 +12,6 @@ Extreme granularity metrics matching production NVIDIA Dynamo systems:
 
 import threading
 import time
-import uuid
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum
@@ -142,8 +141,7 @@ class AdvancedRequestMetrics:
         # Scheduler queue time
         if self.scheduler_queue_entry_time > 0 and self.scheduler_queue_exit_time > 0:
             self.scheduler_queue_time_ms = (
-                self.scheduler_queue_exit_time - self.scheduler_queue_entry_time
-            ) * 1000
+                self.scheduler_queue_exit_time - self.scheduler_queue_entry_time) * 1000
 
         # Worker queue time
         if self.worker_queue_entry_time > 0 and self.worker_queue_exit_time > 0:
@@ -176,7 +174,8 @@ class AdvancedRequestMetrics:
 
         # Decode time
         if self.decode_start_time > 0 and self.decode_end_time > 0:
-            self.decode_time_ms = (self.decode_end_time - self.decode_start_time) * 1000
+            self.decode_time_ms = (
+                self.decode_end_time - self.decode_start_time) * 1000
 
         # Decode time per token
         if self.output_tokens > 1 and self.decode_time_ms > 0:
@@ -193,12 +192,12 @@ class AdvancedRequestMetrics:
         # Network transfer time
         if self.network_transfer_start_time > 0 and self.network_transfer_end_time > 0:
             self.network_transfer_time_ms = (
-                self.network_transfer_end_time - self.network_transfer_start_time
-            ) * 1000
+                self.network_transfer_end_time - self.network_transfer_start_time) * 1000
 
         # Total time
         if self.arrival_time > 0 and self.completion_time > 0:
-            self.total_time_ms = (self.completion_time - self.arrival_time) * 1000
+            self.total_time_ms = (
+                self.completion_time - self.arrival_time) * 1000
 
     @property
     def ttft_ms(self) -> float:
@@ -223,9 +222,11 @@ class AdvancedRequestMetrics:
     @property
     def padding_waste_percentage(self) -> float:
         """Percentage of tokens that are padding."""
-        total_batch_tokens = self.batch_size * (self.input_tokens + self.padding_tokens)
+        total_batch_tokens = self.batch_size * \
+            (self.input_tokens + self.padding_tokens)
         if total_batch_tokens > 0:
-            return (self.padding_tokens * self.batch_size / total_batch_tokens) * 100
+            return (self.padding_tokens * self.batch_size /
+                    total_batch_tokens) * 100
         return 0.0
 
 
@@ -303,9 +304,8 @@ class QueueManager:
             if queue.current_depth >= max_depth:
                 queue.total_rejections += 1
                 return (
-                    False,
-                    f"Queue full (depth={queue.current_depth}, max={max_depth})",
-                )
+                    False, f"Queue full (depth={
+                        queue.current_depth}, max={max_depth})", )
 
             # Enqueue
             queue.current_depth += 1
@@ -400,7 +400,8 @@ class BatchMetrics:
             self.total_input_tokens + self.total_padding_tokens
         ) * self.batch_size
         if total_tokens > 0:
-            return (self.total_padding_tokens * self.batch_size / total_tokens) * 100
+            return (self.total_padding_tokens *
+                    self.batch_size / total_tokens) * 100
         return 0.0
 
     @property
@@ -434,7 +435,8 @@ class BatchOptimizer:
     for different request patterns.
     """
 
-    def __init__(self, target_batch_size: int = 32, max_padding_waste: float = 20.0):
+    def __init__(self, target_batch_size: int = 32,
+                 max_padding_waste: float = 20.0):
         """
         Initialize batch optimizer.
 
@@ -575,15 +577,15 @@ class BatchOptimizer:
                 "min_batch_size": min(b.batch_size for b in recent_batches),
                 "max_batch_size": max(b.batch_size for b in recent_batches),
                 "avg_padding_waste": (
-                    sum(b.padding_waste_percentage for b in recent_batches)
-                    / len(recent_batches)
+                    sum(b.padding_waste_percentage for b in recent_batches) /
+                    len(recent_batches)
                 ),
                 "max_padding_waste": max(
                     b.padding_waste_percentage for b in recent_batches
                 ),
                 "avg_efficiency_score": (
-                    sum(b.efficiency_score for b in recent_batches)
-                    / len(recent_batches)
+                    sum(b.efficiency_score for b in recent_batches) /
+                    len(recent_batches)
                 ),
                 "optimal_batch_size": optimal_size,
                 "total_batches_processed": len(self.completed_batches),
@@ -617,11 +619,9 @@ class DisaggregationTracker:
 
         # Per-worker metrics
         self.prefill_worker_metrics: dict[str, DisaggregationMetrics] = defaultdict(
-            DisaggregationMetrics
-        )
+            DisaggregationMetrics)
         self.decode_worker_metrics: dict[str, DisaggregationMetrics] = defaultdict(
-            DisaggregationMetrics
-        )
+            DisaggregationMetrics)
 
         # Transfer tracking
         self.transfer_history: deque[tuple[float, int]] = deque(
@@ -713,7 +713,8 @@ class DisaggregationTracker:
                 return self.metrics.prefill_requests / total
             return 0.0
 
-    def get_avg_transfer_bandwidth_mbps(self, window_seconds: int = 60) -> float:
+    def get_avg_transfer_bandwidth_mbps(
+            self, window_seconds: int = 60) -> float:
         """
         Calculate average transfer bandwidth in Mbps.
 
@@ -726,8 +727,7 @@ class DisaggregationTracker:
         with self._lock:
             cutoff_time = time.time() - window_seconds
             recent_transfers = [
-                (t, bytes_) for t, bytes_ in self.transfer_history if t >= cutoff_time
-            ]
+                (t, bytes_) for t, bytes_ in self.transfer_history if t >= cutoff_time]
 
             if not recent_transfers:
                 return 0.0
@@ -763,15 +763,15 @@ class DisaggregationTracker:
                 "kv_transfer_mb": self.metrics.kv_transfer_bytes / (1024 * 1024),
                 "kv_transfer_time_ms": self.metrics.kv_transfer_time_ms,
                 "disaggregation_overhead_us": self.metrics.disaggregation_overhead_us,
-                "disaggregation_overhead_ms": self.metrics.disaggregation_overhead_us
-                / 1000,
+                "disaggregation_overhead_ms": self.metrics.disaggregation_overhead_us /
+                1000,
                 "cross_worker_transfers": self.metrics.cross_worker_transfers,
                 "avg_transfer_bandwidth_mbps": self.get_avg_transfer_bandwidth_mbps(
                     window_seconds
                 ),
                 "avg_overhead_per_transfer_us": (
-                    self.metrics.disaggregation_overhead_us
-                    / self.metrics.cross_worker_transfers
+                    self.metrics.disaggregation_overhead_us /
+                    self.metrics.cross_worker_transfers
                     if self.metrics.cross_worker_transfers > 0
                     else 0.0
                 ),
@@ -810,7 +810,8 @@ class AdvancedDynamoMetrics:
         self.window_size = window_size
 
         # Request tracking
-        self._completed_requests: deque[AdvancedRequestMetrics] = deque(maxlen=10000)
+        self._completed_requests: deque[AdvancedRequestMetrics] = deque(
+            maxlen=10000)
         self._active_requests: dict[str, AdvancedRequestMetrics] = {}
 
         # Component trackers
@@ -903,9 +904,8 @@ class AdvancedDynamoMetrics:
 
             # Dequeue from queue manager
             if self.queue_manager:
-                wait_time = (
-                    request.worker_queue_exit_time - request.scheduler_queue_entry_time
-                ) * 1000
+                wait_time = (request.worker_queue_exit_time -
+                             request.scheduler_queue_entry_time) * 1000
                 self.queue_manager.dequeue(request.priority, wait_time)
 
     def record_kv_cache_lookup(
@@ -917,7 +917,11 @@ class AdvancedDynamoMetrics:
             request.kv_cache_lookup_start_time = start_time
             request.kv_cache_lookup_end_time = end_time
 
-    def record_prefill_phase(self, request_id: str, start_time: float, end_time: float):
+    def record_prefill_phase(
+            self,
+            request_id: str,
+            start_time: float,
+            end_time: float):
         """Record prefill phase timing."""
         if request_id in self._active_requests:
             request = self._active_requests[request_id]
@@ -939,7 +943,11 @@ class AdvancedDynamoMetrics:
             request.first_token_time = time.time()
             request.decode_start_time = time.time()
 
-    def record_decode_phase(self, request_id: str, start_time: float, end_time: float):
+    def record_decode_phase(
+            self,
+            request_id: str,
+            start_time: float,
+            end_time: float):
         """Record decode phase timing."""
         if request_id in self._active_requests:
             request = self._active_requests[request_id]
@@ -948,9 +956,14 @@ class AdvancedDynamoMetrics:
 
             # Track in disaggregation
             if self.disaggregation_tracker and request.is_decode_worker:
-                self.disaggregation_tracker.record_decode_request(request.worker_id)
+                self.disaggregation_tracker.record_decode_request(
+                    request.worker_id)
 
-    def record_kv_writeback(self, request_id: str, start_time: float, end_time: float):
+    def record_kv_writeback(
+            self,
+            request_id: str,
+            start_time: float,
+            end_time: float):
         """Record KV cache writeback timing."""
         if request_id in self._active_requests:
             request = self._active_requests[request_id]
@@ -1028,15 +1041,19 @@ class AdvancedDynamoMetrics:
                     request.total_queue_time_ms
                 )
 
-    def get_recent_requests(self, seconds: int = 60) -> list[AdvancedRequestMetrics]:
+    def get_recent_requests(
+            self,
+            seconds: int = 60) -> list[AdvancedRequestMetrics]:
         """Get requests completed in last N seconds."""
         cutoff_time = time.time() - seconds
         with self._lock:
             return [
-                r for r in self._completed_requests if r.completion_time >= cutoff_time
-            ]
+                r for r in self._completed_requests if r.completion_time >= cutoff_time]
 
-    def calculate_percentile(self, values: list[float], percentile: float) -> float:
+    def calculate_percentile(
+            self,
+            values: list[float],
+            percentile: float) -> float:
         """Calculate percentile from values."""
         if not values:
             return 0.0
@@ -1057,33 +1074,29 @@ class AdvancedDynamoMetrics:
         tpot_values = [r.tpot_ms for r in recent if r.tpot_ms > 0]
         total_values = [r.total_time_ms for r in recent if r.total_time_ms > 0]
         router_values = [
-            r.router_decision_time_us for r in recent if r.router_decision_time_us > 0
-        ]
+            r.router_decision_time_us for r in recent if r.router_decision_time_us > 0]
         scheduler_queue_values = [
-            r.scheduler_queue_time_ms for r in recent if r.scheduler_queue_time_ms > 0
-        ]
+            r.scheduler_queue_time_ms for r in recent if r.scheduler_queue_time_ms > 0]
         worker_queue_values = [
-            r.worker_queue_time_ms for r in recent if r.worker_queue_time_ms > 0
-        ]
+            r.worker_queue_time_ms for r in recent if r.worker_queue_time_ms > 0]
         total_queue_values = [
             r.total_queue_time_ms for r in recent if r.total_queue_time_ms > 0
         ]
         kv_lookup_values = [
-            r.kv_cache_lookup_time_us for r in recent if r.kv_cache_lookup_time_us > 0
-        ]
-        prefill_values = [r.prefill_time_ms for r in recent if r.prefill_time_ms > 0]
+            r.kv_cache_lookup_time_us for r in recent if r.kv_cache_lookup_time_us > 0]
+        prefill_values = [
+            r.prefill_time_ms for r in recent if r.prefill_time_ms > 0]
         first_token_gen_values = [
             r.first_token_generation_time_ms
             for r in recent
             if r.first_token_generation_time_ms > 0
         ]
-        decode_values = [r.decode_time_ms for r in recent if r.decode_time_ms > 0]
+        decode_values = [
+            r.decode_time_ms for r in recent if r.decode_time_ms > 0]
         kv_writeback_values = [
-            r.kv_writeback_time_us for r in recent if r.kv_writeback_time_us > 0
-        ]
+            r.kv_writeback_time_us for r in recent if r.kv_writeback_time_us > 0]
         network_values = [
-            r.network_transfer_time_ms for r in recent if r.network_transfer_time_ms > 0
-        ]
+            r.network_transfer_time_ms for r in recent if r.network_transfer_time_ms > 0]
 
         return {
             "ttft": self._calc_stats(ttft_values, "ms"),
@@ -1154,7 +1167,8 @@ class AdvancedDynamoMetrics:
             "network_transfer": {**empty_stat, "unit": "ms"},
         }
 
-    def get_long_tail_analysis(self, window_seconds: int = 60) -> dict[str, Any]:
+    def get_long_tail_analysis(
+            self, window_seconds: int = 60) -> dict[str, Any]:
         """
         Analyze long-tail requests (>p99).
 
@@ -1166,7 +1180,8 @@ class AdvancedDynamoMetrics:
             return {"long_tail_requests": 0, "analysis": {}}
 
         # Calculate p99 threshold
-        total_latencies = [r.total_time_ms for r in recent if r.total_time_ms > 0]
+        total_latencies = [
+            r.total_time_ms for r in recent if r.total_time_ms > 0]
         if not total_latencies:
             return {"long_tail_requests": 0, "analysis": {}}
 
@@ -1183,9 +1198,12 @@ class AdvancedDynamoMetrics:
             }
 
         # Analyze characteristics
-        avg_input_tokens = sum(r.input_tokens for r in long_tail) / len(long_tail)
-        avg_output_tokens = sum(r.output_tokens for r in long_tail) / len(long_tail)
-        avg_queue_time = sum(r.total_queue_time_ms for r in long_tail) / len(long_tail)
+        avg_input_tokens = sum(
+            r.input_tokens for r in long_tail) / len(long_tail)
+        avg_output_tokens = sum(
+            r.output_tokens for r in long_tail) / len(long_tail)
+        avg_queue_time = sum(
+            r.total_queue_time_ms for r in long_tail) / len(long_tail)
         avg_batch_size = sum(r.batch_size for r in long_tail) / len(long_tail)
 
         # Models with long tail
@@ -1195,7 +1213,9 @@ class AdvancedDynamoMetrics:
 
         return {
             "long_tail_requests": len(long_tail),
-            "percentage": len(long_tail) / len(recent) * 100,
+            "percentage": len(long_tail) /
+            len(recent) *
+            100,
             "p99_threshold_ms": p99_threshold,
             "analysis": {
                 "avg_input_tokens": avg_input_tokens,
@@ -1203,8 +1223,9 @@ class AdvancedDynamoMetrics:
                 "avg_queue_time_ms": avg_queue_time,
                 "avg_batch_size": avg_batch_size,
                 "models": dict(model_counts),
-                "avg_total_latency_ms": sum(r.total_time_ms for r in long_tail)
-                / len(long_tail),
+                "avg_total_latency_ms": sum(
+                    r.total_time_ms for r in long_tail) /
+                len(long_tail),
             },
         }
 
@@ -1228,39 +1249,39 @@ class AdvancedDynamoMetrics:
                     "successful_requests": data["successful_requests"],
                     "failed_requests": data["failed_requests"],
                     "success_rate": (
-                        data["successful_requests"] / data["requests"] * 100
-                        if data["requests"] > 0
-                        else 0.0
-                    ),
+                        data["successful_requests"] /
+                        data["requests"] *
+                        100 if data["requests"] > 0 else 0.0),
                     "total_input_tokens": data["total_input_tokens"],
                     "total_output_tokens": data["total_output_tokens"],
                     "avg_input_tokens": (
-                        data["total_input_tokens"] / data["requests"]
-                        if data["requests"] > 0
-                        else 0.0
-                    ),
+                        data["total_input_tokens"] /
+                        data["requests"] if data["requests"] > 0 else 0.0),
                     "avg_output_tokens": (
-                        data["total_output_tokens"] / data["requests"]
-                        if data["requests"] > 0
-                        else 0.0
-                    ),
+                        data["total_output_tokens"] /
+                        data["requests"] if data["requests"] > 0 else 0.0),
                     "ttft": (
-                        self._calc_stats(recent_ttft, "ms") if recent_ttft else None
-                    ),
+                        self._calc_stats(
+                            recent_ttft,
+                            "ms") if recent_ttft else None),
                     "tpot": (
-                        self._calc_stats(recent_tpot, "ms") if recent_tpot else None
-                    ),
+                        self._calc_stats(
+                            recent_tpot,
+                            "ms") if recent_tpot else None),
                     "total_latency": (
-                        self._calc_stats(recent_total, "ms") if recent_total else None
-                    ),
+                        self._calc_stats(
+                            recent_total,
+                            "ms") if recent_total else None),
                     "queue_time": (
-                        self._calc_stats(recent_queue, "ms") if recent_queue else None
-                    ),
+                        self._calc_stats(
+                            recent_queue,
+                            "ms") if recent_queue else None),
                 }
 
             return stats
 
-    def get_request_size_distribution(self, window_seconds: int = 60) -> dict[str, Any]:
+    def get_request_size_distribution(
+            self, window_seconds: int = 60) -> dict[str, Any]:
         """Get distribution of request sizes (input/output tokens)."""
         recent = self.get_recent_requests(window_seconds)
 
@@ -1279,7 +1300,7 @@ class AdvancedDynamoMetrics:
             # Input tokens
             for i in range(len(input_buckets) - 1):
                 if input_buckets[i] <= request.input_tokens < input_buckets[i + 1]:
-                    bucket_name = f"{input_buckets[i]}-{input_buckets[i+1]}"
+                    bucket_name = f"{input_buckets[i]}-{input_buckets[i + 1]}"
                     input_dist[bucket_name] += 1
                     break
             else:
@@ -1289,7 +1310,7 @@ class AdvancedDynamoMetrics:
             # Output tokens
             for i in range(len(output_buckets) - 1):
                 if output_buckets[i] <= request.output_tokens < output_buckets[i + 1]:
-                    bucket_name = f"{output_buckets[i]}-{output_buckets[i+1]}"
+                    bucket_name = f"{output_buckets[i]}-{output_buckets[i + 1]}"
                     output_dist[bucket_name] += 1
                     break
             else:
@@ -1299,8 +1320,12 @@ class AdvancedDynamoMetrics:
         return {
             "input_tokens": dict(input_dist),
             "output_tokens": dict(output_dist),
-            "avg_input_tokens": sum(r.input_tokens for r in recent) / len(recent),
-            "avg_output_tokens": sum(r.output_tokens for r in recent) / len(recent),
+            "avg_input_tokens": sum(
+                r.input_tokens for r in recent) /
+            len(recent),
+            "avg_output_tokens": sum(
+                r.output_tokens for r in recent) /
+            len(recent),
         }
 
     def get_stats_dict(self, window_seconds: int = 60) -> dict[str, Any]:

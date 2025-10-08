@@ -6,7 +6,7 @@ and dict-like interface.
 """
 
 import threading
-from typing import Callable, Dict, Iterator, List, Optional
+from typing import Any, Callable, Iterator, Optional
 
 from .definition import ModelDefinition, create_model_definition
 
@@ -21,9 +21,10 @@ class ModelRegistry:
 
     def __init__(self):
         """Initialize empty registry with thread safety."""
-        self._models: Dict[str, ModelDefinition] = {}
+        self._models: dict[str, ModelDefinition] = {}
         self._lock = threading.RLock()
-        self._auto_creation_handler: Optional[Callable[[str], ModelDefinition]] = None
+        self._auto_creation_handler: Optional[Callable[[
+            str], ModelDefinition]] = None
 
     def register(
         self,
@@ -143,7 +144,7 @@ class ModelRegistry:
 
     def list_models(
         self, active_only: bool = True, owned_by: Optional[str] = None
-    ) -> List[ModelDefinition]:
+    ) -> list[ModelDefinition]:
         """
         List all registered models.
 
@@ -205,7 +206,7 @@ class ModelRegistry:
 
     def list_by_capability(
         self, capability: str, active_only: bool = True
-    ) -> List[ModelDefinition]:
+    ) -> list[ModelDefinition]:
         """
         List models that support a specific capability.
 
@@ -223,7 +224,8 @@ class ModelRegistry:
                 models = [m for m in models if m.is_active]
 
             # Filter by capability
-            matching = [m for m in models if m.capabilities.has_capability(capability)]
+            matching = [
+                m for m in models if m.capabilities.has_capability(capability)]
 
             return matching
 
@@ -245,7 +247,7 @@ class ModelRegistry:
         with self._lock:
             self._models.clear()
 
-    def get_stats(self) -> Dict[str, any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get registry statistics.
 
@@ -260,8 +262,10 @@ class ModelRegistry:
             deprecated = sum(1 for m in models if m.deprecated)
 
             # Count by capabilities
-            chat_models = sum(1 for m in models if m.capabilities.supports_chat)
-            vision_models = sum(1 for m in models if m.capabilities.supports_vision)
+            chat_models = sum(
+                1 for m in models if m.capabilities.supports_chat)
+            vision_models = sum(
+                1 for m in models if m.capabilities.supports_vision)
             reasoning_models = sum(
                 1 for m in models if m.capabilities.supports_reasoning
             )
@@ -331,17 +335,17 @@ class ModelRegistry:
         with self._lock:
             return iter(list(self._models.keys()))
 
-    def keys(self) -> List[str]:
+    def keys(self) -> list[str]:
         """Get all model IDs."""
         with self._lock:
             return list(self._models.keys())
 
-    def values(self) -> List[ModelDefinition]:
+    def values(self) -> list[ModelDefinition]:
         """Get all model definitions."""
         with self._lock:
             return list(self._models.values())
 
-    def items(self) -> List[tuple[str, ModelDefinition]]:
+    def items(self) -> list[tuple[str, ModelDefinition]]:
         """Get all (model_id, definition) pairs."""
         with self._lock:
             return list(self._models.items())

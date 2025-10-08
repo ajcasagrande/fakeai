@@ -4,8 +4,6 @@ Test script to verify token timing metrics with request body stream parameter.
 
 import asyncio
 import json
-import time
-from typing import Any, Dict
 
 import aiohttp
 

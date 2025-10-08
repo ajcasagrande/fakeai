@@ -9,6 +9,7 @@ streamable chunks, generating deltas, and tracking progress.
 
 import re
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -62,7 +63,8 @@ class TokenChunker:
         # Find all matches
         tokens = self.TOKEN_PATTERN.findall(text)
 
-        # Filter out pure whitespace tokens (we'll preserve them in reconstruction)
+        # Filter out pure whitespace tokens (we'll preserve them in
+        # reconstruction)
         return [t for t in tokens if t.strip()]
 
     def chunk_tokens(self, tokens: list[str]) -> list[list[str]]:
@@ -141,7 +143,7 @@ class DeltaGenerator:
         Returns:
             Delta dictionary
         """
-        delta = {}
+        delta: dict[str, Any] = {}
 
         if role is not None:
             delta["role"] = role
@@ -197,7 +199,7 @@ class DeltaGenerator:
         Returns:
             Delta dictionary
         """
-        delta = {}
+        delta: dict[str, Any] = {}
 
         if audio_chunk is not None:
             delta["audio"] = audio_chunk
@@ -340,7 +342,7 @@ class AdaptiveChunker:
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
         self.target_chunk_delay_ms = target_chunk_delay_ms
-        self._recent_delays = []
+        self._recent_delays: deque[float] = deque(maxlen=10)  # Use deque with maxlen for O(1) operations
         self._max_delay_history = 10
 
     def adjust_chunk_size(self, actual_delay_ms: float):
@@ -350,9 +352,7 @@ class AdaptiveChunker:
         Args:
             actual_delay_ms: Actual delay between chunks in milliseconds
         """
-        self._recent_delays.append(actual_delay_ms)
-        if len(self._recent_delays) > self._max_delay_history:
-            self._recent_delays.pop(0)
+        self._recent_delays.append(actual_delay_ms)  # deque with maxlen auto-removes oldest
 
         # Calculate average recent delay
         avg_delay = sum(self._recent_delays) / len(self._recent_delays)
@@ -380,4 +380,4 @@ class AdaptiveChunker:
 
     def reset(self):
         """Reset adaptive chunker state."""
-        self._recent_delays = []
+        self._recent_delays.clear()

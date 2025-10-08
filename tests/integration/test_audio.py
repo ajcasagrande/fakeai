@@ -8,9 +8,6 @@ This module tests:
 """
 
 import asyncio
-import io
-import json
-from pathlib import Path
 
 import pytest
 
@@ -47,6 +44,7 @@ class TestTextToSpeechBasic:
         assert isinstance(audio_bytes, bytes)
         assert len(audio_bytes) > 0
 
+    @pytest.mark.slow
     def test_tts_long_text(self, client: FakeAIClient):
         """Test TTS with longer text (multi-sentence)."""
         long_text = (

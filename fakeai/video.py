@@ -68,7 +68,8 @@ def estimate_video_tokens(
         else:
             # High detail for larger videos
             tile_size = 512
-            tiles_per_frame = max(1, (width // tile_size) * (height // tile_size))
+            tiles_per_frame = max(1, (width // tile_size) *
+                                  (height // tile_size))
             tokens_per_frame = 20 + (tiles_per_frame * 10)
 
     # Total tokens
@@ -149,7 +150,9 @@ def parse_video_metadata_from_url(url: str) -> dict[str, Any]:
 
     # Check for metadata in path
     # Format: /videos/512x288_5s_4fps/video.mp4
-    path_match = re.search(r"(\d+)x(\d+)_(\d+\.?\d*)s_(\d+\.?\d*)fps", parsed.path)
+    path_match = re.search(
+        r"(\d+)x(\d+)_(\d+\.?\d*)s_(\d+\.?\d*)fps",
+        parsed.path)
     if path_match:
         metadata["width"] = int(path_match.group(1))
         metadata["height"] = int(path_match.group(2))
@@ -159,7 +162,8 @@ def parse_video_metadata_from_url(url: str) -> dict[str, Any]:
     return metadata
 
 
-def extract_video_content(content: str | list[Any] | None) -> list[dict[str, Any]]:
+def extract_video_content(
+        content: str | list[Any] | None) -> list[dict[str, Any]]:
     """
     Extract video content parts from message content.
 
@@ -188,7 +192,8 @@ def extract_video_content(content: str | list[Any] | None) -> list[dict[str, Any
         # Handle Pydantic model format
         elif hasattr(part, "type") and part.type == "video_url":
             if hasattr(part, "video_url"):
-                url = part.video_url.url if hasattr(part.video_url, "url") else ""
+                url = part.video_url.url if hasattr(
+                    part.video_url, "url") else ""
                 detail = (
                     part.video_url.detail
                     if hasattr(part.video_url, "detail")
@@ -200,7 +205,9 @@ def extract_video_content(content: str | list[Any] | None) -> list[dict[str, Any
     return videos
 
 
-def calculate_message_video_tokens(content: str | list[Any] | None, model: str) -> int:
+def calculate_message_video_tokens(
+        content: str | list[Any] | None,
+        model: str) -> int:
     """
     Calculate total video tokens for a message.
 

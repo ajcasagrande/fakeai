@@ -42,9 +42,9 @@ from fakeai.logprobs_enhanced import create_chat_logprobs
 from fakeai.metrics import MetricsTracker
 from fakeai.models import (
     AudioOutput,
+    ChatCompletionChoice,
     ChatCompletionChunk,
     ChatCompletionChunkChoice,
-    ChatCompletionChoice,
     ChatCompletionRequest,
     ChatCompletionResponse,
     CompletionTokensDetails,
@@ -151,7 +151,8 @@ class ChatCompletionService:
         self._current_seed: int | None = None
 
         # Prompt cache for hash-based caching (separate from KV cache)
-        self._prompt_cache: dict[str, tuple[int, float]] = {}  # hash -> (tokens, timestamp)
+        # hash -> (tokens, timestamp)
+        self._prompt_cache: dict[str, tuple[int, float]] = {}
 
         logger.info("Initialized ChatCompletionService")
 
@@ -199,11 +200,11 @@ class ChatCompletionService:
 
         if request.response_format:
             if (
-                hasattr(request.response_format, "type")
-                and request.response_format.type == "json_schema"
+                hasattr(request.response_format, "type") and
+                request.response_format.type == "json_schema"
             ):
                 is_structured_output = True
-                json_schema_obj = request.response_format.json_schema.schema
+                json_schema_obj = request.response_format.json_schema.schema_
                 json_schema_name = request.response_format.json_schema.name
 
                 # Validate strict mode requirements
@@ -235,7 +236,8 @@ class ChatCompletionService:
                     msg.content, request.model
                 )
 
-        # Process video inputs if present (calculate video tokens - NVIDIA Cosmos extension)
+        # Process video inputs if present (calculate video tokens - NVIDIA
+        # Cosmos extension)
         input_video_tokens = 0
         for msg in request.messages:
             if msg.content:
@@ -259,8 +261,10 @@ class ChatCompletionService:
 
         # Total prompt tokens = text + image + video + audio tokens
         prompt_tokens = (
-            text_tokens + input_image_tokens + input_video_tokens + input_audio_tokens
-        )
+            text_tokens +
+            input_image_tokens +
+            input_video_tokens +
+            input_audio_tokens)
 
         # Start Dynamo metrics tracking for this request
         dynamo_request = self.dynamo_metrics.start_request(
@@ -270,7 +274,12 @@ class ChatCompletionService:
             input_tokens=prompt_tokens,
         )
 
-        # Record prefill phase start
+        # Simulate realistic queue time (1-10ms)
+        # This represents waiting in the request queue before scheduling
+        queue_time_ms = random.uniform(1.0, 10.0)
+        await asyncio.sleep(queue_time_ms / 1000.0)
+
+        # Record prefill phase start (after queue time)
         self.dynamo_metrics.record_prefill_start(request_id)
 
         # Prompt caching check (hash-based, separate from KV cache)
@@ -302,6 +311,31 @@ class ChatCompletionService:
 
         # Get effective max tokens (respects max_completion_tokens)
         effective_max_tokens = self._get_effective_max_tokens(request)
+
+        # Simulate realistic prefill time (5-20ms base, scales with prompt length)
+        # Prefill processes all input tokens in parallel to build KV cache
+        base_prefill_ms = random.uniform(5.0, 20.0)
+
+        # Scale prefill time with prompt length
+        # Each 1000 tokens adds ~2-5ms of prefill time
+        if prompt_tokens > 1000:
+            extra_tokens = prompt_tokens - 1000
+            extra_prefill_ms = (extra_tokens / 1000.0) * \
+                random.uniform(2.0, 5.0)
+            base_prefill_ms += extra_prefill_ms
+
+        # Cache hits significantly reduce prefill time (reuse cached KV states)
+        cache_hit_ratio = matched_tokens / \
+            len(token_ids) if len(token_ids) > 0 else 0
+        if cache_hit_ratio > 0:
+            # High cache hit means less prefill work needed
+            # 50% cache → 40% faster prefill, 100% cache → 80% faster prefill
+            prefill_reduction = cache_hit_ratio * 0.8
+            actual_prefill_ms = base_prefill_ms * (1.0 - prefill_reduction)
+        else:
+            actual_prefill_ms = base_prefill_ms
+
+        await asyncio.sleep(actual_prefill_ms / 1000.0)
 
         # Generate reasoning content for reasoning models
         reasoning_content = None
@@ -369,7 +403,8 @@ class ChatCompletionService:
         # Handle predicted outputs (EAGLE/speculative decoding)
         accepted_pred_tokens = 0
         rejected_pred_tokens = 0
-        if request.prediction and self._supports_predicted_outputs(request.model):
+        if request.prediction and self._supports_predicted_outputs(
+                request.model):
             (
                 accepted_pred_tokens,
                 rejected_pred_tokens,
@@ -380,7 +415,8 @@ class ChatCompletionService:
         # Generate audio output if requested
         audio_output = None
         output_audio_tokens = 0
-        if request.audio and (not request.modalities or "audio" in request.modalities):
+        if request.audio and (
+                not request.modalities or "audio" in request.modalities):
             audio_config = {
                 "voice": request.audio.voice,
                 "format": request.audio.format,
@@ -389,15 +425,13 @@ class ChatCompletionService:
                 completion_text, audio_config
             )
 
-        # Track token generation (including reasoning, prediction, and audio tokens)
+        # Track token generation (including reasoning, prediction, and audio
+        # tokens)
         total_completion_tokens = (
-            completion_tokens
-            + reasoning_tokens
-            + rejected_pred_tokens
-            + output_audio_tokens
-        )
-        self.metrics_tracker.track_tokens(
-            "/v1/chat/completions", total_completion_tokens
+            completion_tokens +
+            reasoning_tokens +
+            rejected_pred_tokens +
+            output_audio_tokens
         )
 
         # Determine finish reason
@@ -409,10 +443,10 @@ class ChatCompletionService:
         # Create completion tokens details
         completion_tokens_details = None
         if (
-            reasoning_tokens > 0
-            or accepted_pred_tokens > 0
-            or rejected_pred_tokens > 0
-            or output_audio_tokens > 0
+            reasoning_tokens > 0 or
+            accepted_pred_tokens > 0 or
+            rejected_pred_tokens > 0 or
+            output_audio_tokens > 0
         ):
             completion_tokens_details = CompletionTokensDetails(
                 reasoning_tokens=reasoning_tokens,
@@ -426,7 +460,14 @@ class ChatCompletionService:
             worker_id, token_ids, total_completion_tokens
         )
 
+        # Simulate first token generation time (10-30ms for initial decode step)
+        # This is the time to generate the actual first token after prefill
+        first_token_gen_ms = random.uniform(10.0, 30.0)
+        await asyncio.sleep(first_token_gen_ms / 1000.0)
+
         # Record first token for Dynamo TTFT tracking
+        # This captures actual TTFT = queue_time + prefill_time +
+        # first_token_gen_time
         self.dynamo_metrics.record_first_token(request_id)
 
         # Complete Dynamo request tracking
@@ -444,7 +485,8 @@ class ChatCompletionService:
         logprobs_result = None
         if request.logprobs and completion_text:
             # Tokenize completion text
-            completion_tokens_list = re.findall(r"\w+|[^\w\s]", completion_text)
+            completion_tokens_list = re.findall(
+                r"\w+|[^\w\s]", completion_text)
             logprobs_result = create_chat_logprobs(
                 text=completion_text,
                 tokens=completion_tokens_list,
@@ -544,7 +586,8 @@ class ChatCompletionService:
             prompt_hash, prompt_tokens
         )
 
-        # KV Cache routing (for streaming we still do this but mainly for metrics)
+        # KV Cache routing (for streaming we still do this but mainly for
+        # metrics)
         token_ids = tokenize_for_cache(prompt_text)
         worker_id, kv_matched_tokens, _ = self.kv_cache_router.route_request(
             tokens=token_ids,
@@ -678,7 +721,8 @@ class ChatCompletionService:
         stream_start_time = time.time()
         token_timestamps = []
 
-        # Calculate ITL (inter-token latency) parameters for use throughout streaming
+        # Calculate ITL (inter-token latency) parameters for use throughout
+        # streaming
         itl_base = self.config.itl_ms / 1000.0  # Convert ms to seconds
         itl_variance = self.config.itl_variance_percent / 100.0
         itl_min = itl_base * (1.0 - itl_variance)
@@ -694,11 +738,9 @@ class ChatCompletionService:
                 )  # milliseconds
                 token_timestamps.append(relative_time)
 
-                # For tokens that are alphanumeric (words), add space before if not first
-                # For punctuation and special chars, no space needed
+                # Use token as-is - tokenizer already handles spacing correctly
+                # (tokens include leading spaces where needed, matching GPT behavior)
                 chunk_text = token
-                if i > 0 and (token[0].isalnum() if token else False):
-                    chunk_text = " " + chunk_text
 
                 # Stream as reasoning_content
                 chunk = ChatCompletionChunk(
@@ -728,7 +770,8 @@ class ChatCompletionService:
             from fakeai.models import FunctionDelta, ToolCallDelta
 
             for tool_call_idx, tool_call in enumerate(tool_calls_to_stream):
-                # Stream tool call in chunks: id, type, function name, then arguments
+                # Stream tool call in chunks: id, type, function name, then
+                # arguments
 
                 # Chunk 1: Tool call id and type
                 chunk = ChatCompletionChunk(
@@ -785,7 +828,8 @@ class ChatCompletionService:
 
                 # Chunk 3+: Function arguments (stream in chunks)
                 args_str = tool_call.function.arguments
-                args_chunks = [args_str[i : i + 20] for i in range(0, len(args_str), 20)]
+                args_chunks = [args_str[i: i + 20]
+                               for i in range(0, len(args_str), 20)]
 
                 for args_chunk in args_chunks:
                     chunk = ChatCompletionChunk(
@@ -822,11 +866,9 @@ class ChatCompletionService:
                 )  # milliseconds
                 token_timestamps.append(relative_time)
 
-                # For tokens that are alphanumeric (words), add space before if not first
-                # For punctuation and special chars, no space needed
+                # Use token as-is - tokenizer already handles spacing correctly
+                # (tokens include leading spaces where needed, matching GPT behavior)
                 chunk_text = token
-                if i > 0 and (token[0].isalnum() if token else False):
-                    chunk_text = " " + chunk_text
 
                 # Add timing information to the Delta object
                 chunk = ChatCompletionChunk(
@@ -850,7 +892,8 @@ class ChatCompletionService:
                 )
                 yield chunk
 
-                # Simulate variable typing speed - this gives us inter-token latency
+                # Simulate variable typing speed - this gives us inter-token
+                # latency
                 token_delay = random.uniform(itl_min, itl_max)
                 await asyncio.sleep(token_delay)
 
@@ -866,7 +909,8 @@ class ChatCompletionService:
             )
 
             completion_tokens_calc = len(content_tokens)
-            reasoning_tokens_count = len(reasoning_tokens_list) if reasoning_tokens_list else 0
+            reasoning_tokens_count = len(
+                reasoning_tokens_list) if reasoning_tokens_list else 0
             total_completion_tokens = completion_tokens_calc + reasoning_tokens_count
 
             # Build completion tokens details if needed
@@ -906,10 +950,7 @@ class ChatCompletionService:
             )
             yield final_chunk
 
-            # Track token generation and complete KV cache request
-            self.metrics_tracker.track_tokens(
-                "/v1/chat/completions", total_completion_tokens
-            )
+            # Complete KV cache request
             self.kv_cache_router.complete_request(
                 worker_id, token_ids, total_completion_tokens
             )
@@ -933,11 +974,9 @@ class ChatCompletionService:
 
             # Track token generation and complete KV cache request
             completion_tokens_calc = len(content_tokens)
-            reasoning_tokens_count = len(reasoning_tokens_list) if reasoning_tokens_list else 0
+            reasoning_tokens_count = len(
+                reasoning_tokens_list) if reasoning_tokens_list else 0
             total_completion_tokens = completion_tokens_calc + reasoning_tokens_count
-            self.metrics_tracker.track_tokens(
-                "/v1/chat/completions", total_completion_tokens
-            )
             self.kv_cache_router.complete_request(
                 worker_id, token_ids, total_completion_tokens
             )
@@ -992,7 +1031,8 @@ class ChatCompletionService:
                 if response:
                     return response
             except Exception as e:
-                logger.warning(f"LLM generation failed: {e}, falling back to template")
+                logger.warning(
+                    f"LLM generation failed: {e}, falling back to template")
 
         # Fallback to template-based generation
         from fakeai.utils.text_generation import SimulatedGenerator
@@ -1137,7 +1177,8 @@ class ChatCompletionService:
         # Typical acceptance rates: 60-80% for good predictions
         from difflib import SequenceMatcher
 
-        similarity = SequenceMatcher(None, prediction_content, actual_output).ratio()
+        similarity = SequenceMatcher(
+            None, prediction_content, actual_output).ratio()
 
         # Higher similarity → higher acceptance rate
         acceptance_rate = 0.5 + (similarity * 0.3)  # Range: 50-80%
@@ -1152,9 +1193,9 @@ class ChatCompletionService:
     def _is_reasoning_model(self, model_id: str) -> bool:
         """Check if model supports reasoning content."""
         return (
-            model_id.startswith("gpt-oss")
-            or model_id.startswith("deepseek-ai/DeepSeek-R1")
-            or "reasoning" in model_id.lower()
+            model_id.startswith("gpt-oss") or
+            model_id.startswith("deepseek-ai/DeepSeek-R1") or
+            "reasoning" in model_id.lower()
         )
 
     def _supports_predicted_outputs(self, model_id: str) -> bool:
@@ -1193,7 +1234,8 @@ class ChatCompletionService:
             # Deterministic fingerprint based on seed
             import hashlib
 
-            fingerprint_hash = hashlib.sha256(f"seed-{seed}".encode()).hexdigest()[:16]
+            fingerprint_hash = hashlib.sha256(
+                f"seed-{seed}".encode()).hexdigest()[:16]
             return f"fp_{fingerprint_hash}"
         else:
             # Random fingerprint
@@ -1216,20 +1258,27 @@ class ChatCompletionService:
         message_data = []
         for msg in messages:
             msg_dict = {
-                "role": msg.role.value if hasattr(msg.role, "value") else str(msg.role),
-                "content": extract_text_content(msg.content),
-            }
+                "role": msg.role.value if hasattr(
+                    msg.role, "value") else str(
+                    msg.role), "content": extract_text_content(
+                    msg.content), }
             if msg.name:
                 msg_dict["name"] = msg.name
             message_data.append(msg_dict)
 
         # Create stable JSON string
-        message_json = json.dumps(message_data, sort_keys=True, separators=(",", ":"))
+        message_json = json.dumps(
+            message_data,
+            sort_keys=True,
+            separators=(
+                ",",
+                ":"))
 
         # Generate hash
         return hashlib.sha256(message_json.encode()).hexdigest()
 
-    def _check_cache_hit(self, prompt_hash: str, token_count: int) -> tuple[bool, int]:
+    def _check_cache_hit(self, prompt_hash: str,
+                         token_count: int) -> tuple[bool, int]:
         """
         Check if prompt is in cache and return cache hit info.
 
@@ -1246,7 +1295,8 @@ class ChatCompletionService:
         if prompt_hash in self._prompt_cache:
             cached_tokens, timestamp = self._prompt_cache[prompt_hash]
             if current_time - timestamp < 300:  # 5 minutes
-                # Cache hit! Round cached tokens to 128 increments (per OpenAI spec)
+                # Cache hit! Round cached tokens to 128 increments (per OpenAI
+                # spec)
                 cached_tokens_rounded = (cached_tokens // 128) * 128
                 return True, cached_tokens_rounded
 

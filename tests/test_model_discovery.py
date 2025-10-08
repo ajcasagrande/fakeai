@@ -1,11 +1,8 @@
 """Tests for model discovery and fuzzy matching system."""
 
-import pytest
 
 from fakeai.models_registry.discovery import (
-    FineTunedModelInfo,
     MatchResult,
-    ModelCharacteristics,
     ModelMatcher,
     fuzzy_match_model,
     infer_model_characteristics,

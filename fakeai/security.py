@@ -14,7 +14,7 @@ import threading
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Callable
 
 # Maximum payload sizes (in bytes)
@@ -43,37 +43,28 @@ INJECTION_PATTERNS = [
 ]
 
 # Compile patterns for performance
-COMPILED_INJECTION_PATTERNS = [re.compile(pattern) for pattern in INJECTION_PATTERNS]
+COMPILED_INJECTION_PATTERNS = [re.compile(
+    pattern) for pattern in INJECTION_PATTERNS]
 
 
 class SecurityException(Exception):
     """Base exception for security violations."""
 
-    pass
-
 
 class InputValidationError(SecurityException):
     """Raised when input validation fails."""
-
-    pass
 
 
 class InjectionAttackDetected(SecurityException):
     """Raised when potential injection attack is detected."""
 
-    pass
-
 
 class PayloadTooLarge(SecurityException):
     """Raised when payload exceeds size limits."""
 
-    pass
-
 
 class RateLimitAbuse(SecurityException):
     """Raised when rate limit abuse is detected."""
-
-    pass
 
 
 @dataclass
@@ -104,10 +95,10 @@ class AbuseRecord:
     def get_total_violations(self) -> int:
         """Get total number of violations."""
         return (
-            self.failed_auth_attempts
-            + self.injection_attempts
-            + self.oversized_payloads
-            + self.rate_limit_violations
+            self.failed_auth_attempts +
+            self.injection_attempts +
+            self.oversized_payloads +
+            self.rate_limit_violations
         )
 
 
@@ -115,7 +106,9 @@ class InputValidator:
     """Validates and sanitizes user inputs."""
 
     @staticmethod
-    def sanitize_string(value: str, max_length: int = MAX_STRING_LENGTH) -> str:
+    def sanitize_string(
+            value: str,
+            max_length: int = MAX_STRING_LENGTH) -> str:
         """
         Sanitize a string value.
 
@@ -130,7 +123,9 @@ class InputValidator:
             InputValidationError: If validation fails
         """
         if not isinstance(value, str):
-            raise InputValidationError(f"Expected string, got {type(value).__name__}")
+            raise InputValidationError(
+                f"Expected string, got {
+                    type(value).__name__}")
 
         if len(value) > max_length:
             raise InputValidationError(
@@ -141,17 +136,23 @@ class InputValidator:
         if "\x00" in value:
             raise InputValidationError("String contains null bytes")
 
-        # Check for injection patterns
+        # Check for injection patterns - use any() with generator for early exit
         for pattern in COMPILED_INJECTION_PATTERNS:
-            if pattern.search(value):
+            match = pattern.search(value)
+            if match:
                 raise InjectionAttackDetected(
                     f"Potential injection attack detected: {pattern.pattern}"
                 )
 
         # Remove control characters except newlines, tabs, and carriage returns
-        sanitized = "".join(char for char in value if char >= " " or char in "\n\t\r")
+        # Only sanitize if needed (check first to avoid unnecessary work)
+        needs_sanitization = any(char < " " and char not in "\n\t\r" for char in value)
+        if needs_sanitization:
+            sanitized = "".join(
+                char for char in value if char >= " " or char in "\n\t\r")
+            return sanitized
 
-        return sanitized
+        return value
 
     @staticmethod
     def validate_array(
@@ -174,7 +175,9 @@ class InputValidator:
             InputValidationError: If validation fails
         """
         if not isinstance(value, list):
-            raise InputValidationError(f"Expected list, got {type(value).__name__}")
+            raise InputValidationError(
+                f"Expected list, got {
+                    type(value).__name__}")
 
         if len(value) > max_length:
             raise InputValidationError(
@@ -209,7 +212,9 @@ class InputValidator:
             InputValidationError: If validation fails
         """
         if not isinstance(value, dict):
-            raise InputValidationError(f"Expected dict, got {type(value).__name__}")
+            raise InputValidationError(
+                f"Expected dict, got {
+                    type(value).__name__}")
 
         result = {}
         for k, v in value.items():
@@ -229,7 +234,8 @@ class InputValidator:
         return result
 
     @staticmethod
-    def validate_payload_size(payload: bytes, max_size: int = MAX_REQUEST_SIZE) -> None:
+    def validate_payload_size(payload: bytes,
+                              max_size: int = MAX_REQUEST_SIZE) -> None:
         """
         Validate payload size.
 
@@ -259,25 +265,28 @@ class ApiKeyManager:
 
     def __new__(cls):
         """Ensure only one instance exists (singleton pattern)."""
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = super(ApiKeyManager, cls).__new__(cls)
-                cls._instance._initialized = False
-            return cls._instance
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(ApiKeyManager, cls).__new__(cls)
+                    cls._instance._initialized = False
+        return cls._instance
 
     def __init__(self):
         """Initialize the API key manager (only once)."""
-        if self._initialized:
-            return
+        # Move _initialized check inside lock to prevent TOCTOU race condition
+        with self._lock:
+            if self._initialized:
+                return
 
-        # Hash -> ApiKeyInfo mapping
-        self._keys: dict[str, ApiKeyInfo] = {}
+            # Hash -> ApiKeyInfo mapping
+            self._keys: dict[str, ApiKeyInfo] = {}
 
-        # Prefix -> Hash mapping for fast lookups
-        self._prefix_map: dict[str, str] = {}
+            # Prefix -> Hash mapping for fast lookups
+            self._prefix_map: dict[str, str] = {}
 
-        self._data_lock = threading.Lock()
-        self._initialized = True
+            self._data_lock = threading.Lock()
+            self._initialized = True
 
     @staticmethod
     def _hash_key(api_key: str) -> str:
@@ -475,22 +484,25 @@ class AbuseDetector:
 
     def __new__(cls):
         """Ensure only one instance exists (singleton pattern)."""
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = super(AbuseDetector, cls).__new__(cls)
-                cls._instance._initialized = False
-            return cls._instance
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(AbuseDetector, cls).__new__(cls)
+                    cls._instance._initialized = False
+        return cls._instance
 
     def __init__(self):
         """Initialize the abuse detector (only once)."""
-        if self._initialized:
-            return
+        # Move _initialized check inside lock to prevent TOCTOU race condition
+        with self._lock:
+            if self._initialized:
+                return
 
-        # IP address -> AbuseRecord mapping
-        self._records: dict[str, AbuseRecord] = defaultdict(AbuseRecord)
+            # IP address -> AbuseRecord mapping
+            self._records: dict[str, AbuseRecord] = defaultdict(AbuseRecord)
 
-        self._data_lock = threading.Lock()
-        self._initialized = True
+            self._data_lock = threading.Lock()
+            self._initialized = True
 
     def is_banned(self, ip_address: str) -> tuple[bool, float]:
         """
@@ -633,8 +645,8 @@ class AbuseDetector:
             expired_ips = [
                 ip
                 for ip, record in self._records.items()
-                if record.last_violation_time < cutoff_time
-                and record.ban_until < current_time
+                if record.last_violation_time < cutoff_time and
+                record.ban_until < current_time
             ]
 
             for ip in expired_ips:

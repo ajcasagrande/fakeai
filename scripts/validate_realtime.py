@@ -106,7 +106,6 @@ def test_session_handler():
 
 async def test_streaming_response():
     """Test streaming response generation."""
-    import asyncio
 
     print("Testing streaming response...")
 

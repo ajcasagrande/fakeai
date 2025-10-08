@@ -5,15 +5,12 @@ Validates that latency profiles provide realistic timing characteristics
 and dynamic adjustments based on runtime conditions.
 """
 
-import time
-from unittest.mock import patch
 
 import pytest
 
 from fakeai.latency_profiles import (
     DEFAULT_PROFILE,
     LATENCY_PROFILES,
-    LatencyProfile,
     LatencyProfileManager,
     get_latency_manager,
 )

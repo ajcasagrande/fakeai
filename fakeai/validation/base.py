@@ -88,7 +88,8 @@ class ValidationResult:
         self.metadata.update(other.metadata)
 
     @classmethod
-    def success(cls, metadata: dict[str, Any] | None = None) -> "ValidationResult":
+    def success(cls, metadata: dict[str, Any] |
+                None = None) -> "ValidationResult":
         """
         Create a successful validation result.
 
@@ -219,7 +220,10 @@ class Validator(Protocol):
     and returning validation results.
     """
 
-    def validate(self, request: Any, context: dict[str, Any] | None = None) -> ValidationResult:
+    def validate(self,
+                 request: Any,
+                 context: dict[str,
+                               Any] | None = None) -> ValidationResult:
         """
         Validate a request.
 
@@ -252,7 +256,10 @@ class AsyncValidator(Protocol):
     other async operations (e.g., database lookups, external API calls).
     """
 
-    async def validate(self, request: Any, context: dict[str, Any] | None = None) -> ValidationResult:
+    async def validate(self,
+                       request: Any,
+                       context: dict[str,
+                                     Any] | None = None) -> ValidationResult:
         """
         Validate a request asynchronously.
 

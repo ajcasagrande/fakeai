@@ -32,13 +32,12 @@ def create_random_embedding(text: str, dimensions: int) -> list[float]:
     """
     # Create a stable seed from the text hash
     text_hash = int(hashlib.md5(text.encode()).hexdigest(), 16) % (2**32)
-    np.random.seed(text_hash)
+
+    # Use thread-safe random.Generator instead of global random state
+    rng = np.random.default_rng(text_hash)
 
     # Generate a random embedding with the right distribution
-    embedding = np.random.normal(0, 1, dimensions)
-
-    # Reset the random seed to avoid affecting other random operations
-    np.random.seed()
+    embedding = rng.normal(0, 1, dimensions)
 
     return embedding.tolist()
 

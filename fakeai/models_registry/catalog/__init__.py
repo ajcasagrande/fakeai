@@ -2,13 +2,17 @@
 FakeAI Model Registry Catalog
 
 Pre-defined model catalogs organized by provider.
-Includes OpenAI, Anthropic, Meta, Mistral, DeepSeek, and NVIDIA models.
+Includes OpenAI, Anthropic, Meta, Google, Mistral, Cohere, DeepSeek, and NVIDIA models.
+
+Updated: October 2025
 """
 
 #  SPDX-License-Identifier: Apache-2.0
 
 from .anthropic import ANTHROPIC_MODELS, get_anthropic_models
+from .cohere import COHERE_MODELS, get_cohere_models
 from .deepseek import DEEPSEEK_MODELS, get_deepseek_models
+from .google import GOOGLE_MODELS, get_google_models
 from .meta import META_MODELS, get_meta_models
 from .mistral import MISTRAL_MODELS, get_mistral_models
 from .nvidia import NVIDIA_MODELS, get_nvidia_models
@@ -34,14 +38,18 @@ __all__ = [
     "OPENAI_MODELS",
     "ANTHROPIC_MODELS",
     "META_MODELS",
+    "GOOGLE_MODELS",
     "MISTRAL_MODELS",
+    "COHERE_MODELS",
     "DEEPSEEK_MODELS",
     "NVIDIA_MODELS",
     # Provider getter functions
     "get_openai_models",
     "get_anthropic_models",
     "get_meta_models",
+    "get_google_models",
     "get_mistral_models",
+    "get_cohere_models",
     "get_deepseek_models",
     "get_nvidia_models",
     # Registry loader

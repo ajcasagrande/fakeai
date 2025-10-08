@@ -186,11 +186,13 @@ class SimulatedGenerator:
         else:
             return " ".join(words[:3]) + "..."
 
-    def _generate_content_from_keywords(self, prompt: str, max_tokens: int) -> str:
+    def _generate_content_from_keywords(
+            self, prompt: str, max_tokens: int) -> str:
         """Generate content based on keywords in the prompt."""
         # Extract keywords from the prompt
         words = re.findall(r"\b\w{4,}\b", prompt.lower())
-        relevant_words = [word for word in words if word not in self.fake.words()]
+        relevant_words = [
+            word for word in words if word not in self.fake.words()]
 
         if not relevant_words:
             relevant_words = ["topic"]
@@ -386,8 +388,7 @@ class SimulatedGenerator:
             code += "  }\n"
             code += "}\n\n"
             code += (
-                f"// Create an instance\nconst obj = new {class_name}('example', 42);\n"
-            )
+                f"// Create an instance\nconst obj = new {class_name}('example', 42);\n")
             code += "console.log(obj.getInfo());"
             return code
         elif "async" in concepts or "await" in concepts or "promise" in concepts:
@@ -516,9 +517,9 @@ class SimulatedGenerator:
             code += "  }\n\n"
 
             code += (
-                "  update(id: string, updates: Partial<"
-                + interface_name
-                + ">): boolean {\n"
+                "  update(id: string, updates: Partial<" +
+                interface_name +
+                ">): boolean {\n"
             )
             code += "    const item = this.items.get(id);\n"
             code += "    if (!item) return false;\n\n"
@@ -544,14 +545,16 @@ class SimulatedGenerator:
         else:
             # Default to JS-style with TypeScript types
             return (
-                self._generate_javascript_code(concepts, prompt)
-                .replace("function", "function")
-                .replace(
+                self._generate_javascript_code(
+                    concepts,
+                    prompt) .replace(
+                    "function",
+                    "function") .replace(
                     "const utils = {",
                     "interface Utils {\n  formatDate(date: Date | string): string;\n  generateId(prefix?: string): string;\n  debounce<T extends (...args: any[]) => any>(func: T, wait: number): (...args: Parameters<T>) => void;\n}\n\nconst utils: Utils = {",
-                )
-                .replace(".padStart(2, '0')", ".padStart(2, '0' as string)")
-            )
+                ) .replace(
+                    ".padStart(2, '0')",
+                    ".padStart(2, '0' as string)"))
 
     def _generate_java_code(self, concepts: set, prompt: str) -> str:
         """Generate Java code based on concepts."""
@@ -655,14 +658,14 @@ class SimulatedGenerator:
         code += "    }\n\n"
 
         code += (
-            "    friend std::ostream& operator<<(std::ostream& os, const "
-            + class_name
-            + "& obj) {\n"
+            "    friend std::ostream& operator<<(std::ostream& os, const " +
+            class_name +
+            "& obj) {\n"
         )
         code += (
-            '        os << "'
-            + class_name
-            + '(name=\'" << obj.name << "\', value=" << obj.value << ", ";\n'
+            '        os << "' +
+            class_name +
+            '(name=\'" << obj.name << "\', value=" << obj.value << ", ";\n'
         )
         code += '        os << "createdAt=\'" << std::ctime(&obj.createdAt) << "\', properties={";\n'
         code += "        \n"
@@ -689,7 +692,11 @@ class SimulatedGenerator:
 
         return code
 
-    def _generate_generic_code(self, language: str, concepts: set, prompt: str) -> str:
+    def _generate_generic_code(
+            self,
+            language: str,
+            concepts: set,
+            prompt: str) -> str:
         """Generate generic code for other languages."""
         func_name = random.choice(
             ["processData", "calculateValue", "transformInput", "handleRequest"]
@@ -755,19 +762,20 @@ def tokenize_text(text: str) -> list[str]:
     Each token is approximately:
     - A word (e.g., "hello")
     - A punctuation mark (e.g., ".", ",")
+    - A newline character
     - A word with attached punctuation (e.g., "hello,")
 
     This mimics how actual tokenizers work, where punctuation
-    is often separated as individual tokens.
+    is often separated as individual tokens. PRESERVES NEWLINES for markdown.
     """
     if not text:
         return []
 
     import re
 
-    # Split on word boundaries while keeping punctuation separate
-    # This regex splits on spaces but also separates punctuation
-    pattern = r"\b\w+\b|[^\w\s]"
+    # Split on word boundaries while keeping punctuation AND NEWLINES separate
+    # Modified to preserve \n as separate tokens for markdown formatting
+    pattern = r"\n+|\b\w+\b|[^\w\s\n]"
     tokens = re.findall(pattern, text)
     return tokens
 
@@ -899,7 +907,9 @@ def estimate_audio_duration(text: str, speed: float = 1.0) -> float:
     return max(0.1, adjusted_duration)  # Minimum 0.1 seconds
 
 
-def generate_wav_audio(duration_seconds: float, sample_rate: int = 24000) -> bytes:
+def generate_wav_audio(
+        duration_seconds: float,
+        sample_rate: int = 24000) -> bytes:
     """
     Generate a minimal valid WAV audio file with silence.
 

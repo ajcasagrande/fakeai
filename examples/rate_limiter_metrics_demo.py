@@ -11,7 +11,6 @@ and abuse pattern detection.
 import time
 
 from fakeai.rate_limiter import RateLimiter
-from fakeai.rate_limiter_metrics import RateLimiterMetrics
 
 
 def print_section(title: str):

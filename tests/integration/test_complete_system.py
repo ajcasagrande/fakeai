@@ -5,8 +5,8 @@ Tests all endpoints and features working together end-to-end.
 Validates full request/response cycles with real data.
 """
 
-import asyncio
 import json
+
 import pytest
 from fastapi.testclient import TestClient
 

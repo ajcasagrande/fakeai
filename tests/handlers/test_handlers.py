@@ -6,8 +6,9 @@ integration with services and correct behavior.
 """
 #  SPDX-License-Identifier: Apache-2.0
 
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import AsyncMock, Mock, patch
 
 from fakeai.config import AppConfig
 from fakeai.handlers.audio import AudioSpeechHandler
@@ -17,7 +18,11 @@ from fakeai.handlers.completions import CompletionHandler
 from fakeai.handlers.embeddings import EmbeddingHandler
 from fakeai.handlers.files import FileHandler
 from fakeai.handlers.images import ImageGenerationHandler
-from fakeai.handlers.metrics import HealthHandler, MetricsHandler, PrometheusMetricsHandler
+from fakeai.handlers.metrics import (
+    HealthHandler,
+    MetricsHandler,
+    PrometheusMetricsHandler,
+)
 from fakeai.handlers.models import ModelHandler, ModelRetrievalHandler
 from fakeai.handlers.moderations import ModerationHandler
 from fakeai.metrics import MetricsTracker

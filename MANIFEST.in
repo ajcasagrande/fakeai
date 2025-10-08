@@ -1,0 +1,34 @@
+# Include package metadata
+include LICENSE
+include README.md
+include RELEASE_NOTES.md
+include py.typed
+
+# Include static files for the dashboard
+recursive-include fakeai/static *.html *.css *.js *.json *.png *.jpg *.svg *.ico *.woff *.woff2 *.ttf *.eot
+
+# Include configuration files
+recursive-include fakeai/config *.json *.yaml *.yml
+
+# Include model registry files
+recursive-include fakeai/models_registry *.json *.yaml *.yml
+
+# Exclude build artifacts
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude __pycache__
+global-exclude .DS_Store
+global-exclude *.swp
+global-exclude *.swo
+
+# Exclude development files
+exclude .gitignore
+exclude .gitattributes
+recursive-exclude tests *
+recursive-exclude .github *
+recursive-exclude docs *
+recursive-exclude examples *
+recursive-exclude benchmarks *
+recursive-exclude scripts *
+recursive-exclude dashboard *
+exclude dashboard

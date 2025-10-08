@@ -51,7 +51,8 @@ class BatchLifecycleMetrics:
     request_token_counts: list[int] = field(default_factory=list)
 
     # Error categorization
-    error_types: dict[str, int] = field(default_factory=lambda: defaultdict(int))
+    error_types: dict[str, int] = field(
+        default_factory=lambda: defaultdict(int))
 
     # Resource metrics (simulated)
     peak_memory_mb: float = 0.0
@@ -196,7 +197,8 @@ class BatchMetricsTracker:
     def __init__(self):
         """Initialize the batch metrics tracker."""
         self._active_batches: dict[str, BatchLifecycleMetrics] = {}
-        self._completed_batches: deque[BatchLifecycleMetrics] = deque(maxlen=1000)
+        self._completed_batches: deque[BatchLifecycleMetrics] = deque(
+            maxlen=1000)
         self._lock = threading.Lock()
 
         # Aggregate statistics
@@ -335,7 +337,8 @@ class BatchMetricsTracker:
         """
         with self._lock:
             if batch_id not in self._active_batches:
-                logger.warning(f"Attempted to complete unknown batch: {batch_id}")
+                logger.warning(
+                    f"Attempted to complete unknown batch: {batch_id}")
                 return
 
             metrics = self._active_batches[batch_id]
@@ -344,7 +347,8 @@ class BatchMetricsTracker:
             metrics.total_bytes_read = bytes_read
 
             # Simulate resource metrics
-            metrics.peak_memory_mb = self._simulate_memory_usage(metrics.total_requests)
+            metrics.peak_memory_mb = self._simulate_memory_usage(
+                metrics.total_requests)
             metrics.network_bandwidth_mbps = self._simulate_bandwidth(
                 bytes_written + bytes_read, metrics.calculate_total_duration()
             )
@@ -355,10 +359,10 @@ class BatchMetricsTracker:
             self._total_batches_completed += 1
 
         logger.info(
-            f"Batch {batch_id} completed: {metrics.requests_succeeded} succeeded, "
-            f"{metrics.requests_failed} failed, "
-            f"{metrics.calculate_total_duration():.2f}s total"
-        )
+            f"Batch {batch_id} completed: {
+                metrics.requests_succeeded} succeeded, " f"{
+                metrics.requests_failed} failed, " f"{
+                metrics.calculate_total_duration():.2f}s total")
 
     def fail_batch(self, batch_id: str, error_message: str) -> None:
         """
@@ -433,8 +437,10 @@ class BatchMetricsTracker:
                     total_errors_by_type[error_type] += count
 
             # Calculate aggregate statistics
-            latency_stats = self._calculate_array_stats(all_latencies, "Latency (ms)")
-            token_stats = self._calculate_array_stats(all_tokens, "Tokens per request")
+            latency_stats = self._calculate_array_stats(
+                all_latencies, "Latency (ms)")
+            token_stats = self._calculate_array_stats(
+                all_tokens, "Tokens per request")
             duration_stats = self._calculate_array_stats(
                 all_durations, "Batch duration (s)"
             )
@@ -522,8 +528,10 @@ class BatchMetricsTracker:
                 "network_bandwidth_mbps": metrics.network_bandwidth_mbps,
             },
             "errors": {
-                "by_type": dict(metrics.error_types),
-                "total": sum(metrics.error_types.values()),
+                "by_type": dict(
+                    metrics.error_types),
+                "total": sum(
+                    metrics.error_types.values()),
             },
         }
 
@@ -579,7 +587,10 @@ class BatchMetricsTracker:
         per_request_mb = 2.5
         return baseline_mb + (num_requests * per_request_mb)
 
-    def _simulate_bandwidth(self, total_bytes: int, duration_seconds: float) -> float:
+    def _simulate_bandwidth(
+            self,
+            total_bytes: int,
+            duration_seconds: float) -> float:
         """
         Simulate network bandwidth usage.
 

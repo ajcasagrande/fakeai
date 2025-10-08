@@ -8,13 +8,14 @@ client behavior, and advanced analytics.
 
 #  SPDX-License-Identifier: Apache-2.0
 
+import functools
 import logging
 import statistics
 import threading
 import time
-from collections import defaultdict, deque
+from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -41,7 +42,7 @@ class StreamLifecycle:
     start_time_ns: int
 
     # Token tracking
-    tokens: List[TokenTiming] = field(default_factory=list)
+    tokens: list[TokenTiming] = field(default_factory=list)
 
     # Timing milestones
     first_token_time_ns: Optional[int] = None
@@ -57,7 +58,7 @@ class StreamLifecycle:
     # Network tracking
     chunks_sent: int = 0
     total_bytes_sent: int = 0
-    chunk_sizes: List[int] = field(default_factory=list)
+    chunk_sizes: list[int] = field(default_factory=list)
 
     # Client behavior
     backpressure_events: int = 0
@@ -86,9 +87,9 @@ class StreamLifecycle:
     def get_tokens_per_second(self) -> Optional[float]:
         """Get tokens per second (excluding TTFT)."""
         if (
-            len(self.tokens) < 2
-            or self.last_token_time_ns is None
-            or self.first_token_time_ns is None
+            len(self.tokens) < 2 or
+            self.last_token_time_ns is None or
+            self.first_token_time_ns is None
         ):
             return None
         duration_s = (
@@ -98,26 +99,30 @@ class StreamLifecycle:
             return None
         return (len(self.tokens) - 1) / duration_s
 
-    def get_inter_token_latencies_ms(self) -> List[float]:
-        """Get inter-token latencies in milliseconds."""
+    @functools.lru_cache(maxsize=1)
+    def get_inter_token_latencies_ms(self) -> tuple[float, ...]:
+        """Get inter-token latencies in milliseconds (cached for performance)."""
         if len(self.tokens) < 2:
-            return []
+            return tuple()
         itls = []
         for i in range(1, len(self.tokens)):
-            itl_ns = self.tokens[i].timestamp_ns - self.tokens[i - 1].timestamp_ns
+            itl_ns = self.tokens[i].timestamp_ns - \
+                self.tokens[i - 1].timestamp_ns
             itls.append(itl_ns / 1_000_000)
-        return itls
+        return tuple(itls)  # Return tuple for hashability (caching)
 
+    @functools.lru_cache(maxsize=1)
     def calculate_jitter_ms(self) -> Optional[float]:
-        """Calculate jitter (standard deviation of ITL) in milliseconds."""
+        """Calculate jitter (standard deviation of ITL) in milliseconds (cached)."""
         itls = self.get_inter_token_latencies_ms()
         if len(itls) < 2:
             return None
         return statistics.stdev(itls)
 
+    @functools.lru_cache(maxsize=1)
     def calculate_smoothness_score(self) -> Optional[float]:
         """
-        Calculate smoothness score (0-100, higher is better).
+        Calculate smoothness score (0-100, higher is better) (cached).
 
         Based on coefficient of variation of ITL. Lower CV = higher smoothness.
         """
@@ -142,8 +147,9 @@ class StreamLifecycle:
         itls = self.get_inter_token_latencies_ms()
         return sum(1 for itl in itls if itl > 500.0)
 
+    @functools.lru_cache(maxsize=1)
     def calculate_throughput_variance(self) -> Optional[float]:
-        """Calculate variance in throughput (tokens/sec) over time windows."""
+        """Calculate variance in throughput (tokens/sec) over time windows (cached)."""
         if len(self.tokens) < 10:
             return None
 
@@ -165,7 +171,7 @@ class StreamLifecycle:
 
         return statistics.variance(throughputs)
 
-    def get_token_size_distribution(self) -> Dict[str, float]:
+    def get_token_size_distribution(self) -> dict[str, float]:
         """Get statistics on token sizes (characters per token)."""
         if not self.tokens:
             return {}
@@ -207,9 +213,10 @@ class StreamLifecycle:
 
         return punctuation / total
 
+    @functools.lru_cache(maxsize=1)
     def calculate_network_overhead_percent(self) -> Optional[float]:
         """
-        Calculate network overhead percentage.
+        Calculate network overhead percentage (cached).
 
         Overhead = (total_bytes_sent - actual_token_bytes) / total_bytes_sent * 100
         """
@@ -232,7 +239,7 @@ class ClientBehavior:
     """Track client behavior patterns."""
 
     client_id: str  # Could be API key, IP, or other identifier
-    streams: List[str] = field(default_factory=list)
+    streams: list[str] = field(default_factory=list)
     total_tokens_read: int = 0
     total_duration_ms: float = 0.0
     slow_stream_count: int = 0  # Streams with < 10 tokens/sec
@@ -259,9 +266,8 @@ class StreamingMetricsTracker:
     client behavior, and advanced analytics.
     """
 
-    def __init__(
-        self, max_active_streams: int = 10000, max_completed_streams: int = 1000
-    ):
+    def __init__(self, max_active_streams: int = 10000,
+                 max_completed_streams: int = 1000):
         """
         Initialize the streaming metrics tracker.
 
@@ -273,7 +279,7 @@ class StreamingMetricsTracker:
         self.max_completed_streams = max_completed_streams
 
         # Active streams (currently streaming)
-        self._active_streams: Dict[str, StreamLifecycle] = {}
+        self._active_streams: dict[str, StreamLifecycle] = {}
 
         # Completed streams (for historical analysis)
         self._completed_streams: deque[StreamLifecycle] = deque(
@@ -286,7 +292,7 @@ class StreamingMetricsTracker:
         )
 
         # Client behavior tracking
-        self._clients: Dict[str, ClientBehavior] = {}
+        self._clients: dict[str, ClientBehavior] = {}
 
         # Thread safety
         self._lock = threading.Lock()
@@ -346,7 +352,8 @@ class StreamingMetricsTracker:
             # Track client
             if client_id:
                 if client_id not in self._clients:
-                    self._clients[client_id] = ClientBehavior(client_id=client_id)
+                    self._clients[client_id] = ClientBehavior(
+                        client_id=client_id)
                 self._clients[client_id].streams.append(stream_id)
 
     def record_token(
@@ -367,7 +374,8 @@ class StreamingMetricsTracker:
         """
         with self._lock:
             if stream_id not in self._active_streams:
-                logger.warning(f"Stream {stream_id} not found in active streams")
+                logger.warning(
+                    f"Stream {stream_id} not found in active streams")
                 return
 
             stream = self._active_streams[stream_id]
@@ -387,8 +395,10 @@ class StreamingMetricsTracker:
             timing = TokenTiming(
                 token=token,
                 timestamp_ns=timestamp_ns,
-                chunk_size_bytes=chunk_size_bytes or len(token.encode("utf-8")),
-                sequence_number=len(stream.tokens),
+                chunk_size_bytes=chunk_size_bytes or len(
+                    token.encode("utf-8")),
+                sequence_number=len(
+                    stream.tokens),
             )
 
             stream.tokens.append(timing)
@@ -447,7 +457,8 @@ class StreamingMetricsTracker:
         """
         with self._lock:
             if stream_id not in self._active_streams:
-                logger.warning(f"Stream {stream_id} not found in active streams")
+                logger.warning(
+                    f"Stream {stream_id} not found in active streams")
                 return
 
             stream = self._active_streams[stream_id]
@@ -478,7 +489,8 @@ class StreamingMetricsTracker:
             # Update client behavior
             if client_id:
                 if client_id not in self._clients:
-                    self._clients[client_id] = ClientBehavior(client_id=client_id)
+                    self._clients[client_id] = ClientBehavior(
+                        client_id=client_id)
                 client = self._clients[client_id]
                 client.total_tokens_read += stream.get_token_count()
                 duration_ms = stream.get_total_duration_ms()
@@ -520,7 +532,8 @@ class StreamingMetricsTracker:
             # Update client behavior
             if client_id:
                 if client_id not in self._clients:
-                    self._clients[client_id] = ClientBehavior(client_id=client_id)
+                    self._clients[client_id] = ClientBehavior(
+                        client_id=client_id)
                 client = self._clients[client_id]
                 client.cancellation_count += 1
 
@@ -542,7 +555,7 @@ class StreamingMetricsTracker:
                 self._clients[client_id] = ClientBehavior(client_id=client_id)
             self._clients[client_id].reconnection_count += 1
 
-    def get_stream_stats(self, stream_id: str) -> Optional[Dict[str, Any]]:
+    def get_stream_stats(self, stream_id: str) -> Optional[dict[str, Any]]:
         """
         Get detailed statistics for a specific stream.
 
@@ -570,7 +583,8 @@ class StreamingMetricsTracker:
 
             return None
 
-    def _stream_to_dict(self, stream: StreamLifecycle, status: str) -> Dict[str, Any]:
+    def _stream_to_dict(self, stream: StreamLifecycle,
+                        status: str) -> dict[str, Any]:
         """Convert a StreamLifecycle to a dictionary."""
         itls = stream.get_inter_token_latencies_ms()
 
@@ -609,7 +623,7 @@ class StreamingMetricsTracker:
             "max_tokens": stream.max_tokens,
         }
 
-    def get_streaming_quality_report(self) -> Dict[str, Any]:
+    def get_streaming_quality_report(self) -> dict[str, Any]:
         """
         Get comprehensive streaming quality report across all streams.
 
@@ -618,7 +632,8 @@ class StreamingMetricsTracker:
         """
         with self._lock:
             # Collect all completed streams
-            all_streams = list(self._completed_streams) + list(self._failed_streams)
+            all_streams = list(self._completed_streams) + \
+                list(self._failed_streams)
 
             if not all_streams:
                 return {
@@ -654,13 +669,13 @@ class StreamingMetricsTracker:
                 "tokens_per_second": self._calculate_percentiles(tpss) if tpss else {},
                 "jitter_ms": self._calculate_percentiles(jitters) if jitters else {},
                 "smoothness_score": (
-                    self._calculate_percentiles(smoothness) if smoothness else {}
-                ),
+                    self._calculate_percentiles(smoothness) if smoothness else {}),
                 "stall_count": {
                     "mean": statistics.mean(stalls) if stalls else 0,
                     "median": statistics.median(stalls) if stalls else 0,
                     "max": max(stalls) if stalls else 0,
-                    "streams_with_stalls": sum(1 for s in stalls if s > 0),
+                    "streams_with_stalls": sum(
+                        1 for s in stalls if s > 0),
                 },
             }
 
@@ -705,7 +720,8 @@ class StreamingMetricsTracker:
             }
 
             # Client behavior summary
-            slow_clients = [c for c in self._clients.values() if c.is_slow_client()]
+            slow_clients = [
+                c for c in self._clients.values() if c.is_slow_client()]
 
             client_metrics = {
                 "total_clients": len(self._clients),
@@ -741,7 +757,7 @@ class StreamingMetricsTracker:
                 "correlations": correlations,
             }
 
-    def _calculate_percentiles(self, values: List[float]) -> Dict[str, float]:
+    def _calculate_percentiles(self, values: list[float]) -> dict[str, float]:
         """Calculate percentiles for a list of values."""
         if not values:
             return {}
@@ -759,7 +775,7 @@ class StreamingMetricsTracker:
             "stdev": float(np.std(values_array)),
         }
 
-    def _calculate_correlations(self) -> Dict[str, Any]:
+    def _calculate_correlations(self) -> dict[str, Any]:
         """Calculate correlation coefficients for tracked relationships."""
         correlations = {}
 
@@ -798,7 +814,7 @@ class StreamingMetricsTracker:
 
         return correlations
 
-    def get_client_stats(self, client_id: str) -> Optional[Dict[str, Any]]:
+    def get_client_stats(self, client_id: str) -> Optional[dict[str, Any]]:
         """
         Get statistics for a specific client.
 
@@ -826,26 +842,36 @@ class StreamingMetricsTracker:
                 "is_slow_client": client.is_slow_client(),
             }
 
-    def get_all_clients(self) -> List[Dict[str, Any]]:
+    def get_all_clients(self) -> list[dict[str, Any]]:
         """Get statistics for all tracked clients."""
         with self._lock:
-            # Build stats inline to avoid nested lock acquisition
-            results = []
-            for client_id, client in self._clients.items():
-                results.append(
-                    {
-                        "client_id": client_id,
-                        "total_streams": len(client.streams),
-                        "total_tokens_read": client.total_tokens_read,
-                        "average_read_rate_tps": client.get_average_read_rate_tps(),
-                        "slow_stream_count": client.slow_stream_count,
-                        "timeout_count": client.timeout_count,
-                        "cancellation_count": client.cancellation_count,
-                        "reconnection_count": client.reconnection_count,
-                        "is_slow_client": client.is_slow_client(),
-                    }
-                )
-            return results
+            # Copy client data to minimize lock holding time
+            client_data = [(cid, {
+                "streams_len": len(c.streams),
+                "total_tokens": c.total_tokens_read,
+                "duration_ms": c.total_duration_ms,
+                "slow_count": c.slow_stream_count,
+                "timeout": c.timeout_count,
+                "cancel": c.cancellation_count,
+                "reconnect": c.reconnection_count,
+            }) for cid, c in self._clients.items()]
+
+        # Build results outside lock to reduce contention
+        results = []
+        for client_id, data in client_data:
+            avg_rate = data["total_tokens"] / (data["duration_ms"] / 1000.0) if data["duration_ms"] > 0 else 0.0
+            results.append({
+                "client_id": client_id,
+                "total_streams": data["streams_len"],
+                "total_tokens_read": data["total_tokens"],
+                "average_read_rate_tps": avg_rate,
+                "slow_stream_count": data["slow_count"],
+                "timeout_count": data["timeout"],
+                "cancellation_count": data["cancel"],
+                "reconnection_count": data["reconnect"],
+                "is_slow_client": avg_rate < 10.0,
+            })
+        return results
 
     def get_active_stream_count(self) -> int:
         """Get count of currently active streams."""

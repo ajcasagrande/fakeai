@@ -7,7 +7,7 @@ This module provides common configuration patterns and utilities.
 #  SPDX-License-Identifier: Apache-2.0
 
 from pydantic import BaseModel
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
 
 
 class BaseConfig(BaseModel):
@@ -22,5 +22,3 @@ class BaseConfig(BaseModel):
 
 class ModuleConfig(BaseConfig):
     """Base class for modular configuration sections."""
-
-    pass

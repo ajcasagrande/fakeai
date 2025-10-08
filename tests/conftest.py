@@ -52,7 +52,6 @@ def client_no_auth(config_no_auth, monkeypatch):
     monkeypatch.setenv("FAKEAI_REQUIRE_API_KEY", "false")
 
     # Manually trigger startup event since TestClient doesn't
-    import asyncio
 
     from fakeai import app as fakeai_app_module
 

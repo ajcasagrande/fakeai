@@ -10,12 +10,10 @@ Shows all Dynamo components working together:
 - Prefill queue
 - Dynamic endpoint registration
 """
-import time
 
 from fakeai.dynamo_advanced import (
     BlockState,
     DynamoSystem,
-    LoadPredictor,
     MemoryTier,
     SLATarget,
 )

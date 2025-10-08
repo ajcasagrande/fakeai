@@ -12,7 +12,6 @@ This module tests the image generation service with:
 
 import asyncio
 import base64
-import re
 from typing import Any
 
 import pytest
@@ -149,6 +148,7 @@ class TestDallE3Sizes:
 
         assert len(response["data"]) == 1
 
+    @pytest.mark.slow
     def test_dalle3_1024x1792(self, client: FakeAIClient):
         """Test DALL-E 3 with 1024x1792 size (portrait)."""
         response = client.create_image(
@@ -186,6 +186,7 @@ class TestImageQuality:
 
         assert len(response["data"]) == 1
 
+    @pytest.mark.slow
     def test_hd_quality(self, client: FakeAIClient):
         """Test HD quality image generation."""
         response = client.create_image(
@@ -197,6 +198,7 @@ class TestImageQuality:
 
         assert len(response["data"]) == 1
 
+    @pytest.mark.slow
     def test_hd_quality_landscape(self, client: FakeAIClient):
         """Test HD quality with landscape size."""
         response = client.create_image(
@@ -208,6 +210,7 @@ class TestImageQuality:
 
         assert len(response["data"]) == 1
 
+    @pytest.mark.slow
     def test_hd_quality_portrait(self, client: FakeAIClient):
         """Test HD quality with portrait size."""
         response = client.create_image(
@@ -332,6 +335,7 @@ class TestResponseFormats:
 class TestMultipleImages:
     """Test generating multiple images."""
 
+    @pytest.mark.slow
     def test_generate_two_images(self, client: FakeAIClient):
         """Test generating 2 images."""
         response = client.create_image(
@@ -345,6 +349,7 @@ class TestMultipleImages:
         for image in response["data"]:
             assert "url" in image or "b64_json" in image
 
+    @pytest.mark.slow
     def test_generate_multiple_images_stability(self, client: FakeAIClient):
         """Test generating multiple images with Stability AI."""
         response = client.create_image(
@@ -368,6 +373,7 @@ class TestMultipleImages:
         # Should raise HTTPStatusError with 400 or 500
         assert "400" in str(exc_info.value) or "500" in str(exc_info.value)
 
+    @pytest.mark.slow
     def test_generate_max_images(self, client: FakeAIClient):
         """Test generating maximum number of images."""
         response = client.create_image(
@@ -395,6 +401,7 @@ class TestUserParameter:
         # Should succeed with user parameter
         assert len(response["data"]) == 1
 
+    @pytest.mark.slow
     def test_user_parameter_does_not_affect_output(self, client: FakeAIClient):
         """Test that user parameter doesn't change output."""
         response1 = client.create_image(
@@ -677,6 +684,7 @@ class TestImageGenerationEdgeCases:
 
         assert len(response["data"]) == 1
 
+    @pytest.mark.slow
     def test_repeated_generation_same_prompt(self, client: FakeAIClient):
         """Test generating with same prompt multiple times."""
         prompt = "A unique test image"
@@ -705,6 +713,7 @@ class TestImageGenerationEdgeCases:
             # Extract unique ID from URL
             assert url1 != url2
 
+    @pytest.mark.slow
     def test_all_parameters_combined(self, client: FakeAIClient):
         """Test with all parameters specified."""
         response = client.create_image(

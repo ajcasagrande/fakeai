@@ -78,8 +78,6 @@ def integration_chat_completion_stream():
     # ===== ADD THIS SECTION =====
     # Calculate all token types
     from fakeai.utils import calculate_token_count
-    from fakeai.video import calculate_message_video_tokens
-    from fakeai.vision import calculate_message_image_tokens
 
     text_tokens = calculate_token_count(prompt_text)
 

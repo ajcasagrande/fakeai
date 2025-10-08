@@ -10,9 +10,9 @@ real-time processing of token-by-token responses.
 
 import asyncio
 import time
-from typing import Any, AsyncIterator, Dict, List, Optional, Union
+from typing import AsyncIterator, Dict, List
 
-from openai import AsyncOpenAI, OpenAI
+from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionChunk
 
 

@@ -1,8 +1,10 @@
 """
 Mistral AI Model Catalog
 
-Complete catalog of Mistral AI models including Mixtral (MoE) and Mistral models
-with accurate pricing and capabilities.
+Complete catalog of Mistral AI models including Mistral Large 2.1, Mixtral (MoE),
+and Mistral models with accurate pricing and capabilities.
+
+Updated: October 2025
 """
 
 #  SPDX-License-Identifier: Apache-2.0
@@ -10,10 +12,9 @@ with accurate pricing and capabilities.
 from ..capabilities import (
     CAPABILITY_PRESETS,
     LatencyProfile,
-    ModelCapabilities,
     MoEConfig,
 )
-from ..definition import ModelDefinition, create_model_definition
+from ..definition import ModelDefinition
 
 
 def _get_mistral_models() -> list[ModelDefinition]:
@@ -24,6 +25,66 @@ def _get_mistral_models() -> list[ModelDefinition]:
         List of Mistral ModelDefinition instances
     """
     models = []
+
+    # Mistral Large 2.1 (123B - Latest November 2024/2025)
+    mistral_large_21_caps = CAPABILITY_PRESETS["chat"].clone(
+        max_context_length=128000,
+        max_output_tokens=4096,
+        supports_json_mode=True,
+        supports_function_calling=True,
+        supports_tool_use=True,
+        supports_parallel_tool_calls=True,
+        parameter_count=123_000_000_000,
+        provider="mistral",
+        model_family="mistral-large",
+        tags=["chat", "large", "flagship", "latest"],
+        latency_profile=LatencyProfile(
+            time_to_first_token=0.48,
+            tokens_per_second=46.0,
+            min_delay=0.019,
+            max_delay=0.027,
+        ),
+    )
+
+    models.append(
+        ModelDefinition(
+            model_id="mistral-large-2411",
+            created=1732147200,  # 2024-11-21
+            owned_by="mistral",
+            capabilities=mistral_large_21_caps,
+            display_name="Mistral Large 2.1",
+            description="Latest 123B parameter flagship with 128K context. Supports 12+ languages and 80 coding languages.",
+            version="2.1",
+            custom_fields={
+                "pricing": {
+                    "input_per_million": 2.0,
+                    "output_per_million": 6.0,
+                },
+                "license": "Commercial",
+            },
+        )
+    )
+
+    # Alias for Mistral Large latest
+    models.append(
+        ModelDefinition(
+            model_id="mistral-large-latest",
+            created=1732147200,
+            owned_by="mistral",
+            capabilities=mistral_large_21_caps,
+            display_name="Mistral Large (Latest)",
+            description="Alias for Mistral Large 2.1. Always points to the latest version.",
+            version="latest",
+            parent="mistral-large-2411",
+            root="mistral-large-2411",
+            custom_fields={
+                "pricing": {
+                    "input_per_million": 2.0,
+                    "output_per_million": 6.0,
+                },
+                "license": "Commercial",
+            },
+        ))
 
     # Mixtral 8x22B (Large MoE flagship)
     mixtral_8x22b_caps = CAPABILITY_PRESETS["chat"].clone(
@@ -42,7 +103,7 @@ def _get_mistral_models() -> list[ModelDefinition]:
         parameter_count=141_000_000_000,
         provider="mistral",
         model_family="mixtral",
-        tags=["chat", "moe", "large", "flagship"],
+        tags=["chat", "moe", "large"],
         latency_profile=LatencyProfile(
             time_to_first_token=0.55,
             tokens_per_second=40.0,
@@ -79,7 +140,8 @@ def _get_mistral_models() -> list[ModelDefinition]:
         supports_tool_use=True,
         is_moe=True,
         moe_config=MoEConfig(
-            total_params=46_700_000_000,  # 8 experts × 7B each (with shared layers)
+            total_params=46_700_000_000,
+            # 8 experts × 7B each (with shared layers)
             active_params=12_900_000_000,  # 2 experts active per token
             num_experts=8,
             experts_per_token=2,
@@ -115,82 +177,40 @@ def _get_mistral_models() -> list[ModelDefinition]:
         )
     )
 
-    # Short alias for Mixtral 8x7B
-    models.append(
-        ModelDefinition(
-            model_id="mixtral-8x7b",
-            created=1702339200,
-            owned_by="mistral",
-            capabilities=mixtral_8x7b_caps,
-            display_name="Mixtral 8x7B",
-            description="Alias for Mixtral 8x7B Instruct. Balanced MoE model.",
-            version="0.1",
-            parent="mistralai/Mixtral-8x7B-Instruct-v0.1",
-            root="mistralai/Mixtral-8x7B-Instruct-v0.1",
-            custom_fields={
-                "pricing": {
-                    "input_per_million": 0.70,
-                    "output_per_million": 0.70,
-                },
-                "license": "Apache 2.0",
-            },
-        )
-    )
-
-    # Short alias for Mixtral 8x22B
-    models.append(
-        ModelDefinition(
-            model_id="mixtral-8x22b",
-            created=1712793600,
-            owned_by="mistral",
-            capabilities=mixtral_8x22b_caps,
-            display_name="Mixtral 8x22B",
-            description="Alias for Mixtral 8x22B Instruct. Large MoE model.",
-            version="0.1",
-            parent="mistralai/Mixtral-8x22B-Instruct-v0.1",
-            root="mistralai/Mixtral-8x22B-Instruct-v0.1",
-            custom_fields={
-                "pricing": {
-                    "input_per_million": 2.0,
-                    "output_per_million": 6.0,
-                },
-                "license": "Apache 2.0",
-            },
-        )
-    )
-
-    # Mistral 7B (Original single-expert model)
-    mistral_7b_caps = CAPABILITY_PRESETS["chat"].clone(
-        max_context_length=32768,
+    # Mistral Medium 3 (May 2025)
+    mistral_medium3_caps = CAPABILITY_PRESETS["chat"].clone(
+        max_context_length=128000,
         max_output_tokens=4096,
         supports_json_mode=True,
-        parameter_count=7_000_000_000,
+        supports_function_calling=True,
+        supports_tool_use=True,
+        parameter_count=None,
         provider="mistral",
-        model_family="mistral",
-        tags=["chat", "efficient"],
+        model_family="mistral-medium",
+        tags=["chat", "balanced"],
         latency_profile=LatencyProfile(
-            time_to_first_token=0.145,
-            tokens_per_second=125.0,
-            min_delay=0.007,
-            max_delay=0.01,
+            time_to_first_token=0.33,
+            tokens_per_second=58.0,
+            min_delay=0.015,
+            max_delay=0.021,
         ),
     )
 
     models.append(
         ModelDefinition(
-            model_id="mistralai/Mistral-7B-Instruct-v0.2",
-            created=1702339200,  # 2023-12-12
+            model_id="mistral-medium-3",
+            created=1746057600,  # 2025-05-01 (approximate)
             owned_by="mistral",
-            capabilities=mistral_7b_caps,
-            display_name="Mistral 7B Instruct v0.2",
-            description="Efficient 7B parameter model with 32K context window.",
-            version="0.2",
+            capabilities=mistral_medium3_caps,
+            display_name="Mistral Medium 3",
+            description="Balanced model with improved performance/cost ratio and 128K context.",
+            version="3",
             custom_fields={
                 "pricing": {
-                    "input_per_million": 0.25,
-                    "output_per_million": 0.25,
+                    "input_per_million": 2.7,
+                    "output_per_million": 8.1,
                 },
-                "license": "Apache 2.0",
+                "license": "Commercial",
             },
         )
     )
@@ -202,10 +222,10 @@ def _get_mistral_models() -> list[ModelDefinition]:
         supports_json_mode=True,
         supports_function_calling=True,
         supports_tool_use=True,
-        parameter_count=None,  # Not disclosed
+        parameter_count=None,
         provider="mistral",
-        model_family="mistral",
-        tags=["chat", "efficient", "commercial"],
+        model_family="mistral-small",
+        tags=["chat", "efficient"],
         latency_profile=LatencyProfile(
             time_to_first_token=0.2,
             tokens_per_second=80.0,
@@ -221,7 +241,7 @@ def _get_mistral_models() -> list[ModelDefinition]:
             owned_by="mistral",
             capabilities=mistral_small_caps,
             display_name="Mistral Small",
-            description="Efficient commercial model optimized for cost and latency.",
+            description="Efficient model optimized for cost and latency.",
             version="latest",
             custom_fields={
                 "pricing": {
@@ -233,79 +253,74 @@ def _get_mistral_models() -> list[ModelDefinition]:
         )
     )
 
-    # Mistral Medium (Commercial)
-    mistral_medium_caps = CAPABILITY_PRESETS["chat"].clone(
-        max_context_length=32768,
+    # Ministral 3B (Ultra-efficient)
+    ministral_3b_caps = CAPABILITY_PRESETS["chat"].clone(
+        max_context_length=128000,
         max_output_tokens=4096,
         supports_json_mode=True,
-        supports_function_calling=True,
-        supports_tool_use=True,
-        parameter_count=None,
+        parameter_count=3_000_000_000,
         provider="mistral",
-        model_family="mistral",
-        tags=["chat", "balanced", "commercial"],
+        model_family="ministral",
+        tags=["chat", "efficient", "edge"],
         latency_profile=LatencyProfile(
-            time_to_first_token=0.35,
-            tokens_per_second=55.0,
-            min_delay=0.016,
-            max_delay=0.022,
+            time_to_first_token=0.08,
+            tokens_per_second=200.0,
+            min_delay=0.004,
+            max_delay=0.007,
         ),
     )
 
     models.append(
         ModelDefinition(
-            model_id="mistral-medium-latest",
-            created=1717200000,
+            model_id="ministral-3b",
+            created=1727740800,  # 2025-10-01 (approximate)
             owned_by="mistral",
-            capabilities=mistral_medium_caps,
-            display_name="Mistral Medium",
-            description="Balanced commercial model for general-purpose use.",
-            version="latest",
+            capabilities=ministral_3b_caps,
+            display_name="Ministral 3B",
+            description="Ultra-efficient 3B model for edge deployment and high-throughput use cases.",
+            version="1.0",
             custom_fields={
                 "pricing": {
-                    "input_per_million": 2.7,
-                    "output_per_million": 8.1,
+                    "input_per_million": 0.04,
+                    "output_per_million": 0.04,
                 },
                 "license": "Commercial",
             },
         )
     )
 
-    # Mistral Large (Commercial flagship)
-    mistral_large_caps = CAPABILITY_PRESETS["chat"].clone(
-        max_context_length=128000,
+    # Mistral 7B (Original single-expert model - Legacy)
+    mistral_7b_caps = CAPABILITY_PRESETS["chat"].clone(
+        max_context_length=32768,
         max_output_tokens=4096,
         supports_json_mode=True,
-        supports_function_calling=True,
-        supports_tool_use=True,
-        supports_parallel_tool_calls=True,
-        parameter_count=None,
+        parameter_count=7_000_000_000,
         provider="mistral",
         model_family="mistral",
-        tags=["chat", "large", "commercial", "flagship"],
+        tags=["chat", "efficient", "legacy"],
         latency_profile=LatencyProfile(
-            time_to_first_token=0.5,
-            tokens_per_second=45.0,
-            min_delay=0.02,
-            max_delay=0.028,
+            time_to_first_token=0.145,
+            tokens_per_second=125.0,
+            min_delay=0.007,
+            max_delay=0.01,
         ),
     )
 
     models.append(
         ModelDefinition(
-            model_id="mistral-large-latest",
-            created=1717200000,
+            model_id="mistralai/Mistral-7B-Instruct-v0.2",
+            created=1702339200,  # 2023-12-12
             owned_by="mistral",
-            capabilities=mistral_large_caps,
-            display_name="Mistral Large",
-            description="Flagship commercial model with 128K context window.",
-            version="latest",
+            capabilities=mistral_7b_caps,
+            display_name="Mistral 7B Instruct v0.2 (Legacy)",
+            description="Legacy 7B model. Consider upgrading to Ministral 3B or Mistral Small for better performance.",
+            version="0.2",
             custom_fields={
                 "pricing": {
-                    "input_per_million": 4.0,
-                    "output_per_million": 12.0,
+                    "input_per_million": 0.25,
+                    "output_per_million": 0.25,
                 },
-                "license": "Commercial",
+                "license": "Apache 2.0",
             },
         )
     )

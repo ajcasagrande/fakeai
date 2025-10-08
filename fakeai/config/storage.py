@@ -55,9 +55,11 @@ class StorageConfig(ModuleConfig):
         description="Hours to retain generated images before cleanup.",
     )
 
-    @field_validator("file_storage_backend", "image_storage_backend", mode="before")
+    @field_validator("file_storage_backend",
+                     "image_storage_backend", mode="before")
     @classmethod
-    def validate_storage_backend(cls, v: str | StorageBackend) -> StorageBackend:
+    def validate_storage_backend(
+            cls, v: str | StorageBackend) -> StorageBackend:
         """Validate and convert storage backend."""
         if isinstance(v, StorageBackend):
             return v
@@ -65,9 +67,11 @@ class StorageConfig(ModuleConfig):
             try:
                 return StorageBackend(v.lower())
             except ValueError:
-                valid = ", ".join([backend.value for backend in StorageBackend])
+                valid = ", ".join(
+                    [backend.value for backend in StorageBackend])
                 raise ValueError(f"Storage backend must be one of: {valid}")
-        raise ValueError("Storage backend must be a string or StorageBackend enum")
+        raise ValueError(
+            "Storage backend must be a string or StorageBackend enum")
 
     @field_validator("file_retention_hours")
     @classmethod
@@ -86,5 +90,6 @@ class StorageConfig(ModuleConfig):
         if v < 0:
             raise ValueError("Image retention hours cannot be negative")
         if v > 168:  # 1 week max
-            raise ValueError("Image retention hours cannot exceed 168 (1 week)")
+            raise ValueError(
+                "Image retention hours cannot exceed 168 (1 week)")
         return v

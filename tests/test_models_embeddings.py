@@ -40,11 +40,12 @@ class TestImportsFromEmbeddingsModule:
 
     def test_import_from_embeddings_module(self):
         """Test importing from fakeai.models.embeddings module."""
+        # EmbeddingsUsageResponse is now in billing module to avoid duplication
+        from fakeai.models.billing import EmbeddingsUsageResponse
         from fakeai.models.embeddings import (
             Embedding,
             EmbeddingRequest,
             EmbeddingResponse,
-            EmbeddingsUsageResponse,
         )
 
         # Verify classes are imported correctly
@@ -75,20 +76,23 @@ class TestBackwardCompatibility:
             EmbeddingResponse,
             EmbeddingsUsageResponse,
         )
+
+        # EmbeddingsUsageResponse is now in billing module to avoid duplication
+        from fakeai.models.billing import (
+            EmbeddingsUsageResponse as EmbeddingsUsageResponseBilling,
+        )
         from fakeai.models.embeddings import Embedding as EmbeddingModule
         from fakeai.models.embeddings import EmbeddingRequest as EmbeddingRequestModule
         from fakeai.models.embeddings import (
             EmbeddingResponse as EmbeddingResponseModule,
-        )
-        from fakeai.models.embeddings import (
-            EmbeddingsUsageResponse as EmbeddingsUsageResponseModule,
         )
 
         # Verify all classes reference the same objects
         assert EmbeddingRequest is EmbeddingRequestModule
         assert Embedding is EmbeddingModule
         assert EmbeddingResponse is EmbeddingResponseModule
-        assert EmbeddingsUsageResponse is EmbeddingsUsageResponseModule
+        # EmbeddingsUsageResponse comes from billing now
+        assert EmbeddingsUsageResponse is EmbeddingsUsageResponseBilling
 
 
 class TestEmbeddingRequestInstantiation:
@@ -439,10 +443,38 @@ class TestEmbeddingsUsageResponse:
 
     def test_embeddings_usage_response_with_pagination(self):
         """Test EmbeddingsUsageResponse with pagination."""
-        from fakeai.models import EmbeddingsUsageResponse
+        from fakeai.models import (
+            EmbeddingsUsageResponse,
+            UsageAggregationBucket,
+            UsageResultItem,
+        )
+
+        # Create proper usage buckets with result items
+        bucket1 = UsageAggregationBucket(
+            start_time=1234567890,
+            end_time=1234567900,
+            results=[
+                UsageResultItem(
+                    input_tokens=100,
+                    output_tokens=0,
+                    num_model_requests=100,
+                )
+            ],
+        )
+        bucket2 = UsageAggregationBucket(
+            start_time=1234567900,
+            end_time=1234567910,
+            results=[
+                UsageResultItem(
+                    input_tokens=200,
+                    output_tokens=0,
+                    num_model_requests=200,
+                )
+            ],
+        )
 
         response = EmbeddingsUsageResponse(
-            data=[{"count": 100}, {"count": 200}],
+            data=[bucket1, bucket2],
             has_more=True,
             next_page="/v1/organization/usage/embeddings?page=2",
         )
@@ -453,31 +485,44 @@ class TestEmbeddingsUsageResponse:
 
     def test_embeddings_usage_response_with_data(self):
         """Test EmbeddingsUsageResponse with usage data."""
-        from fakeai.models import EmbeddingsUsageResponse
+        from fakeai.models import (
+            EmbeddingsUsageResponse,
+            UsageAggregationBucket,
+            UsageResultItem,
+        )
 
-        usage_data = [
-            {
-                "aggregation_timestamp": 1234567890,
-                "n_requests": 100,
-                "operation": "embedding",
-                "snapshot_id": "snap-123",
-            },
-            {
-                "aggregation_timestamp": 1234567900,
-                "n_requests": 150,
-                "operation": "embedding",
-                "snapshot_id": "snap-124",
-            },
-        ]
+        # Create proper usage buckets with result items
+        bucket1 = UsageAggregationBucket(
+            start_time=1234567890,
+            end_time=1234567900,
+            results=[
+                UsageResultItem(
+                    input_tokens=100,
+                    output_tokens=0,
+                    num_model_requests=100,
+                )
+            ],
+        )
+        bucket2 = UsageAggregationBucket(
+            start_time=1234567900,
+            end_time=1234567910,
+            results=[
+                UsageResultItem(
+                    input_tokens=150,
+                    output_tokens=0,
+                    num_model_requests=150,
+                )
+            ],
+        )
 
         response = EmbeddingsUsageResponse(
-            data=usage_data,
+            data=[bucket1, bucket2],
             has_more=False,
         )
 
         assert len(response.data) == 2
-        assert response.data[0]["n_requests"] == 100
-        assert response.data[1]["n_requests"] == 150
+        assert response.data[0].results[0].num_model_requests == 100
+        assert response.data[1].results[0].num_model_requests == 150
 
 
 class TestUsageTracking:
@@ -601,7 +646,8 @@ class TestModuleStructure:
         assert hasattr(embeddings_module, "EmbeddingRequest")
         assert hasattr(embeddings_module, "Embedding")
         assert hasattr(embeddings_module, "EmbeddingResponse")
-        assert hasattr(embeddings_module, "EmbeddingsUsageResponse")
+        # Note: EmbeddingsUsageResponse is now in billing module to avoid duplication
+        # It's still available from the main package for backward compatibility
 
     def test_package_init_exports_embeddings(self):
         """Test that package __init__ exports embeddings models."""

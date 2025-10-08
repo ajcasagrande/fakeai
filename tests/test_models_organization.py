@@ -17,16 +17,12 @@ Tests all models extracted from models.py into their own modules:
 """
 #  SPDX-License-Identifier: Apache-2.0
 
-import pytest
-from pydantic import ValidationError
 
 # Completions module tests
 from fakeai.models.completions import (
+    CompletionChoice,
     CompletionRequest,
     CompletionResponse,
-    CompletionChoice,
-    CompletionChunk,
-    LogProbs,
 )
 
 
@@ -67,7 +63,7 @@ def test_completion_response():
 
 
 # Files module tests
-from fakeai.models.files import FileObject, FileListResponse
+from fakeai.models.files import FileListResponse, FileObject
 
 
 def test_file_object():
@@ -105,11 +101,11 @@ def test_file_list_response():
 
 # Moderation module tests
 from fakeai.models.moderation import (
+    ModerationCategories,
+    ModerationCategoryScores,
     ModerationRequest,
     ModerationResponse,
     ModerationResult,
-    ModerationCategories,
-    ModerationCategoryScores,
 )
 
 
@@ -142,13 +138,10 @@ def test_moderation_response():
 
 # Vector stores module tests
 from fakeai.models.vector_stores import (
-    VectorStore,
-    CreateVectorStoreRequest,
-    FileCounts,
-    ExpiresAfter,
-    ChunkingStrategyType,
-    StaticChunkingStrategy,
     AutoChunkingStrategy,
+    FileCounts,
+    StaticChunkingStrategy,
+    VectorStore,
 )
 
 
@@ -186,14 +179,11 @@ def test_auto_chunking_strategy():
 
 # Organization module tests
 from fakeai.models.organization import (
-    OrganizationUser,
-    OrganizationRole,
     OrganizationProject,
-    ProjectUser,
-    ProjectRole,
+    OrganizationRole,
+    OrganizationUser,
     ServiceAccount,
     ServiceAccountRole,
-    CreateOrganizationUserRequest,
 )
 
 
@@ -238,12 +228,9 @@ def test_service_account():
 
 # Billing module tests
 from fakeai.models.billing import (
-    UsageAggregationBucket,
-    UsageResultItem,
-    CompletionsUsageResponse,
     CostAmount,
     CostResult,
-    CostsResponse,
+    UsageResultItem,
 )
 
 
@@ -273,16 +260,15 @@ def test_cost_result():
 
 # Realtime module tests
 from fakeai.models.realtime import (
-    RealtimeSession,
-    RealtimeVoice,
     RealtimeAudioFormat,
-    RealtimeModality,
-    RealtimeItem,
-    RealtimeItemType,
-    RealtimeItemRole,
-    RealtimeItemStatus,
     RealtimeContent,
     RealtimeContentType,
+    RealtimeItem,
+    RealtimeItemRole,
+    RealtimeItemStatus,
+    RealtimeItemType,
+    RealtimeSession,
+    RealtimeVoice,
 )
 
 
@@ -325,8 +311,6 @@ from fakeai.models.fine_tuning import (
     FineTuningJob,
     FineTuningJobRequest,
     Hyperparameters,
-    FineTuningEvent,
-    FineTuningCheckpoint,
 )
 
 
@@ -363,11 +347,9 @@ def test_fine_tuning_job():
 from fakeai.models.assistants import (
     Assistant,
     CreateAssistantRequest,
-    Thread,
-    ThreadMessage,
     Run,
     RunStatus,
-    RunStep,
+    Thread,
 )
 
 
@@ -427,7 +409,6 @@ def test_run():
 from fakeai.models.responses import (
     ResponsesRequest,
     ResponsesResponse,
-    ResponseMessageOutput,
 )
 
 
@@ -460,13 +441,12 @@ def test_responses_response():
 
 # Rankings module tests
 from fakeai.models.rankings import (
-    RankingRequest,
-    RankingQuery,
-    RankingPassage,
-    RankingResponse,
     RankingObject,
+    RankingPassage,
+    RankingQuery,
+    RankingRequest,
+    RankingResponse,
     SolidoRagRequest,
-    SolidoRagResponse,
 )
 
 
@@ -545,19 +525,20 @@ def test_text_generation_response():
 def test_all_modules_import():
     """Test that all 12 modules can be imported."""
     from fakeai.models import (
+        assistants,
+        azure,
+        billing,
         completions,
         files,
-        moderation,
-        vector_stores,
-        organization,
-        billing,
-        realtime,
         fine_tuning,
-        assistants,
-        responses,
+        moderation,
+        organization,
         rankings,
-        azure,
+        realtime,
+        responses,
+        vector_stores,
     )
+
     # Verify each module has expected models
     assert hasattr(completions, "CompletionRequest")
     assert hasattr(files, "FileObject")
@@ -576,19 +557,20 @@ def test_all_modules_import():
 def test_backward_compatibility():
     """Test that all models are still available from fakeai.models."""
     from fakeai.models import (
-        CompletionRequest,
-        FileObject,
-        ModerationRequest,
-        VectorStore,
-        OrganizationUser,
-        CostAmount,
-        RealtimeSession,
-        FineTuningJob,
         Assistant,
-        ResponsesRequest,
+        CompletionRequest,
+        CostAmount,
+        FileObject,
+        FineTuningJob,
+        ModerationRequest,
+        OrganizationUser,
         RankingRequest,
+        RealtimeSession,
+        ResponsesRequest,
         TextGenerationRequest,
+        VectorStore,
     )
+
     # All imports should work without error
     assert CompletionRequest is not None
     assert FileObject is not None

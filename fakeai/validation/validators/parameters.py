@@ -8,7 +8,7 @@ Validates request parameters for correctness and valid ranges.
 
 from typing import Any
 
-from fakeai.validation.base import ValidationResult, ValidationSeverity
+from fakeai.validation.base import ValidationResult
 
 
 class ParameterValidator:
@@ -255,12 +255,12 @@ class ParameterValidator:
 
         # Validate both temperature and top_p are not set together
         if (
-            "temperature" in params
-            and params["temperature"] is not None
-            and params["temperature"] != 1.0
-            and "top_p" in params
-            and params["top_p"] is not None
-            and params["top_p"] != 1.0
+            "temperature" in params and
+            params["temperature"] is not None and
+            params["temperature"] != 1.0 and
+            "top_p" in params and
+            params["top_p"] is not None and
+            params["top_p"] != 1.0
         ):
             result.add_warning(
                 message="Setting both temperature and top_p is not recommended",

@@ -17,7 +17,7 @@ import time
 
 import pytest
 
-from fakeai.metrics import MetricsTracker, MetricType
+from fakeai.metrics import MetricsTracker
 
 
 class TestMetricsExport:

@@ -63,15 +63,19 @@ class EmbeddingService:
 
         # Optional semantic embeddings
         self.semantic_generator = None
-        if config.use_semantic_embeddings:
+        if config.generation.use_semantic_embeddings:
             try:
                 from fakeai.semantic_embeddings import get_semantic_embedding_generator
 
                 self.semantic_generator = get_semantic_embedding_generator(
                     model_name=getattr(
-                        config, "semantic_model_name", "all-MiniLM-L6-v2"
-                    ),
-                    use_gpu=getattr(config, "semantic_use_gpu", True),
+                        config.generation,
+                        "embedding_model",
+                        "all-MiniLM-L6-v2"),
+                    use_gpu=getattr(
+                        config.generation,
+                        "embedding_use_gpu",
+                        True),
                 )
                 if self.semantic_generator.is_available():
                     logger.info("Semantic embeddings enabled and available")
@@ -82,8 +86,7 @@ class EmbeddingService:
                     self.semantic_generator = None
             except Exception as e:
                 logger.warning(
-                    f"Failed to initialize semantic embeddings: {e}, using random"
-                )
+                    f"Failed to initialize semantic embeddings: {e}, using random")
                 self.semantic_generator = None
 
     async def create_embedding(
@@ -110,7 +113,8 @@ class EmbeddingService:
 
         # Validate dimensions range
         if dimensions < 1 or dimensions > 3072:
-            raise ValueError(f"Dimensions must be between 1 and 3072, got {dimensions}")
+            raise ValueError(
+                f"Dimensions must be between 1 and 3072, got {dimensions}")
 
         # Calculate token count
         total_tokens = sum(calculate_token_count(text) for text in inputs)
@@ -138,7 +142,6 @@ class EmbeddingService:
         )
 
         # Track token usage
-        self.metrics_tracker.track_tokens("/v1/embeddings", total_tokens)
 
         return response
 
@@ -176,8 +179,7 @@ class EmbeddingService:
                 return embeddings
             except Exception as e:
                 logger.warning(
-                    f"Semantic embedding generation failed: {e}, falling back to random"
-                )
+                    f"Semantic embedding generation failed: {e}, falling back to random")
 
         # Use random embeddings (fallback or default)
         for i, text in enumerate(inputs):
@@ -192,7 +194,8 @@ class EmbeddingService:
 
         return embeddings
 
-    def _encode_embeddings_to_base64(self, embeddings: list[Embedding]) -> list[Embedding]:
+    def _encode_embeddings_to_base64(
+            self, embeddings: list[Embedding]) -> list[Embedding]:
         """
         Convert embedding vectors to base64 encoded strings.
 
@@ -205,7 +208,8 @@ class EmbeddingService:
         encoded_embeddings = []
         for embedding in embeddings:
             # Convert float list to bytes using struct
-            float_bytes = struct.pack(f"{len(embedding.embedding)}f", *embedding.embedding)
+            float_bytes = struct.pack(
+                f"{len(embedding.embedding)}f", *embedding.embedding)
             # Encode to base64
             base64_str = base64.b64encode(float_bytes).decode("utf-8")
             # Create new embedding with base64 string
@@ -247,13 +251,13 @@ class EmbeddingService:
                 return [f"[Token IDs input with {len(input_data)} tokens]"]
 
             # List of token ID lists (multiple sequences)
-            if all(
-                isinstance(item, list) and all(isinstance(i, int) for i in item)
-                for item in input_data
-            ):
+            if all(isinstance(item, list) and all(isinstance(i, int)
+                                                  for i in item) for item in input_data):
                 # Convert each token ID list to a placeholder string
                 return [
-                    f"[Token IDs input with {len(ids)} tokens]" for ids in input_data
-                ]
+                    f"[Token IDs input with {
+                        len(ids)} tokens]" for ids in input_data]
 
-        raise ValueError(f"Unsupported input format for embeddings: {type(input_data)}")
+        raise ValueError(
+            f"Unsupported input format for embeddings: {
+                type(input_data)}")

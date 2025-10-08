@@ -81,53 +81,56 @@ class RateLimiterMetrics:
 
     def __new__(cls):
         """Ensure only one instance exists (singleton pattern)."""
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = super(RateLimiterMetrics, cls).__new__(cls)
-                cls._instance._initialized = False
-            return cls._instance
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(RateLimiterMetrics, cls).__new__(cls)
+                    cls._instance._initialized = False
+        return cls._instance
 
     def __init__(self):
         """Initialize the rate limiter metrics tracker (only once)."""
-        if self._initialized:
-            return
+        # Move _initialized check inside lock to prevent TOCTOU race condition
+        with self._lock:
+            if self._initialized:
+                return
 
-        # Per-key metrics storage
-        self._key_metrics: dict[str, KeyMetrics] = {}
-        self._key_metrics_lock = threading.Lock()
+            # Per-key metrics storage
+            self._key_metrics: dict[str, KeyMetrics] = {}
+            self._key_metrics_lock = threading.Lock()
 
-        # Tier-level aggregation
-        self._tier_assignments: dict[str, str] = {}  # api_key -> tier
+            # Tier-level aggregation
+            self._tier_assignments: dict[str, str] = {}  # api_key -> tier
 
-        # Throttle events for analytics (last 1000 events)
-        self._throttle_history: deque[ThrottleEvent] = deque(maxlen=1000)
-        self._throttle_lock = threading.Lock()
+            # Throttle events for analytics (last 1000 events)
+            self._throttle_history: deque[ThrottleEvent] = deque(maxlen=1000)
+            self._throttle_lock = threading.Lock()
 
-        # Time-series data for burst detection
-        self._request_timestamps: dict[str, deque] = defaultdict(
-            lambda: deque(maxlen=100)
-        )  # api_key -> recent timestamps
+            # Time-series data for burst detection
+            self._request_timestamps: dict[str, deque] = defaultdict(
+                lambda: deque(maxlen=100)
+            )  # api_key -> recent timestamps
 
-        # Quota utilization tracking (per-tier averages)
-        self._tier_utilization: dict[str, dict[str, float]] = defaultdict(
-            lambda: {"rpm_avg": 0.0, "tpm_avg": 0.0, "count": 0}
-        )
+            # Quota utilization tracking (per-tier averages)
+            self._tier_utilization: dict[str, dict[str, float]] = defaultdict(
+                lambda: {"rpm_avg": 0.0, "tpm_avg": 0.0, "count": 0}
+            )
 
-        # Abuse pattern detection thresholds
-        self._abuse_thresholds = {
-            "high_throttle_rate": 0.5,  # >50% throttled requests
-            "excessive_retries": 10,  # >10 retries in 60 seconds
-            "burst_threshold": 20,  # >20 requests in 1 second
-            "quota_exhaustion_rate": 0.95,  # >95% quota consumed
-        }
+            # Abuse pattern detection thresholds
+            self._abuse_thresholds = {
+                "high_throttle_rate": 0.5,  # >50% throttled requests
+                "excessive_retries": 10,  # >10 retries in 60 seconds
+                "burst_threshold": 20,  # >20 requests in 1 second
+                "quota_exhaustion_rate": 0.95,  # >95% quota consumed
+            }
 
-        # Statistics windows (numpy-based for efficiency)
-        self._window_size = 60.0  # 60 second window
-        self._throttle_durations = np.array([], dtype=np.float64)
-        self._throttle_timestamps = np.array([], dtype=np.float64)
+            # Statistics windows (numpy-based for efficiency)
+            self._window_size = 60.0  # 60 second window
+            self._throttle_durations = np.array([], dtype=np.float64)
+            self._throttle_timestamps = np.array([], dtype=np.float64)
 
-        self._initialized = True
-        logger.info("Rate limiter metrics initialized")
+            self._initialized = True
+            logger.info("Rate limiter metrics initialized")
 
     def assign_tier(self, api_key: str, tier: str) -> None:
         """
@@ -140,13 +143,18 @@ class RateLimiterMetrics:
         with self._key_metrics_lock:
             self._tier_assignments[api_key] = tier
             if api_key not in self._key_metrics:
-                self._key_metrics[api_key] = KeyMetrics(api_key=api_key, tier=tier)
+                self._key_metrics[api_key] = KeyMetrics(
+                    api_key=api_key, tier=tier)
             else:
                 self._key_metrics[api_key].tier = tier
 
     def record_request_attempt(
-        self, api_key: str, allowed: bool, tokens: int, rpm_limit: int, tpm_limit: int
-    ) -> None:
+            self,
+            api_key: str,
+            allowed: bool,
+            tokens: int,
+            rpm_limit: int,
+            tpm_limit: int) -> None:
         """
         Record a rate limit check.
 
@@ -163,7 +171,8 @@ class RateLimiterMetrics:
             # Ensure key metrics exist
             if api_key not in self._key_metrics:
                 tier = self._tier_assignments.get(api_key, "unknown")
-                self._key_metrics[api_key] = KeyMetrics(api_key=api_key, tier=tier)
+                self._key_metrics[api_key] = KeyMetrics(
+                    api_key=api_key, tier=tier)
 
             metrics = self._key_metrics[api_key]
 
@@ -252,12 +261,13 @@ class RateLimiterMetrics:
             )
             self._throttle_history.append(throttle_event)
 
-            # Update numpy arrays for efficient analytics
-            self._throttle_durations = np.append(
-                self._throttle_durations, retry_after_ms
+            # Update numpy arrays for efficient analytics (use np.concatenate
+            # for better performance)
+            self._throttle_durations = np.concatenate(
+                [self._throttle_durations, [retry_after_ms]]
             )
-            self._throttle_timestamps = np.append(
-                self._throttle_timestamps, current_time
+            self._throttle_timestamps = np.concatenate(
+                [self._throttle_timestamps, [current_time]]
             )
 
             # Cleanup old data
@@ -440,16 +450,16 @@ class RateLimiterMetrics:
             for tier, data in tier_data.items():
                 if data["total_requests_attempted"] > 0:
                     data["avg_throttle_rate"] = (
-                        data["total_requests_throttled"]
-                        / data["total_requests_attempted"]
+                        data["total_requests_throttled"] /
+                        data["total_requests_attempted"]
                     )
                 else:
                     data["avg_throttle_rate"] = 0.0
 
                 # Add upgrade opportunity detection
                 data["upgrade_opportunities"] = (
-                    data["keys_with_high_throttle"] + data["keys_with_exhaustion"]
-                )
+                    data["keys_with_high_throttle"] +
+                    data["keys_with_exhaustion"])
 
             return dict(tier_data)
 
@@ -543,8 +553,9 @@ class RateLimiterMetrics:
                 )
                 if throttle_rate > self._abuse_thresholds["high_throttle_rate"]:
                     issues.append(
-                        f"High throttle rate: {throttle_rate:.1%} (threshold: {self._abuse_thresholds['high_throttle_rate']:.1%})"
-                    )
+                        f"High throttle rate: {
+                            throttle_rate:.1%} (threshold: {
+                            self._abuse_thresholds['high_throttle_rate']:.1%})")
 
                 # Check excessive retries (in last 60 seconds)
                 recent_retries = sum(
@@ -554,14 +565,15 @@ class RateLimiterMetrics:
                 )
                 if recent_retries > self._abuse_thresholds["excessive_retries"]:
                     issues.append(
-                        f"Excessive retries: {recent_retries} in last 60s (threshold: {self._abuse_thresholds['excessive_retries']})"
-                    )
+                        f"Excessive retries: {recent_retries} in last 60s (threshold: {
+                            self._abuse_thresholds['excessive_retries']})")
 
                 # Check burst behavior
                 if metrics.burst_requests > self._abuse_thresholds["burst_threshold"]:
                     issues.append(
-                        f"Burst behavior: {metrics.burst_requests} requests/sec (threshold: {self._abuse_thresholds['burst_threshold']})"
-                    )
+                        f"Burst behavior: {
+                            metrics.burst_requests} requests/sec (threshold: {
+                            self._abuse_thresholds['burst_threshold']})")
 
                 # Check quota exhaustion pattern
                 if metrics.quota_snapshots:
@@ -570,14 +582,16 @@ class RateLimiterMetrics:
                         for _, rpm_remaining, tpm_remaining in metrics.quota_snapshots
                         if rpm_remaining == 0 or tpm_remaining < 100
                     )
-                    exhaustion_rate = exhaustion_count / len(metrics.quota_snapshots)
+                    exhaustion_rate = exhaustion_count / \
+                        len(metrics.quota_snapshots)
                     if (
-                        exhaustion_rate
-                        > self._abuse_thresholds["quota_exhaustion_rate"]
+                        exhaustion_rate >
+                        self._abuse_thresholds["quota_exhaustion_rate"]
                     ):
                         issues.append(
-                            f"Frequent quota exhaustion: {exhaustion_rate:.1%} of samples (threshold: {self._abuse_thresholds['quota_exhaustion_rate']:.1%})"
-                        )
+                            f"Frequent quota exhaustion: {
+                                exhaustion_rate:.1%} of samples (threshold: {
+                                self._abuse_thresholds['quota_exhaustion_rate']:.1%})")
 
                 if issues:
                     patterns.append(
